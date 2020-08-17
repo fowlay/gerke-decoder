@@ -4,10 +4,10 @@ A decoder that translates Morse code audio to text.
 
 ## Dependencies
 
-Cygwin
-Oracle Java JDK 1.8 version 202
-Gnu 'make'
-gnuplot
+- Cygwin
+- Oracle Java JDK 1.8 version 202
+- Gnu 'make'
+- gnuplot
 
 Other shell environments than Cygwin may be usable also. Other Java
 versions may be usable also. The 'gnuplot' program is only needed with
