@@ -21,14 +21,14 @@ gerke-decoder.jar: \
     classes/st/foglo/gerke_decoder/GerkeDecoder.class
 	jar cfe gerke-decoder.jar st.foglo.gerke_decoder.GerkeDecoder -C classes .
 
-classes/st/foglo/gerke_decoder/GerkeLib.class: src/GerkeLib.java
+classes/st/foglo/gerke_decoder/GerkeLib.class: src/st/foglo/gerke_decoder/GerkeLib.java
 	mkdir -p classes
-	javac -d classes src/GerkeLib.java
+	javac -d classes src/st/foglo/gerke_decoder/GerkeLib.java
 
-classes/st/foglo/gerke_decoder/GerkeDecoder.class: src/GerkeDecoder.java \
+classes/st/foglo/gerke_decoder/GerkeDecoder.class: src/st/foglo/gerke_decoder/GerkeDecoder.java \
     classes/st/foglo/gerke_decoder/GerkeLib.class
 	mkdir -p classes
-	javac -d classes -classpath classes src/GerkeDecoder.java
+	javac -d classes -classpath classes src/st/foglo/gerke_decoder/GerkeDecoder.java
 
 .PHONY: clean
 clean:
