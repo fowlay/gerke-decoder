@@ -35,9 +35,9 @@ import javax.sound.sampled.AudioSystem;
 import st.foglo.gerke_decoder.GerkeLib.*;
 
 public final class GerkeDecoder {
-	
+
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.4");
+		new VersionOption("V", "version", "gerke-decoder version 1.5");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -48,8 +48,9 @@ public final class GerkeDecoder {
 		new SingleValueOption("u", "level", "1.0");
 		
 		new SingleValueOption("X", "detpar", "0.127,0.8");
-
+		
 		new Flag("P", "plot");
+		new Flag("Q", "phase-plot");
 		
 		new SteppingOption("v", "verbose");
 		new HelpOption(
@@ -66,6 +67,7 @@ new String[]{
 		String.format("  -L LENGTH       length (in seconds)"),
 		String.format("  -X TS,WIN       detection parameters, default: %s", GerkeLib.getDefault("detpar")),
 		String.format("  -P              Generate signal plot (requires gnuplot)"),
+		String.format("  -Q              Generate phase angle plot (requires gnuplot)"),
 		String.format("  -v              verbosity (may be given several times)"),
 		String.format("  -V              show version"),
 		String.format("  -h              this help"),
@@ -221,72 +223,6 @@ new String[]{
 		new Node(null, "...---..");
 		new Node("<SOS>", "...---...");
 	}
-	
-//	/**
-//	 * Returns an integer that is close to (and greater than) the intended
-//	 * number of time slices per second. The returned value is also a
-//	 * divisor of the frame rate.
-//	 * 
-//	 * @param slicesPerTu
-//	 * @param tuMillis
-//	 * @param frameRate
-//	 * @return
-//	 */
-//	private static int frac(int slicesPerTu, double tuMillis, int frameRate) {
-//		final SortedSet<Integer> s = new TreeSet<Integer>();
-//		if (frameRate == 44100) {
-//			for (int i = 1; i <= 2; i += (2-1)) {
-//				for (int j = 1; j <= 3; j += (3-1)) {
-//					for (int k = 1; k <= 3; k += (3-1)) {
-//						for (int m = 1; m <= 5; m += (5-1)) {
-//							for (int n = 1; n <= 5; n += (5-1)) {
-//								for (int o = 1; o <= 7; o += (7-1)) {
-//									for (int p = 1; p <= 7; p += (7-1)) {
-//										s.add(new Integer(i*j*k*m*n*o*p));
-//									}
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//		else if (frameRate == 12000) {
-//			for (int i = 1; i <= 2; i += (2-1)) {
-//				for (int j = 1; j <= 2; j += (2-1)) {
-//					for (int k = 1; k <= 2; k += (2-1)) {
-//						for (int m = 1; m <= 2; m += (2-1)) {
-//							for (int n = 1; n <= 3; n += (3-1)) {
-//								for (int o = 1; o <= 5; o += (5-1)) {
-//									for (int p = 1; p <= 5; p += (5-1)) {
-//										for (int q = 1; p <= 5; p += (5-1)) {
-//											s.add(new Integer(i*j*k*m*n*o*p*q));
-//										}
-//									}
-//								}
-//							}
-//						}
-//					}
-//				}
-//			}
-//		}
-//		else if (frameRate == 16384) {
-//			for (int j = 2; j <= 8192; j *= 2) {
-//				s.add(new Integer(j));
-//			}
-//		}
-//		else {
-//			new Death("cannot handle frame rate: %d", frameRate);
-//		}
-//		
-//		for (Integer u : s) {
-//			if (Double.valueOf(u.intValue()) > slicesPerTu*1000/tuMillis) {
-//				return u.intValue();
-//			}
-//		}
-//		new Death("no frac for tu: %e ms", tuMillis);
-//		return -1;
-//	}
 
 	private static String encodeLetter(int i) {
 		return new String(new int[]{i}, 0, 1);
@@ -367,6 +303,111 @@ new String[]{
 				b.append(String.format("%02x", by[i] < 0 ? by[i]+256 : by[i]));
 			}
 			return b.toString();
+		}
+		
+		void flush() {
+			if (sb.length() > 0) {
+				add(true, "");
+			}
+		}
+	}
+	
+	
+	static class PlotCollector {
+		String fileName;
+		String fileNameWin;
+		PrintStream ps;
+		
+		public PlotCollector() throws IOException {
+
+			fileName = makeTempFile();
+			fileNameWin = isWindows() ? toWindows(fileName) : null;
+			this.ps = new PrintStream(
+					new File(fileNameWin != null ? fileNameWin : fileName));
+		}
+		
+		void plot(String renderMode, int nofCurves) throws IOException, InterruptedException {
+			ps.close();
+			doGnuplot(fileName, nofCurves, renderMode);
+			Files.delete(
+					(new File(fileNameWin != null ? fileNameWin : fileName)).toPath());
+		}
+		
+		/**
+		 * Invoke Gnuplot
+		 * 
+		 * @param tempFileName
+		 * @param nofCurves
+		 * @param renderMode   "lines"|"points"
+		 * @throws IOException
+		 * @throws InterruptedException
+		 */
+		void doGnuplot(
+				String tempFileName,
+				int nofCurves,
+				String renderMode) throws IOException, InterruptedException {
+			final ProcessBuilder pb =
+					new ProcessBuilder(
+							isWindows() ? "gnuplot-X11" : "gnuplot",
+							"--persist",
+							"-e",
+							"set term x11 size 1400 200",
+							"-e",
+							nofCurves == 2 ? 
+									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s",
+											tempFileName,
+											renderMode,
+											tempFileName,
+											renderMode) :
+									String.format("plot '%s' using 1:2 with %s",
+											tempFileName,
+											renderMode)
+							);
+			pb.inheritIO();
+			final Process pr = pb.start();
+			final int exitCode = pr.waitFor();
+			new Debug("gnuplot exited with code: %d", exitCode);
+		}
+		
+		String toWindows(String tempFileName) throws IOException {
+			final ProcessBuilder pb = new ProcessBuilder("cygpath", "-w", tempFileName);
+			final Process pr = pb.start();
+			final InputStream is = pr.getInputStream();
+			for (StringBuilder sb = new StringBuilder(); true; ) {
+				final int by = is.read();
+				if (by == -1) {
+					return sb.toString();
+				}
+				else {
+					final char c = (char)by;
+					if (c != '\r' && c != '\n') {
+						sb.append(c);
+					}
+				}
+			}
+		}
+		
+
+		String makeTempFile() throws IOException {
+			final ProcessBuilder pb = new ProcessBuilder("mktemp");
+			final Process pr = pb.start();
+			final InputStream is = pr.getInputStream();
+			for (StringBuilder sb = new StringBuilder(); true; ) {
+				final int by = is.read();
+				if (by == -1) {
+					return sb.toString();
+				}
+				else {
+					final char c = (char)by;
+					if (c != '\r' && c != '\n') {
+						sb.append(c);
+					}
+				}
+			}
+		}
+
+		boolean isWindows() {
+			return System.getProperty("os.name").startsWith("Windows");
 		}
 	}
 	
@@ -545,6 +586,10 @@ new String[]{
 			new Debug("signal average: %f", saRaw);
 			final double sa = signalAverage(fBest, frameRate, framesPerSlice, clipLevel);
 			new Debug("signal average clipped: %f", sa);
+			
+			// hardcoded PARAMETER 50
+			final int histWidth = (int)(50*tuMillis/(1000.0*framesPerSlice/frameRate));
+			new Debug("histogram half-width (nof. slices): %d", histWidth);
 
 			// using the frequency, and a time slice, and a frame time, 
 			// draw silent/tone
@@ -552,8 +597,8 @@ new String[]{
 			final double[] sines = new double[framesPerSlice];
 			final double[] coses = new double[framesPerSlice];
 			for (int j = 0; j < framesPerSlice; j++) {
-				sines[j] = Math.sin(2*Math.PI*fBest*j*1/frameRate);
-				coses[j] = Math.cos(2*Math.PI*fBest*j*1/frameRate);
+				sines[j] = Math.sin(2*Math.PI*fBest*j/frameRate);
+				coses[j] = Math.cos(2*Math.PI*fBest*j/frameRate);
 			}
 
 			boolean tone = false;
@@ -576,51 +621,65 @@ new String[]{
 			int timeCharSpaceAcc = 0;
 			int timeWordSpaceAcc = 0;
 
-			// compute an array holding amplitude per time slice.
-			// this array is much smaller than the frames array.
-
-			wavReset();
+			
+			// compute an array holding amplitude per time slice
 			final double[] sig = new double[nofFrames/framesPerSlice];
+			final double[] cosSum = new double[nofFrames/framesPerSlice];
+			final double[] sinSum = new double[nofFrames/framesPerSlice];
+			final double[] wphi = new double[nofFrames/framesPerSlice];
+			
+			wavReset();			
 			for (int q = 0; true; q++) {
 				
 				final int sRead = wavRead(shorts, 0, framesPerSlice);
 				if (sRead < framesPerSlice) {
-					// assume end of stream
 					break;
 				}
+
+				final double seconds =
+						(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
 				
+				double angleOffset = fBest*2*Math.PI*seconds;  
 				double sinAcc = 0.0;
 				double cosAcc = 0.0;
 				final int frames = framesPerSlice;
-				for (int j = 0; j < frames; j++) {                    // for each frame
-					// j is frame index, now get frame amplitudes
+				for (int j = 0; j < frames; j++) {
+					// j is frame index
 					final int ampRaw = shorts[j];
-					final int amp = ampRaw < 0 ? Math.max(-clipLevel, ampRaw) : Math.min(clipLevel, ampRaw);
-					sinAcc += sines[j]*amp;
-					cosAcc += coses[j]*amp;
+					final int amp = ampRaw < 0 ?
+							Math.max(-clipLevel, ampRaw) :
+								Math.min(clipLevel, ampRaw);
+
+					sinAcc += Math.sin(angleOffset + 2*Math.PI*fBest*j/frameRate)*amp;
+					cosAcc += Math.cos(angleOffset + 2*Math.PI*fBest*j/frameRate)*amp;
 				}
 
 				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/frames;
+				
+				cosSum[q] = cosAcc;
+				sinSum[q] = sinAcc;
 			}
 			
-			String tempFileName = null;
-			String tempFileNameJava = null;
-			PrintStream plos = null;
-
-			if (GerkeLib.getFlag("plot")) {
-				// generate a temporary file
-				tempFileName = makeTempFile();
-				new Info("temp file: %s", tempFileName);
-
-				if (isWindows()) {
-					tempFileNameJava = toWindows(tempFileName);
-					new Info("windows path: %s", tempFileNameJava);
-					plos = new PrintStream(new File(tempFileNameJava));
-				}
-				else {
-					plos = new PrintStream(new File(tempFileName));
-				}
+			for (int q = 0; q < wphi.length; q++) {
+				// compute per-timeslice phase
+				wphi[q] = wphi(q, cosSum, sinSum, sig, level, histWidth);
 			}
+
+			if (GerkeLib.getFlag("phase-plot")) {
+				PlotCollector pcPhase = new PlotCollector();
+				for (int q = 0; q < wphi.length; q++) {
+					final double seconds =
+							(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
+					final double phase = wphi[q];
+					if (phase != 0.0) {
+						pcPhase.ps.println(String.format("%f %f", seconds, phase));
+					}
+				}
+				pcPhase.plot("points", 1);
+			}
+
+			PlotCollector pcSignal =
+					GerkeLib.getFlag("plot") ? new PlotCollector() : null;
 
 			int lastTransition = -((int) spikeLimit);
 			
@@ -636,21 +695,27 @@ new String[]{
 
 				nFrames += framesPerSlice;    // current time is (nFrames*1000.0/frameRate) ms
 
-				amps[ampIndex] = sig[q];
-				ampIndex = (ampIndex + 1) % amps.length;
+				// insert new value to sliding window
+				amps[ampIndex % amps.length] = sig[q];
+				ampIndex++;
 
-				double rAve = amps[0];
-				for (int k = 1; k < amps.length; k++) {
+				// compute average
+				double rAve = 0.0;
+				int nofEntries = 0;
+				for (int k = 0; k < Math.min(amps.length, ampIndex); k++) {
 					rAve += amps[k];
+					nofEntries++;
 				}
-				rAve = rAve/amps.length;
+				rAve = rAve/nofEntries;
+
+				// hard-coded PARAMETER 0.66
+				final double threshold = level*0.66*localAmpByHist(q, sig, histWidth);
+				final boolean newTone = rAve > threshold;
 				
-				final double thresh = 0.66*level*localAmpByHist(q, sig);    // hard-coded PARAMETER 0.66
-				final boolean newTone = rAve > thresh;
-				
-				if (GerkeLib.getFlag("plot")) {
-					final double seconds = offsetFrames*(1.0/frameRate) + ((double)q)*framesPerSlice/frameRate;
-					plos.println(String.format("%f %f %f", seconds, rAve, thresh));
+				if (pcSignal != null) {
+					final double seconds =
+							(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
+					pcSignal.ps.println(String.format("%f %f %f", seconds, rAve, threshold));
 				}
 				
 				
@@ -745,28 +810,16 @@ new String[]{
 				word.newLine();
 			} 
 			else if (p == tree && word.getPos() > 0) {
+				word.flush();
 				word.newLine();
 			}
 			
 			new Info("MD5 digest: %s", word.getDigest());
 
-			if (GerkeLib.getFlag("plot")) {
-				// close the file
-				plos.close();
-				
-				// create the plot
-				doGnuplot(tempFileName);
-				
-				// remove the file
-				if (isWindows()) {
-					Files.delete((new File(tempFileNameJava)).toPath());
-				}
-				else {
-					Files.delete((new File(tempFileName)).toPath());
-				}
+			if (pcSignal != null) {
+				pcSignal.plot("lines", 2);
 			}
-			
-			
+
 			final double tuEffMillisActual =
 					(timeCharAcc + timeCharSpaceAcc + timeWordSpaceAcc)*(1000.0/frameRate)/(tuCharAcc + tuCharSpaceAcc + tuWordSpaceAcc);
 			
@@ -782,6 +835,41 @@ new String[]{
 		}
 		catch (Exception e) {
 			new Death(e);
+		}
+	}
+
+	/**
+	 * Weighted computation of phase angle. Returns 0.0 if there is no tone.
+	 * 
+	 * @param k
+	 * @param x
+	 * @param y
+	 * @param sig
+	 * @return
+	 */
+	private static double wphi(int k, double[] x, double[] y, double[] sig, double level, int histWidth) {
+		
+		final int len = sig.length;
+		final int width = 7;
+		
+		double sumx = 0.0;
+		double sumy = 0.0;
+		double ampAve = 0.0;
+		int m = 0;
+		for (int j = Math.max(0, k-width); j <= Math.min(len-1, k+width); j++) {
+			final double amp = sig[j];
+			ampAve += amp;
+			m++;
+			sumx += amp*amp*x[j];
+			sumy += amp*amp*y[j];
+		}
+		ampAve = ampAve/m;
+		
+		if (ampAve < 0.66*level*localAmpByHist(k, sig, histWidth)) {
+			return 0.0;
+		}
+		else {
+			return Math.atan2(sumy, sumx);
 		}
 	}
 
@@ -843,63 +931,8 @@ new String[]{
 		}
 	}
 
-	private static void doGnuplot(String tempFileName) throws IOException, InterruptedException {
-		final ProcessBuilder pb =
-				new ProcessBuilder(
-						isWindows() ? "gnuplot-X11" : "gnuplot",
-						"--persist",
-						"-e",
-						"set term x11 size 1400 200",
-						"-e",
-						String.format("plot '%s' using 1:2 with lines, '%s' using 1:3 with lines",
-								tempFileName,
-								tempFileName)
-						);
-		pb.inheritIO();
-		final Process pr = pb.start();
-		final int exitCode = pr.waitFor();
-		new Debug("gnuplot exited with code: %d", exitCode);
-	}
+	private static double localAmpByHist(int q, double[] sig, int width) {
 
-	private static String toWindows(String tempFileName) throws IOException {
-		final ProcessBuilder pb = new ProcessBuilder("cygpath", "-w", tempFileName);
-		final Process pr = pb.start();
-		final InputStream is = pr.getInputStream();
-		for (StringBuilder sb = new StringBuilder(); true; ) {
-			final int by = is.read();
-			if (by == -1) {
-				return sb.toString();
-			}
-			else {
-				final char c = (char)by;
-				if (c != '\r' && c != '\n') {
-					sb.append(c);
-				}
-			}
-		}
-	}
-
-	private static String makeTempFile() throws IOException {
-		final ProcessBuilder pb = new ProcessBuilder("mktemp");
-		final Process pr = pb.start();
-		final InputStream is = pr.getInputStream();
-		for (StringBuilder sb = new StringBuilder(); true; ) {
-			final int by = is.read();
-			if (by == -1) {
-				return sb.toString();
-			}
-			else {
-				final char c = (char)by;
-				if (c != '\r' && c != '\n') {
-					sb.append(c);
-				}
-			}
-		}
-	}
-
-	private static double localAmpByHist(int q, double[] sig) {
-
-		final int width = 400;              // PARAMETER
 		int q1 = Math.max(q-width, 0);
 		int q2 = Math.min(q+width, sig.length);
 		
@@ -1049,9 +1082,5 @@ new String[]{
 		}
 
 		return rSum/divisor;
-	}
-	
-	private static boolean isWindows() {
-		return System.getProperty("os.name").startsWith("Windows");
 	}
 }

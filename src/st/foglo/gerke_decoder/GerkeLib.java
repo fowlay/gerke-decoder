@@ -273,6 +273,10 @@ public final class GerkeLib {
 			System.exit(1);
 		}
 
+		public Death(String format, String value) {
+			this(String.format(format, value));
+		} 
+		
 		public Death(String format, int value) {
 			this(String.format(format, value));
 		}

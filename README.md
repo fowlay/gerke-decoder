@@ -16,7 +16,8 @@ has been tested; other versions may work also.
 
 ### Optional: Gnuplot
 
-The -P option, for plotting the signal amplitude, invokes the 'gnuplot' program.
+The -P and -Q options, for plotting signal amplitude and phase, invoke
+the 'gnuplot' program.
 
 ### On Windows: Cygwin
 

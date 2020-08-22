@@ -30,6 +30,19 @@ classes/st/foglo/gerke_decoder/GerkeDecoder.class: src/st/foglo/gerke_decoder/Ge
 	mkdir -p classes
 	javac -d classes -classpath classes src/st/foglo/gerke_decoder/GerkeDecoder.java
 
-.PHONY: clean
+.PHONY: clean test
+
 clean:
 	rm -rf gerke-decode.jar classes
+
+.SILENT: test
+
+test: gerke-decoder.jar grimeton-clip.wav
+	[ "$$(java -jar gerke-decoder.jar -v \
+                 grimeton-clip.wav 2>&1 1>/dev/null | \
+                 sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" = 5169e95aa7c5bab8cec39ff913a9cdc1 ] && \
+	echo test successful
+
+grimeton-clip.wav:
+	rm -f $@
+	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
