@@ -38,10 +38,12 @@ clean:
 .SILENT: test
 
 test: gerke-decoder.jar grimeton-clip.wav
-	[ "$$(java -jar gerke-decoder.jar -v \
+	declare expected=aaf583df2fec3bf2c550bcc0a3b2272b && \
+	declare md5="$$(java -jar gerke-decoder.jar -v \
                  grimeton-clip.wav 2>&1 1>/dev/null | \
-                 sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" = 5169e95aa7c5bab8cec39ff913a9cdc1 ] && \
-	echo test successful
+                 sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
+	if [ $$md5 = $$expected ]; then echo test successful; \
+	else echo test failed, expected: $$expected, actual: $$md5; fi
 
 grimeton-clip.wav:
 	rm -f $@

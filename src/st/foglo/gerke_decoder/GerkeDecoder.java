@@ -37,7 +37,7 @@ import st.foglo.gerke_decoder.GerkeLib.*;
 public final class GerkeDecoder {
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.5");
+		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.1");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -411,6 +411,16 @@ new String[]{
 		}
 	}
 	
+	static class Trans {
+		int q;
+		boolean rise;
+
+		public Trans(int q, boolean rise) {
+			this.q = q;
+			this.rise = rise;
+		}
+	}
+
 	public static void main(String[] clArgs) {
 		
 		// Ensure that decimal points (not commas) are used
@@ -575,7 +585,7 @@ new String[]{
 			final long wordSpaceLimit = Math.round(5.1*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long charSpaceLimit = Math.round(1.4*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long twoDashLimit = Math.round(5.0*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
-			final long spikeLimit = Math.round(0.17*tuMillis*frameRate/(1000*framesPerSlice));      // PARAMETER
+			//final long spikeLimit = Math.round(0.17*tuMillis*frameRate/(1000*framesPerSlice));      // PARAMETER
 			
 			final double level = GerkeLib.getDoubleOpt("level");
 
@@ -601,9 +611,7 @@ new String[]{
 				coses[j] = Math.cos(2*Math.PI*fBest*j/frameRate);
 			}
 
-			boolean tone = false;
-			int dashSize = 0;
-			int silenceSize = 0;
+
 			final double[] amps = new double[windowSize];
 			int ampIndex = 0;
 			Node p = tree;
@@ -650,8 +658,9 @@ new String[]{
 							Math.max(-clipLevel, ampRaw) :
 								Math.min(clipLevel, ampRaw);
 
-					sinAcc += Math.sin(angleOffset + 2*Math.PI*fBest*j/frameRate)*amp;
-					cosAcc += Math.cos(angleOffset + 2*Math.PI*fBest*j/frameRate)*amp;
+					final double angle = angleOffset + 2*Math.PI*fBest*j/frameRate;
+					sinAcc += Math.signum(Math.sin(angle))*amp;
+					cosAcc += Math.signum(Math.cos(angle))*amp;
 				}
 
 				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/frames;
@@ -681,20 +690,17 @@ new String[]{
 			PlotCollector pcSignal =
 					GerkeLib.getFlag("plot") ? new PlotCollector() : null;
 
-			int lastTransition = -((int) spikeLimit);
-			
-			final Formatter word = new Formatter();
 			wavReset();
+			final Trans[] trans = new Trans[nofFrames/framesPerSlice];
+			int transIndex = 0;
+			boolean tone = false;
 			for (int q = 0; true; q++) {
-				
 				final int sRead = wavRead(shorts, 0, framesPerSlice);
 				if (sRead < framesPerSlice) {
 					// assume end of stream, drop the very final time slice
 					break;
 				}
-
-				nFrames += framesPerSlice;    // current time is (nFrames*1000.0/frameRate) ms
-
+				
 				// insert new value to sliding window
 				amps[ampIndex % amps.length] = sig[q];
 				ampIndex++;
@@ -707,9 +713,9 @@ new String[]{
 					nofEntries++;
 				}
 				rAve = rAve/nofEntries;
-
-				// hard-coded PARAMETER 0.66
-				final double threshold = level*0.66*localAmpByHist(q, sig, histWidth);
+				
+				// hard-coded PARAMETER 0.634, duplicated below
+				final double threshold = level*0.634*localAmpByHist(q, sig, histWidth);
 				final boolean newTone = rAve > threshold;
 				
 				if (pcSignal != null) {
@@ -718,16 +724,96 @@ new String[]{
 					pcSignal.ps.println(String.format("%f %f %f", seconds, rAve, threshold));
 				}
 				
+				if (newTone && !tone) {
+					trans[transIndex] = new Trans(q, true);
+					transIndex++;
+					tone = true;
+				}
+				else if (!newTone && tone) {
+					trans[transIndex] = new Trans(q, false);
+					transIndex++;
+					tone = false;
+				}
+			}
+			
+			// identify and eliminate triplets
+			// hardcoded PARAMETER 0.3
+			final int tripletLimit = (int)Math.round(0.5/tsLength);
+			int tripletCount = 0;
+			
+			for (int t = 0+1; t < transIndex-1; t++) {
+				if (trans[t-1] != null && trans[t] != null && trans[t+1] != null &&
+						((trans[t-1].rise && !trans[t].rise && trans[t+1].rise) ||
+								(!trans[t-1].rise && trans[t].rise && !trans[t+1].rise)) &&
+						trans[t+1].q - trans[t-1].q <= tripletLimit) {
+					new Debug("triplet at: %d, width: %d", t, trans[t+1].q - trans[t-1].q);
+					trans[t-1] = null;
+					trans[t].rise = !trans[t].rise;
+					trans[t+1] = null;
+					tripletCount++;
+				}
+			}
+			new Debug("triplet limit: %d", tripletLimit);
+			new Debug("nof. triplets: %d", tripletCount);
+			
+			// compact the trans[] array
+			int tt = 0;  // TODO, this variable is used in more than one loop
+			for (int t = 0; t < transIndex; t++) {
+				if (trans[t] != null) {
+					trans[tt] = trans[t];
+					tt++;
+				}
+			}
+			transIndex = tt;
+			
+			// identify and eliminate doublets
+			// a too wide doublet limit causes dashes to break into two dots
+			// maybe apply a wider limit for positive spikes and a narrow one
+			// for negative amplitude drops
+			final int doubletLimit = (int)Math.round(0.30/tsLength);
+			int doubletCount = 0;
+			for (int t = 0+1; t < transIndex; t++) {
 				
-				if (!tone && !newTone) {
-					silenceSize++;
+				if (trans[t-1] != null && trans[t] != null &&
+						((trans[t-1].rise && !trans[t].rise) ||
+								(!trans[t-1].rise && trans[t].rise)) &&
+						trans[t].q - trans[t-1].q <= doubletLimit) {
+					new Debug("doublet at: %d, width: %d", t, trans[t].q - trans[t-1].q);
+					trans[t-1] = null;
+					trans[t] = null;
+					doubletCount++;
 				}
-				else if (tone && newTone) {
-					dashSize++;
+			}
+			new Debug("doublet limit: %d", doubletLimit);
+			new Debug("nof. doublets: %d", doubletCount);
+			
+			// once again compact the trans[] array
+			tt = 0;
+			for (int t = 0; t < transIndex; t++) {
+				if (trans[t] != null) {
+					trans[tt] = trans[t];
+					tt++;
 				}
-				else if (!tone && newTone && q - lastTransition > spikeLimit) {
+			}
+			transIndex = tt;
+			
+			
+			final Formatter word = new Formatter();
+			wavReset();
+			ampIndex = 0;
+			nFrames = 0;
+			tone = false;
+			for (int t = 0; t < transIndex; t++) {
+
+				nFrames += framesPerSlice;    // current time is (nFrames*1000.0/frameRate) ms
+
+				final boolean newTone = trans[t].rise;
+
+				
+				if (!tone && newTone) {
 					// silent -> tone
-					lastTransition = q;
+					final int silenceSize = t == 0 ? 99999 : trans[t].q - trans[t-1].q;
+					//lastTransition = q;
 					if (silenceSize > wordSpaceLimit) {
 						// TODO, refactor, lots of duplication
 
@@ -766,11 +852,11 @@ new String[]{
 						p = tree;
 						charStart = nFrames;
 					}
-					dashSize = 1;
 				}
-				else if (tone && !newTone && q - lastTransition > spikeLimit) {
+				else if (tone && !newTone) {
 					// tone -> silent
-					lastTransition = q;
+					//lastTransition = q;
+					final int dashSize = trans[t].q - trans[t-1].q;
 					if (dashSize > twoDashLimit) {
 						if (p.dash == null) {
 							final String newCode = p.code + "-";
@@ -799,11 +885,136 @@ new String[]{
 						}
 						p = p.dot;
 					}
-					lastToneToSilent = nFrames;
-					silenceSize = 0;
 				}
 				tone = newTone;
 			}
+			
+			
+			
+//			final Formatter word = new Formatter();
+//			wavReset();
+//			ampIndex = 0;
+//			nFrames = 0;
+//			tone = false;
+//			for (int q = 0; true; q++) {
+//				
+//				final int sRead = wavRead(shorts, 0, framesPerSlice);
+//				if (sRead < framesPerSlice) {
+//					// assume end of stream, drop the very final time slice
+//					break;
+//				}
+//
+//				nFrames += framesPerSlice;    // current time is (nFrames*1000.0/frameRate) ms
+//
+//				// insert new value to sliding window
+//				amps[ampIndex % amps.length] = sig[q];
+//				ampIndex++;
+//
+//				// compute average
+//				double rAve = 0.0;
+//				int nofEntries = 0;
+//				for (int k = 0; k < Math.min(amps.length, ampIndex); k++) {
+//					rAve += amps[k];
+//					nofEntries++;
+//				}
+//				rAve = rAve/nofEntries;
+//
+//				// hard-coded PARAMETER 0.634
+//				final double threshold = level*0.634*localAmpByHist(q, sig, histWidth);
+//				final boolean newTone = rAve > threshold;
+//				
+//				if (pcSignal != null) {
+//					final double seconds =
+//							(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
+//					pcSignal.ps.println(String.format("%f %f %f", seconds, rAve, threshold));
+//				}
+//				
+//				
+//				if (!tone && !newTone) {
+//					silenceSize++;
+//				}
+//				else if (tone && newTone) {
+//					dashSize++;
+//				}
+//				else if (!tone && newTone && q - lastTransition > spikeLimit) {
+//					// silent -> tone
+//					lastTransition = q;
+//					if (silenceSize > wordSpaceLimit) {
+//						// TODO, refactor, lots of duplication
+//
+//						if (charStart != -1) {
+//							word.add(true, p.text);
+//						}
+//						
+//						if (charStart != -1) {
+//							timeWordSpaceAcc += lastToneToSilent - charStart;
+//							tuCharAcc += p.nTus;
+//							
+//							tuWordSpaceAcc += 7;
+//							timeWordSpaceAcc += nFrames - lastToneToSilent;
+//							
+//							charStart = nFrames;
+//						}
+//						
+//						p = tree;
+//						charStart = nFrames;
+//					}
+//					else if (silenceSize > charSpaceLimit) {
+//						if (charStart != -1) {
+//							word.add(false, p.text);
+//						}
+//						
+//						if (charStart != -1) {
+//							timeCharSpaceAcc += lastToneToSilent - charStart;
+//							tuCharAcc += p.nTus;
+//							
+//							tuCharSpaceAcc += 3;
+//							timeCharSpaceAcc += nFrames - lastToneToSilent;
+//							
+//							charStart = nFrames;
+//						}
+//
+//						p = tree;
+//						charStart = nFrames;
+//					}
+//					dashSize = 1;
+//				}
+//				else if (tone && !newTone && q - lastTransition > spikeLimit) {
+//					// tone -> silent
+//					lastTransition = q;
+//					if (dashSize > twoDashLimit) {
+//						if (p.dash == null) {
+//							final String newCode = p.code + "-";
+//							p.dash = new Node(null, newCode);
+//						}
+//						p = p.dash;
+//						
+//						if (p.dash == null) {
+//							final String newCode = p.code + "-";
+//							p.dash = new Node(null, newCode);
+//						}
+//						p = p.dash;
+//					}
+//					else if (dashSize > dashLimit) {
+//						if (p.dash == null) {
+//							final String newCode = p.code + "-";
+//							p.dash = new Node(null, newCode);
+//						}
+//						p = p.dash;
+//					}
+//					else {
+//						
+//						if (p.dot == null) {
+//							final String newCode = p.code + ".";
+//							p.dot = new Node(null, newCode);
+//						}
+//						p = p.dot;
+//					}
+//					lastToneToSilent = nFrames;
+//					silenceSize = 0;
+//				}
+//				tone = newTone;
+//			}
 
 			if (p != tree) {
 				word.add(true, p.text);
@@ -923,7 +1134,8 @@ new String[]{
 		new Info("clipLevel: %d", GerkeLib.getIntOpt("clip"));
 		new Info("level: %f", GerkeLib.getDoubleOpt("level"));
 		new Info("detection parameters: %s", GerkeLib.getOpt("detpar"));
-		new Info("plot: %b", GerkeLib.getFlag("plot"));
+		new Info("signal plot: %b", GerkeLib.getFlag("plot"));
+		new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
 		new Info("verbose: %d", GerkeLib.getIntOpt("verbose"));
 		
 		for (int k = 0; k < GerkeLib.nofArguments(); k++) {
@@ -951,6 +1163,7 @@ new String[]{
 		
 		// remove the low-amp counts
 		// TODO, consider removing more than 50%
+		// hardcoded PARAMETER 2
 		int count = (q2-q1)/2;
 		for (int k = 0; k < 100; k++) {
 			final int decr = Math.min(hist[k], count);
@@ -959,7 +1172,6 @@ new String[]{
 		}
 		
 		// now produce a weighted average
-		
 		int sumCount = 0;
 		double sumAmp = 0.0;
 		
@@ -969,7 +1181,6 @@ new String[]{
 		}
 		
 		return sumAmp/sumCount;
-		
 	}
 
 	private static double r2Sum(int f, int frameRate, int framesPerSlice, short[] shorts) {
@@ -1002,7 +1213,12 @@ new String[]{
 
 	private static int getClipLevel(int f, int frameRate, int framesPerSlice) {
 		
-		final double clipStrength = 0.02;
+		// hardcoded PARAMETER 0.025
+		final double clipStrength = 0.05;
+		
+		// hardcoded PARAMETER 0.005
+		// smaller value means more iterations required
+		final double delta = 0.005*(1.0 - clipStrength);
 		
 		final double uNoClip = signalAverage(f, frameRate, framesPerSlice, Short.MAX_VALUE);
 		new Debug("clip level: %d, signal: %f", Short.MAX_VALUE, uNoClip);
@@ -1020,7 +1236,7 @@ new String[]{
 			double uNew = signalAverage(f, frameRate, framesPerSlice, midpoint);
 			new Debug("clip level: %d, signal: %f", midpoint, uNew);
 			
-			if ((1 - clipStrength)*uNoClip > uNew && uNew > (1 - 2*clipStrength)*uNoClip) {
+			if ((1 - clipStrength)*uNoClip > uNew && uNew > (1 - clipStrength - delta)*uNoClip) {
 				new Debug("using clip level: %d", midpoint);
 				return midpoint;
 			}
