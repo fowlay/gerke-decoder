@@ -37,7 +37,7 @@ import st.foglo.gerke_decoder.GerkeLib.*;
 public final class GerkeDecoder {
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.2");
+		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.3");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -648,9 +648,13 @@ new String[]{
 			final double[] sinSum = new double[nofFrames/framesPerSlice];
 			final double[] wphi = new double[nofFrames/framesPerSlice];
 			
-			wavReset();
+			final boolean phasePlot = GerkeLib.getFlag("phase-plot");
 			
-			final TrigTable trigTable = new TrigTable(fBest, framesPerSlice, frameRate);
+			wavReset();
+
+			final TrigTable trigTable =
+					phasePlot? null :
+						new TrigTable(fBest, framesPerSlice, frameRate);
 			
 			for (int q = 0; true; q++) {
 				
@@ -658,6 +662,10 @@ new String[]{
 				if (sRead < framesPerSlice) {
 					break;
 				}
+				
+				// needed only in the phasePlot case
+				final double seconds =
+						(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
 
 				double sinAcc = 0.0;
 				double cosAcc = 0.0;
@@ -668,9 +676,16 @@ new String[]{
 							Math.max(-clipLevel, ampRaw) :
 								Math.min(clipLevel, ampRaw);
 
-					// using the Signum function here is no good
-					sinAcc += trigTable.sin(j)*amp;
-					cosAcc += trigTable.cos(j)*amp;
+					if (phasePlot) {
+						final double angleOffset = 2*Math.PI*fBest*seconds;
+						final double angle = angleOffset + 2*Math.PI*fBest*j/frameRate;
+						sinAcc += Math.sin(angle)*amp;
+						cosAcc += Math.cos(angle)*amp;
+					}
+					else {
+						sinAcc += trigTable.sin(j)*amp;
+						cosAcc += trigTable.cos(j)*amp;
+					}
 				}
 
 				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/framesPerSlice;
@@ -684,7 +699,7 @@ new String[]{
 				wphi[q] = wphi(q, cosSum, sinSum, sig, level, histWidth);
 			}
 
-			if (GerkeLib.getFlag("phase-plot")) {
+			if (phasePlot) {
 				PlotCollector pcPhase = new PlotCollector();
 				for (int q = 0; q < wphi.length; q++) {
 					final double seconds =
