@@ -261,6 +261,10 @@ public final class GerkeLib {
 		public Warning(String message) {
 			super("WARNING", message, true);
 		}
+
+		public Warning(String format, double x) {
+			this(String.format(format, x));
+		}
 	}
 	
 	

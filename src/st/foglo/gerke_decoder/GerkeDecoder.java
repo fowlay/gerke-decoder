@@ -39,7 +39,7 @@ public final class GerkeDecoder {
 	static final double twoPi = 2*Math.PI;
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.4");
+		new VersionOption("V", "version", "gerke-decoder version 1.6");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -54,7 +54,7 @@ public final class GerkeDecoder {
 		
 		new Flag("P", "plot");
 		new Flag("Q", "phase-plot");
-		new SingleValueOption("Z", "plot-interval", "0.0,99999.9");
+		new SingleValueOption("Z", "plot-interval", "0,-1");
 		
 		new SteppingOption("v", "verbose");
 		new HelpOption(
@@ -62,20 +62,20 @@ public final class GerkeDecoder {
 new String[]{
 		"Usage is: java -jar gerke-decoder.jar [OPTIONS] WAVFILE",
 		"Options are:",
-		String.format("  -w WPM          WPM, tentative, defaults to %s", GerkeLib.getDefault("wpm")),
-		String.format("  -F LOW,HIGH     audio frequency search range, defaults to %s", GerkeLib.getDefault("frange")),
-		String.format("  -f FREQ         audio frequency, bypassing search"),
-		String.format("  -c CLIPLEVEL    clipping level, optional"),
-		String.format("  -u ADJUSTMENT   threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
-		String.format("  -o OFFSET       offset (seconds)"),
-		String.format("  -l LENGTH       length (seconds)"),
-		String.format("  -X TS,WIN       detection parameters, default: %s", GerkeLib.getDefault("detpar")),
-		String.format("  -P              Generate signal plot (requires gnuplot)"),
-		String.format("  -Q              Generate phase angle plot (requires gnuplot)"),
-		String.format("  -Z BEGIN,END    Restrict plot to time interval (seconds)"),
-		String.format("  -v              verbosity (may be given several times)"),
-		String.format("  -V              show version"),
-		String.format("  -h              this help"),
+		String.format("  -w WPM           WPM, tentative, defaults to %s", GerkeLib.getDefault("wpm")),
+		String.format("  -F LOW,HIGH      Audio frequency search range, defaults to %s", GerkeLib.getDefault("frange")),
+		String.format("  -f FREQ          Audio frequency, bypassing search"),
+		String.format("  -c CLIPLEVEL     Clipping level, optional"),
+		String.format("  -u ADJUSTMENT    Threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
+		String.format("  -o OFFSET        Offset (seconds)"),
+		String.format("  -l LENGTH        Length (seconds)"),
+		String.format("  -X TS,WIN        Detection parameters, default: %s", GerkeLib.getDefault("detpar")),
+		String.format("  -P               Generate signal plot (requires gnuplot)"),
+		String.format("  -Q               Generate phase angle plot (requires gnuplot)"),
+		String.format("  -Z START,LENGTH  Plot selected time interval (seconds)"),
+		String.format("  -v               Verbosity (may be given several times)"),
+		String.format("  -V               Show version"),
+		String.format("  -h               This help"),
 		"",
 		"A tentative TU length (dot length) is derived from the tentative WPM value",
 		"given in milliseconds as TU = 1200/WPM.",
@@ -523,6 +523,10 @@ new String[]{
 
 			// Set number of frames to use from offset and length given in seconds
 			final int length = GerkeLib.getIntOpt("length");
+			
+			if (GerkeLib.getIntOpt("offset") < 0) {
+				new Death("offset cannot be negative");
+			}
 			final int offsetFrames = GerkeLib.getIntOpt("offset")*frameRate;
 			final int nofFrames = 
 					length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
@@ -534,16 +538,41 @@ new String[]{
 			final double plotBegin;
 			final double plotEnd;
 			if (GerkeLib.getOptMultiLength("plot-interval") != 2) {
-				new Death("bad plot interval");
+				new Death("bad plot interval: wrong number of suboptions");
 			}
-			if (GerkeLib.getFlag("plot") || GerkeLib.getFlag("phase-plot")){
+			if (GerkeLib.getFlag("plot") || GerkeLib.getFlag("phase-plot")) {
+				
+				final double t1 = ((double) frameLength)/frameRate;
+				
+				final double t2 = GerkeLib.getDoubleOpt("offset");
+				
+				final double t3 = 
+						length == -1 ? t1 :
+							Math.min(t2 + length, t1);
+				if (length != -1 && t2 + length > t1) {
+					new Warning("offset+length exceeds %.1f seconds", t1);
+				}
+				
+				final double t4 =
+						Math.max(GerkeLib.getDoubleOptMulti("plot-interval")[0], t2);
+				if (t4 >= t3) {
+					new Death("plot interval out of bounds");
+				}
+				else if (GerkeLib.getDoubleOptMulti("plot-interval")[0] < t2) {
+					new Warning("starting plot interval at: %.1f s", t2);
+				}
+				
+				final double t5 =
+						GerkeLib.getDoubleOptMulti("plot-interval")[1] == -1.0 ?
+								t3 :
+									Math.min(t3, t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1]);
+				if (GerkeLib.getDoubleOptMulti("plot-interval")[1] != -1.0 &&
+						t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1] > t3) {
+					new Warning("ending plot interval at: %.1f s", t3);
+				}
 
-				plotBegin =
-						Math.max(GerkeLib.getIntOpt("offset"),
-								GerkeLib.getDoubleOptMulti("plot-interval")[0]);
-				plotEnd =
-						Math.min((double)frameLength/frameRate,
-								GerkeLib.getDoubleOptMulti("plot-interval")[1]);
+				plotBegin = t4;
+				plotEnd = t5;
 				if (plotBegin >= plotEnd) {
 					new Death("bad plot interval");
 				}

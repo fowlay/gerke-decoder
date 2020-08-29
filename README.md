@@ -2,6 +2,15 @@
 
 A decoder that translates Morse code audio to text.
 
+## Version history
+
+|Version|What|
+|-------|----|
+|1.3|Cygwin/Windows version|
+|1.4|Linux support|
+|1.5|Optional phase angle plot|
+|1.6|Spikes suppression, selectable plot interval|
+
 ## Platforms
 
 - Linux
