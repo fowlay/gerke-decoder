@@ -35,15 +35,18 @@ import javax.sound.sampled.AudioSystem;
 import st.foglo.gerke_decoder.GerkeLib.*;
 
 public final class GerkeDecoder {
+	
+	static final double twoPi = 2*Math.PI;
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.3");
+		new VersionOption("V", "version", "gerke-decoder version 1.5-antispike-0.4");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
 		new SingleValueOption("F", "frange", "400,1200");
 		new SingleValueOption("o", "offset", "0");
-		new SingleValueOption("L", "length", "-1");
+		new SingleValueOption("l", "length", "-1");
+		new SingleValueOption("L", "length", "-1"); // deprecated
 		new SingleValueOption("c", "clip", "-1");
 		new SingleValueOption("u", "level", "1.0");
 		
@@ -51,6 +54,7 @@ public final class GerkeDecoder {
 		
 		new Flag("P", "plot");
 		new Flag("Q", "phase-plot");
+		new SingleValueOption("Z", "plot-interval", "0.0,99999.9");
 		
 		new SteppingOption("v", "verbose");
 		new HelpOption(
@@ -63,11 +67,12 @@ new String[]{
 		String.format("  -f FREQ         audio frequency, bypassing search"),
 		String.format("  -c CLIPLEVEL    clipping level, optional"),
 		String.format("  -u ADJUSTMENT   threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
-		String.format("  -o OFFSET       offset (in seconds)"),
-		String.format("  -L LENGTH       length (in seconds)"),
+		String.format("  -o OFFSET       offset (seconds)"),
+		String.format("  -l LENGTH       length (seconds)"),
 		String.format("  -X TS,WIN       detection parameters, default: %s", GerkeLib.getDefault("detpar")),
 		String.format("  -P              Generate signal plot (requires gnuplot)"),
 		String.format("  -Q              Generate phase angle plot (requires gnuplot)"),
+		String.format("  -Z BEGIN,END    Restrict plot to time interval (seconds)"),
 		String.format("  -v              verbosity (may be given several times)"),
 		String.format("  -V              show version"),
 		String.format("  -h              this help"),
@@ -81,8 +86,6 @@ new String[]{
 		"The WIN parameter defines a sliding window width as a fraction of the TU."
 				});
 	}
-
-	
 
 	static class Node {
 		final String code;
@@ -267,7 +270,7 @@ new String[]{
 			this.sines = new double[nFrames];
 			this.coses = new double[nFrames];
 			for (int j = 0; j < nFrames; j++) {
-				final double angle = 2*Math.PI*f*j/frameRate;
+				final double angle = twoPi*f*j/frameRate;
 				sines[j] = Math.sin(angle);
 				coses[j] = Math.cos(angle);
 			}
@@ -495,19 +498,20 @@ new String[]{
 			new Info("frame rate: %d", frameRate);
 			
 			final long frameLength = ais.getFrameLength();
+			new Info(".wav file length: %.1f s", (double)frameLength/frameRate);
 			new Info("nof. frames: %d", frameLength);
 
 			// Get the tentative WPM
 			final double wpm = GerkeLib.getDoubleOpt("wpm");
 			final double tuMillis = 1200/wpm;
-			new Info("dot time, tentative: %f ms", tuMillis);
+			new Info("dot time, tentative: %.3f ms", tuMillis);
 
 			// tsLength is the relative TS length.
 			// 0.125 is a typical value.
 			// TS length in ms is: tsLength*tuMillis
 			final double tsLength = GerkeLib.getDoubleOptMulti("detpar")[0];
 			final int framesPerSlice = (int) (tsLength*frameRate*tuMillis/1000.0);
-			new Info("time slice: %f ms", 1000.0*framesPerSlice/frameRate);
+			new Info("time slice: %.3f ms", 1000.0*framesPerSlice/frameRate);
 			new Info("frames per time slice: %d", framesPerSlice);
 
 			// Number of terms in sliding window
@@ -524,7 +528,29 @@ new String[]{
 					length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
 
 			if (nofFrames < 0) {
-				new Death("offset too large, WAV file length is: %d s", frameLength/frameRate);
+				new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);
+			}
+			
+			final double plotBegin;
+			final double plotEnd;
+			if (GerkeLib.getOptMultiLength("plot-interval") != 2) {
+				new Death("bad plot interval");
+			}
+			if (GerkeLib.getFlag("plot") || GerkeLib.getFlag("phase-plot")){
+
+				plotBegin =
+						Math.max(GerkeLib.getIntOpt("offset"),
+								GerkeLib.getDoubleOptMulti("plot-interval")[0]);
+				plotEnd =
+						Math.min((double)frameLength/frameRate,
+								GerkeLib.getDoubleOptMulti("plot-interval")[1]);
+				if (plotBegin >= plotEnd) {
+					new Death("bad plot interval");
+				}
+			}
+			else {
+				plotBegin = 0.0;
+				plotEnd = 0.0;
 			}
 
 			wav = new short[nofFrames];
@@ -610,19 +636,19 @@ new String[]{
 			final int clipLevel =
 					clipLevelOverride != -1 ? clipLevelOverride : getClipLevel(fBest, frameRate, framesPerSlice);
 			new Info("clipping level: %d", clipLevel);
-			
+
 			// ===========================================================================
 			// decode the stream
 
 			// The limits are expressed as "number of time slice".
 			
-			final long dashLimit = Math.round(1.7*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
-			final long wordSpaceLimit = Math.round(5.1*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
+			final long dashLimit = Math.round(1.9*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
+			final long wordSpaceLimit = Math.round(5.2*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long charSpaceLimit = Math.round(1.4*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long twoDashLimit = Math.round(5.0*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
-			//final long spikeLimit = Math.round(0.17*tuMillis*frameRate/(1000*framesPerSlice));      // PARAMETER
 			
 			final double level = GerkeLib.getDoubleOpt("level");
+			new Info("relative tone/silence threshold: %.3f", level);
 
 			new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
 
@@ -663,10 +689,9 @@ new String[]{
 					break;
 				}
 				
-				// needed only in the phasePlot case
-				final double seconds =
-						(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
-
+				// needed only if phase plot requested
+				final double angleOffset =
+						twoPi*fBest*timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
 				double sinAcc = 0.0;
 				double cosAcc = 0.0;
 				for (int j = 0; j < framesPerSlice; j++) {
@@ -677,8 +702,7 @@ new String[]{
 								Math.min(clipLevel, ampRaw);
 
 					if (phasePlot) {
-						final double angleOffset = 2*Math.PI*fBest*seconds;
-						final double angle = angleOffset + 2*Math.PI*fBest*j/frameRate;
+						final double angle = angleOffset + twoPi*fBest*j/frameRate;
 						sinAcc += Math.sin(angle)*amp;
 						cosAcc += Math.cos(angle)*amp;
 					}
@@ -702,11 +726,12 @@ new String[]{
 			if (phasePlot) {
 				PlotCollector pcPhase = new PlotCollector();
 				for (int q = 0; q < wphi.length; q++) {
-					final double seconds =
-							(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
-					final double phase = wphi[q];
-					if (phase != 0.0) {
-						pcPhase.ps.println(String.format("%f %f", seconds, phase));
+					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+					if (plotBegin <= seconds && seconds <= plotEnd) {
+						final double phase = wphi[q];
+						if (phase != 0.0) {
+							pcPhase.ps.println(String.format("%f %f", seconds, phase));
+						}
 					}
 				}
 				pcPhase.plot("points", 1);
@@ -739,14 +764,15 @@ new String[]{
 				}
 				rAve = rAve/nofEntries;
 				
-				// hard-coded PARAMETER 0.634, duplicated below
-				final double threshold = level*0.634*localAmpByHist(q, sig, histWidth);
+				// hard-coded PARAMETER 0.630, duplicated below
+				final double threshold = level*0.630*localAmpByHist(q, sig, histWidth);
 				final boolean newTone = rAve > threshold;
-				
+
 				if (pcSignal != null) {
-					final double seconds =
-							(offsetFrames + ((double)q)*framesPerSlice)/frameRate;
-					pcSignal.ps.println(String.format("%f %f %f", seconds, rAve, threshold));
+					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+					if (plotBegin <= seconds && seconds <= plotEnd) {
+						pcSignal.ps.println(String.format("%f %f %f", seconds, rAve, threshold));
+					}
 				}
 				
 				if (newTone && !tone) {
@@ -895,7 +921,7 @@ new String[]{
 				formatter.newLine();
 			}
 			
-			new Info("MD5 digest: %s", formatter.getDigest());
+			new Info("decoded text MD5 digest: %s", formatter.getDigest());
 
 			if (pcSignal != null) {
 				pcSignal.plot("lines", 2);
@@ -904,14 +930,18 @@ new String[]{
 			final double tuEffMillisActual =
 					(qBeginSilence - trans[0].q)*tsLength*tuMillis/nTuTotal;
 
-			new Info("Effective WPM: %f", 1200.0/tuEffMillisActual);
-			new Info("Inter-character spaces extension factor: %f",
+			new Info("effective WPM: %.1f", 1200.0/tuEffMillisActual);
+			new Info("inter-character spaces extension factor: %.3f",
 					(qSpace*tsLength/nTuSpace)*(tuMillis/tuEffMillisActual));
 
 		}
 		catch (Exception e) {
 			new Death(e);
 		}
+	}
+
+	private static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
+		return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
 	}
 
 	/**
@@ -1009,21 +1039,24 @@ new String[]{
 	}
 
 	private static void showClData() {
-		new Info("Version: %s", GerkeLib.getOpt("version"));
-		new Info("WPM, tentative: %f", GerkeLib.getDoubleOpt("wpm"));
-		new Info("frequency: %d", GerkeLib.getIntOpt("freq"));
-		new Info("f0,f1: %s", GerkeLib.getOpt("frange"));
-		new Info("offest: %d", GerkeLib.getIntOpt("offset"));
-		new Info("length: %d", GerkeLib.getIntOpt("length"));
-		new Info("clipLevel: %d", GerkeLib.getIntOpt("clip"));
-		new Info("level: %f", GerkeLib.getDoubleOpt("level"));
-		new Info("detection parameters: %s", GerkeLib.getOpt("detpar"));
-		new Info("signal plot: %b", GerkeLib.getFlag("plot"));
-		new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
-		new Info("verbose: %d", GerkeLib.getIntOpt("verbose"));
-		
-		for (int k = 0; k < GerkeLib.nofArguments(); k++) {
-			new Info("argument %d: %s", k+1, GerkeLib.getArgument(k));
+		if (GerkeLib.getIntOpt("verbose") >= 2) {
+			new Info("version: %s", GerkeLib.getOpt("version"));
+			new Info("WPM, tentative: %f", GerkeLib.getDoubleOpt("wpm"));
+			new Info("frequency: %d", GerkeLib.getIntOpt("freq"));
+			new Info("f0,f1: %s", GerkeLib.getOpt("frange"));
+			new Info("offset: %d", GerkeLib.getIntOpt("offset"));
+			new Info("length: %d", GerkeLib.getIntOpt("length"));
+			new Info("clipLevel: %d", GerkeLib.getIntOpt("clip"));
+			new Info("level: %f", GerkeLib.getDoubleOpt("level"));
+			new Info("detection parameters: %s", GerkeLib.getOpt("detpar"));
+			new Info("signal plot: %b", GerkeLib.getFlag("plot"));
+			new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
+			new Info("plot interval: %s", GerkeLib.getOpt("plot-interval"));
+			new Info("verbose: %d", GerkeLib.getIntOpt("verbose"));
+
+			for (int k = 0; k < GerkeLib.nofArguments(); k++) {
+				new Info("argument %d: %s", k+1, GerkeLib.getArgument(k));
+			}
 		}
 	}
 
