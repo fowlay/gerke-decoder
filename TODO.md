@@ -1,6 +1,8 @@
 
+Version 1.7:
 
-Test against weak signals.
+DONE: Ensure text buffer is flushed also if the analysis stops in the
+middle of a dash or a dot.
 
-FIXED: Flushing the text buffer is not done, if the analysis stops in
-the middle of a dash or a dot.
+DONE: Gaussian blur for reduced spikiness.
+
