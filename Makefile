@@ -38,7 +38,7 @@ clean:
 .SILENT: test
 
 test: gerke-decoder.jar grimeton-clip.wav
-	declare expected=16b695163719803728e8605d1608d5ec && \
+	declare expected=154a2f5ac9fa71c715a90cd51aeea4ad && \
 	declare md5="$$(java -jar gerke-decoder.jar -v \
                  grimeton-clip.wav 2>&1 1>/dev/null | \
                  sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \

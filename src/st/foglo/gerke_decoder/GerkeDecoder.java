@@ -17,7 +17,6 @@ package st.foglo.gerke_decoder;
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +25,8 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.SortedMap;
@@ -50,22 +51,14 @@ public final class GerkeDecoder {
 	 * and building a histogram, discarding the low signal values, and
 	 * taking the average of remaining values.
 	 */
-	static final int NOF_TU_FOR_HISTOGRAM = 40;
-	
-	/**
-	 * Max width of a triplet, expressed as fraction of TU
-	 */
-	static final double TRIPLE_MAX_WIDTH = 0.5;
-	
-	/**
-	 * Max width of a doublet, expressed as fraction of TU
-	 */
-	static final double DOUBLET_MAX_WIDTH = 0.2;
-	
+	static final int NOF_TU_FOR_HISTOGRAM = 50;
+			
 	enum DetPar {TS_FRACTION, SIGMA};
+	
+	enum HiddenOptions {BREAK_LONG_DASH};
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.7");
+		new VersionOption("V", "version", "gerke-decoder version 1.8");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -76,7 +69,8 @@ public final class GerkeDecoder {
 		new SingleValueOption("c", "clip", "-1");
 		new SingleValueOption("u", "level", "1.0");
 		
-		new SingleValueOption("X", "detpar", "0.10,0.21");
+		new SingleValueOption("X", "detpar", "0.09,0.19");
+		new SingleValueOption("D", "dip-spike", "0.005,0.005");
 		
 		new Flag("S", "frequency-plot");
 		
@@ -86,6 +80,10 @@ public final class GerkeDecoder {
 		
 		new Flag("t", "timestamps");
 		new SteppingOption("v", "verbose");
+		
+		// 0=false, 1=true
+		// break-long-dashes, ...
+		new SingleValueOption("H", "hidden-options", "0");
 		
 		new HelpOption(
 				"h",
@@ -100,6 +98,7 @@ new String[]{
 		String.format("  -o OFFSET        Offset (seconds)"),
 		String.format("  -l LENGTH        Length (seconds)"),
 		String.format("  -X TS,SIGMA      Detection parameters, default: %s", GerkeLib.getDefault("detpar")),
+		String.format("  -D DIP,SPIKE     Limits for dip and spike removal, default: %s", GerkeLib.getDefault("dip-spike")),
 		String.format("  -P               Generate signal plot"),
 		String.format("  -Q               Generate phase angle plot"),
 		String.format("  -S               Frequency spectrum plot"),
@@ -441,13 +440,21 @@ new String[]{
 							"-e",
 							"set term x11 size 1400 200",
 							"-e",
+							nofCurves == 3 ? 
+									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s, '%s' using 1:4 with %s",
+											tempFileName,
+											mode.s,
+											tempFileName,
+											mode.s,
+											tempFileName,
+											mode.s) :
 							nofCurves == 2 ? 
 									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s",
 											tempFileName,
 											mode.s,
 											tempFileName,
 											mode.s) :
-									String.format("plot '%s' using 1:2 with %s",
+							        String.format("plot '%s' using 1:2 with %s",
 											tempFileName,
 											mode.s)
 							);
@@ -499,18 +506,50 @@ new String[]{
 		}
 	}
 	
-	/**
-	 * This class can perhaps be eliminated. The way the Trans[] array
-	 * is created it is known that every second instance will have
-	 * rise = true, and the others will have rise = false.
-	 */
+	static abstract class PlotEntryBase{
+	}
+	
+	static final class PlotEntrySig extends PlotEntryBase {
+
+		final double sig;
+		final double threshold;
+		
+		public PlotEntrySig(double sig, double threshold) {
+			this.sig = sig;
+			this.threshold = threshold;
+		}
+	}
+	
+	
+	static final class PlotEntryDecode extends PlotEntryBase {
+		final int dec;
+
+		public PlotEntryDecode(int dec) {
+			this.dec = dec;
+		}
+	}
+	
 	static class Trans {
 		final int q;
 		final boolean rise;
+		final double dipAcc;
+		final double spikeAcc;
 
 		Trans(int q, boolean rise) {
+			this(q, rise, -1.0);
+		}
+		
+		Trans(int q, boolean rise, double sigAcc) {
 			this.q = q;
 			this.rise = rise;
+			if (rise) {
+				this.dipAcc = sigAcc;
+				this.spikeAcc = -1.0;
+			}
+			else {
+				this.spikeAcc = sigAcc;
+				this.dipAcc = -1.0;
+			}
 		}
 	}
 
@@ -725,7 +764,7 @@ new String[]{
 			
 			final long dashLimit = Math.round(1.9*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
 			final long wordSpaceLimit = Math.round(5.2*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
-			final long charSpaceLimit = Math.round(1.4*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
+			final long charSpaceLimit = Math.round(1.6*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long twoDashLimit = Math.round(5.0*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
 			
 			final double level = GerkeLib.getDoubleOpt("level");
@@ -815,14 +854,41 @@ new String[]{
 				pcPhase.plot(Mode.POINTS, 1);
 			}
 
-			PlotCollector pcSignal =
-					GerkeLib.getFlag("plot") ? new PlotCollector() : null;
+			final PlotCollector pcSignal;
+			final SortedMap<Double, List<PlotEntryBase>> plotEntries;
+			
+			if (GerkeLib.getFlag("plot")) {
+				pcSignal = new PlotCollector();
+				plotEntries = new TreeMap<Double, List<PlotEntryBase>>();
+			}
+			else {
+				pcSignal = null;
+				plotEntries = null;
+			}
 
 			wavReset();
 			final Trans[] trans = new Trans[nofSlices];
 			int transIndex = 0;
 			boolean tone = false;
 			int deltaMax = 0;
+			double dipAcc = 0.0;
+			double spikeAcc = 0.0;
+			double thresholdMax = -1.0;
+
+			final double sigma = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()]/tsLength;		
+			final double twoSigmaSquared = 2*sigma*sigma;
+
+			// hard-coded PARAMETER 0.01
+			// choosing a smaller value will lessen edge effects
+			int nofExpValues = 1;
+			for (int j = 1; Math.exp(-squared(j)/twoSigmaSquared) >= 0.01; j++) {
+				nofExpValues++;
+			}
+			final double[] weights = new double[nofExpValues];
+			for (int j = 1; j < nofExpValues; j++) {
+				weights[j] = Math.exp(-squared(j)/twoSigmaSquared);
+			}
+
 			for (int q = 0; true; q++) {
 				final int sRead = wavRead(shorts, 0, framesPerSlice);
 				if (sRead < framesPerSlice) {
@@ -832,106 +898,161 @@ new String[]{
 
 				final double sigAverage;
 
-				// TODO, improve performance by using a table of
-				// exponential values computed just once
-				final double sigma = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()]/tsLength;
+				double sumValues = sig[q];
+				double sumWeights = 1.0;
 
-				final double twoSigmaSquared = 2*sigma*sigma;
-
-				double sumWeights = 0.0;
-				double sumValues = 0.0;
-
-				int deltaM = 0;
-				int sign = -1;
-
-				for (int m = q; true; m += deltaM*sign) {
-
-					final double weight = Math.exp(-(m-q)*(m-q)/twoSigmaSquared); 
-					// hard-coded PARAMETER 0.01
-					// choosing a smaller value will lessen edge effects
-					if (weight < 0.01) {
-						break;
+				for (int k = 1; k < nofExpValues; k++) {
+					if (q-k >= 0) {
+						sumValues += weights[k]*sig[q-k];
+						sumWeights += weights[k];	
 					}
-					else if (m < 0 || m >= nofSlices) {
-						continue;
+					if (q+k < nofSlices) {
+						sumValues += weights[k]*sig[q+k];
+						sumWeights += weights[k];
 					}
-
-					sumValues += weight*sig[m];
-					sumWeights += weight;
-					deltaMax = Math.max(deltaMax, deltaM);
-
-					deltaM++;
-					sign = -sign;
 				}
 				sigAverage = sumValues/sumWeights;
 	
 				final double threshold = level*THRESHOLD*localAmpByHist(q, sig, histWidth);
+				thresholdMax = Math.max(thresholdMax, threshold);
 				final boolean newTone = sigAverage > threshold;
-
+				
 				if (pcSignal != null) {
 					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
 					if (plotBegin <= seconds && seconds <= plotEnd) {
-						pcSignal.ps.println(String.format("%f %f %f", seconds, sigAverage, threshold));
+						final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>(2);
+						list.add(new PlotEntrySig(sigAverage, threshold));
+						plotEntries.put(new Double(seconds), list);
 					}
 				}
 				
 				if (newTone && !tone) {
-					trans[transIndex] = new Trans(q, true);
+					// raise
+					if (transIndex > 0 && q - trans[transIndex-1].q <= charSpaceLimit) {
+						trans[transIndex] = new Trans(q, true, dipAcc);
+					}
+					else {
+						trans[transIndex] = new Trans(q, true);
+					}
 					transIndex++;
 					tone = true;
+					spikeAcc = squared(threshold - sigAverage);
 				}
 				else if (!newTone && tone) {
-					trans[transIndex] = new Trans(q, false);
+					// fall
+					trans[transIndex] = new Trans(q, false, spikeAcc);
 					transIndex++;
 					tone = false;
+					dipAcc = squared(threshold - sigAverage);
+				}
+				else if (!tone) {
+					dipAcc += squared(threshold - sigAverage);
+				}
+				else if (tone) {
+					spikeAcc += squared(threshold - sigAverage);
 				}
 			}
 			new Debug("nof. terms in Gaussian blur: %d", 2*deltaMax + 1);
+						
+			// Eliminate small dips
 			
-			// Eliminate triplets
+			final double silentTu = (1/tsLength)*squared(0.5*thresholdMax);
+			final double dipLimit = GerkeLib.getDoubleOptMulti("dip-spike")[0];
 
-			final int tripletLimit = (int)Math.round(TRIPLE_MAX_WIDTH/tsLength);
-			int tripletCount = 0;
-			
-			for (int t = 1; t < transIndex-1; t++) {
-				if (trans[t-1] != null && trans[t] != null && trans[t+1] != null &&
-						((trans[t-1].rise && !trans[t].rise && trans[t+1].rise) ||
-								(!trans[t-1].rise && trans[t].rise && !trans[t+1].rise)) &&
-						trans[t+1].q - trans[t-1].q <= tripletLimit) {
-					new Debug("triplet at: %d, width: %d", t, trans[t+1].q - trans[t-1].q);
-					trans[t-1] = null;
-					trans[t] = new Trans(trans[t].q, !trans[t].rise);
-					trans[t+1] = null;
-					tripletCount++;
-				}
-			}
-			new Debug("triplet limit: %d", tripletLimit);
-			new Debug("nof. triplets: %d", tripletCount);
-			
-			transIndex = removeHoles(trans, transIndex);
-			
-			// Eliminate doublets
-			
-			// A too wide doublet limit causes dashes to break into two dots,
-			// TODO, maybe apply a wider limit for positive spikes and a narrow one
-			// for negative amplitude drops?
-			final int doubletLimit = (int)Math.round(DOUBLET_MAX_WIDTH/tsLength);
-			int doubletCount = 0;
 			for (int t = 1; t < transIndex; t++) {
-				if (trans[t-1] != null && trans[t] != null &&
-						((trans[t-1].rise && !trans[t].rise) ||
-								(!trans[t-1].rise && trans[t].rise)) &&
-						trans[t].q - trans[t-1].q <= doubletLimit) {
-					new Debug("doublet at: %d, width: %d", t, trans[t].q - trans[t-1].q);
+				if (transIndex > 0 &&
+						trans[t].rise &&
+						trans[t].dipAcc != -1.0 &&
+						trans[t].dipAcc < dipLimit*silentTu) {
+					new Debug("dip at: %d, width: %d, mass: %f, fraction: %f",
+							t,
+							trans[t].q - trans[t-1].q,
+							trans[t].dipAcc,
+							trans[t].dipAcc/silentTu);
+					if (t+1 < transIndex) {
+						// preserve accumulated spike value
+						trans[t+1] =
+								new Trans(trans[t+1].q,
+										false,
+										trans[t+1].spikeAcc + trans[t-1].spikeAcc);
+					}
 					trans[t-1] = null;
 					trans[t] = null;
-					doubletCount++;
 				}
 			}
-			new Debug("doublet limit: %d", doubletLimit);
-			new Debug("nof. doublets: %d", doubletCount);
 
 			transIndex = removeHoles(trans, transIndex);
+		
+			// check if potential spikes exist
+			boolean hasSpikes = false;
+			for (int t = 0; t < transIndex; t++) {
+				if (trans[t].spikeAcc > 0) {
+					hasSpikes = true;
+					break;
+				}
+			}
+
+			// remove spikes
+
+			if (hasSpikes) {
+				final double spikeLimit = GerkeLib.getDoubleOptMulti("dip-spike")[1];
+				for (int t = 1; t < transIndex; t++) {
+					if (!trans[t].rise && trans[t].spikeAcc != -1.0 &&
+							trans[t].spikeAcc < spikeLimit*silentTu) {
+						trans[t-1] = null;
+						trans[t] = null;
+					}
+				}
+			}
+			transIndex = removeHoles(trans, transIndex);
+
+			if (GerkeLib.getFlag("plot")) {
+				// scan the trans[] array, create Plot entries
+				int initDigitizedSignal = 0;
+				for (int t = 0; t < transIndex; t++) {
+					final double sec0 = timeSeconds(trans[t].q, framesPerSlice, frameRate, offsetFrames);
+					
+					if (plotBegin <= sec0 && sec0 <= plotEnd) {
+						
+						if (initDigitizedSignal == 0) {
+							initDigitizedSignal = trans[t].rise ? 1 : 2;
+						}
+						
+						final List<PlotEntryBase> list = plotEntries.get(new Double(sec0));
+						
+						if (list == null) {
+							// not expected to happen
+							final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>(2);
+							newList.add(new PlotEntryDecode(trans[t].rise ? 2 : 1));
+							plotEntries.put(new Double(sec0), newList);
+						}
+						else {
+							list.add(new PlotEntryDecode(trans[t].rise ? 2 : 1));
+						}
+					}
+				}
+
+				// at this point the plot stream can be created
+				double signa = 0.0;
+				double thresha = 0.0;
+				int digitizedSignal = initDigitizedSignal;
+				for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
+
+					for (PlotEntryBase peb : e.getValue()) {
+						if (peb instanceof PlotEntryDecode) {
+							digitizedSignal = ((PlotEntryDecode)peb).dec;
+						}
+						else if (peb instanceof PlotEntrySig) {
+							signa = ((PlotEntrySig)peb).sig;
+							thresha = ((PlotEntrySig)peb).threshold;
+						}
+					}
+
+					pcSignal.ps.println(String.format("%f %f %f %f",
+							e.getKey().doubleValue(), signa, thresha, digitizedSignal*sa/20));
+				}
+			}
+
 			
 			if (transIndex == 0) {
 				new Death("no signal detected");
@@ -950,6 +1071,9 @@ new String[]{
 			// measure inter-character spacing, ignore inter-word spacing
 			int nTuSpace = 0;
 			int qSpace = 0;
+			
+			final boolean breakLongDash =
+					GerkeLib.getIntOptMulti("hidden-options")[HiddenOptions.BREAK_LONG_DASH.ordinal()] == 1;
 			
 			for (int t = 0; t < transIndex; t++) {
 
@@ -984,7 +1108,7 @@ new String[]{
 					// tone -> silent
 					qBeginSilence = trans[t].q;
 					final int dashSize = trans[t].q - trans[t-1].q;
-					if (dashSize > twoDashLimit) {
+					if (breakLongDash && dashSize > twoDashLimit) {
 						new Debug("breaking up too long dash");
 						if (p.dash == null) {
 							final String newCode = p.code + "-";
@@ -1033,7 +1157,7 @@ new String[]{
 			new Info("decoded text MD5 digest: %s", formatter.getDigest());
 
 			if (pcSignal != null) {
-				pcSignal.plot(Mode.LINES, 2);
+				pcSignal.plot(Mode.LINES, 3);
 			}
 			
 			final double tuEffMillisActual =
@@ -1047,6 +1171,10 @@ new String[]{
 		catch (Exception e) {
 			new Death(e);
 		}
+	}
+
+	private static double squared(double x) {
+		return x*x;
 	}
 
 	private static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
@@ -1186,6 +1314,7 @@ new String[]{
 			new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
 			new Info("plot interval: %s", GerkeLib.getOpt("plot-interval"));
 			new Info("timestamps: %b", GerkeLib.getFlag("timestamps"));
+			new Info("hidden: %s", GerkeLib.getOpt("hidden-options"));
 			new Info("verbose: %d", GerkeLib.getIntOpt("verbose"));
 
 			for (int k = 0; k < GerkeLib.nofArguments(); k++) {
@@ -1214,8 +1343,8 @@ new String[]{
 		
 		// remove the low-amp counts
 		// TODO, consider removing more than 50%
-		// hardcoded PARAMETER 2
-		int count = (q2-q1)/2;
+		// hardcoded PARAMETER 0.50
+		int count = (int) Math.round(0.50*(q2-q1));
 		for (int k = 0; k < 100; k++) {
 			final int decr = Math.min(hist[k], count);
 			hist[k] -= decr;

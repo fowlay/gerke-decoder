@@ -2,8 +2,6 @@
 
 A decoder that translates Morse code audio to text.
 
-[TOC]
-
 ## Version history
 
 |Version|What|
@@ -13,6 +11,7 @@ A decoder that translates Morse code audio to text.
 |1.5|Optional phase angle plot|
 |1.6|Spikes suppression, selectable plot interval|
 |1.7|Gaussian blur, frequency plot|
+|1.8|Dropouts and spikes removal, improved plot|
 
 ## Platforms
 
@@ -52,6 +51,20 @@ Invoke the program as follows:
 
     java -jar gerke-decoder.jar -h                for built-in help
     java -jar gerke-decoder.jar WAV_FILE          to decode a .wav file
+
+## Assumptions
+
+The relation between WPM (words per minute) and TU (length of a dot in
+ms) is taken to be
+
+    TU = 1200/WPM
+
+as described here: <https://en.wikipedia.org/wiki/Morse_code#Timing>
+(the "PARIS" formula).
+
+The decoder expects 3 TU of inter-character silence and 7 TU of
+inter-word silence. Deviations may cause garbled characters or false
+word breaks.
 
 ## Options
 
@@ -141,8 +154,10 @@ the threshold.
 
 ### Signal plot
 
-The signal as a function of time, and the threshold, can be shown
-grapically. Request plotting with the -P option:
+The signal, after gaussian blurring, as a function of time, the
+silence/tone threshold and the resolved binary output after dips and
+spikes removal can be studied grapically. Request plotting with the -P
+option:
 
     -P
 
@@ -160,10 +175,8 @@ how to set the -Z option.
 ### Phase plot
 
 The relative phase angle of the signal may be plotted with the -Q
-option. If the decoder frequency is set correctly the phase angle
-should wander only slowly. This plot will also reveal frequency drift
-of the transmitter and receiver, in case a CW radio transmission was
-recorded.
+option. If the decoder frequency is set correctly, the phase angle
+should wander only slowly.
 
 ### Offset and length
 
@@ -181,15 +194,26 @@ segment one can therefore add
 
     -P -Z 4300,10
 
+### Dip and spike removal parameters
+
+The default setting is
+
+    -D 0.005,0.005
+
+In noisy conditions there may be sub-TU dips and spikes. The decoder
+removes those before resolving the signal into characters. Tuning the
+values may give some improvement; use the signal plot to monitor the
+effect.
+
 ### Low-level detection parameters
 
 The -X option specifies two detection parameters. The default setting
 is
 
-    -X 0.10,0.21
+    -X 0.09,0.19
 
-where 0.10 is the length of signal collecting time slices and 0.21
-defines the width of a "gaussian blur" averaging that reduces false
+where 0.09 TU is the length of signal collecting time slices and 0.19
+TU defines the width of a "gaussian blur" averaging that reduces false
 tone/silence transitions. Tuning these parameters may possibly give
 somewhat improved decoding; use the signal plot for visualizing the
 effect.
@@ -222,5 +246,11 @@ The spectrum for VLF radio transmissions overlaps at the lower end
 with the frequency range of computer soundcards. With an antenna
 connected to the soundcard input port it ought to be possible to
 record the signal directly to a .wav file, using a sound recorder
-program. This decoder program, with a suitably chosen -F option, can
-then presumably be used for decoding the transmission.
+program. This program, with a suitably chosen -F option, can then
+presumably be used for decoding the transmission.
+
+## The name
+
+The decoder is named in memory of an early contributor to
+telecommunications:
+<https://en.wikipedia.org/wiki/Friedrich_Clemens_Gerke>
