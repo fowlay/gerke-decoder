@@ -271,28 +271,6 @@ new String[]{
 	}
 
 	static short[] wav;
-	static int wavIndex = 0;
-	
-	/**
-	 * 
-	 * @param ss
-	 * @param offset
-	 * @param n
-	 * @return
-	 */
-	static int wavRead(short[] ss, int offset, int n) {
-		
-		final int nActual = Math.min(n, wav.length - wavIndex);
-		for (int k = 0; k < nActual; k++) {
-			ss[offset + k] = wav[wavIndex + k];
-		}
-		wavIndex += nActual;
-		return nActual;
-	}
-	
-	static void wavReset() {
-		wavIndex = 0;
-	}
 
 	static class TrigTable {
 		final double[] sines;
@@ -628,7 +606,9 @@ new String[]{
 			if (GerkeLib.getOptMultiLength("plot-interval") != 2) {
 				new Death("bad plot interval: wrong number of suboptions");
 			}
-			if (GerkeLib.getFlag("plot") || GerkeLib.getFlag("phase-plot")) {
+			
+			final boolean phasePlot = GerkeLib.getFlag("phase-plot");
+			if (GerkeLib.getFlag("plot") || phasePlot) {
 				
 				final double t1 = ((double) frameLength)/frameRate;
 				
@@ -783,26 +763,19 @@ new String[]{
 
 			Node p = tree;
 
-			final short[] shorts = new short[framesPerSlice];
-
 			// compute an array holding amplitude per time slice
 			final double[] sig = new double[nofSlices];
 			final double[] cosSum = new double[nofSlices];
 			final double[] sinSum = new double[nofSlices];
 			final double[] wphi = new double[nofSlices];
 			
-			final boolean phasePlot = GerkeLib.getFlag("phase-plot");
-			
-			wavReset();
-
 			final TrigTable trigTable =
 					phasePlot? null :
 						new TrigTable(fBest, framesPerSlice, frameRate);
 			
 			for (int q = 0; true; q++) {
 				
-				final int sRead = wavRead(shorts, 0, framesPerSlice);
-				if (sRead < framesPerSlice) {
+				if (wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
 				
@@ -813,7 +786,7 @@ new String[]{
 				double cosAcc = 0.0;
 				for (int j = 0; j < framesPerSlice; j++) {
 					// j is frame index
-					final int ampRaw = shorts[j];
+					final int ampRaw = wav[q*framesPerSlice + j];
 					final int amp = ampRaw < 0 ?
 							Math.max(-clipLevel, ampRaw) :
 								Math.min(clipLevel, ampRaw);
@@ -866,7 +839,8 @@ new String[]{
 				plotEntries = null;
 			}
 
-			wavReset();
+			// iterate again over time slices
+
 			final Trans[] trans = new Trans[nofSlices];
 			int transIndex = 0;
 			boolean tone = false;
@@ -890,8 +864,7 @@ new String[]{
 			}
 
 			for (int q = 0; true; q++) {
-				final int sRead = wavRead(shorts, 0, framesPerSlice);
-				if (sRead < framesPerSlice) {
+				if (wav.length - q*framesPerSlice < framesPerSlice) {
 					// assume end of stream, drop the very final time slice
 					break;
 				}
@@ -1367,16 +1340,14 @@ new String[]{
 		
 		double rSquaredSum = 0.0;
 		final TrigTable trigTable = new TrigTable(f, framesPerSlice, frameRate);
-		wavReset();
-		for (; true;) {
-			final int sRead = wavRead(shorts, 0, framesPerSlice);
-			if (sRead < framesPerSlice) {
+		for (int q = 0; true; q++) {
+			if (wav.length - q*framesPerSlice < framesPerSlice) {
 				return rSquaredSum;
 			}
 			double sinAcc = 0.0;
 			double cosAcc = 0.0;
 			for (int j = 0; j < framesPerSlice; j++) {
-				final short amp = shorts[j];
+				final short amp = wav[q*framesPerSlice + j];
 				sinAcc += trigTable.sin(j)*amp;
 				cosAcc += trigTable.cos(j)*amp;
 			}
@@ -1438,13 +1409,10 @@ new String[]{
 
 		final TrigTable trigTable = new TrigTable(f, framesPerSlice, frameRate);
 
-		wavReset();
-		final short[] shorts = new short[framesPerSlice];
 		double rSum = 0.0;
 		int divisor = 0;
-		for (; true;) {
-			final int sRead = wavRead(shorts, 0, framesPerSlice);
-			if (sRead < framesPerSlice) {
+		for (int q = 0; true; q++) {
+			if (wav.length - q*framesPerSlice < framesPerSlice) {
 				break;
 			}
 			
@@ -1452,7 +1420,7 @@ new String[]{
 			double cosAcc = 0.0;
 
 			for (int j = 0; j < framesPerSlice; j++) {
-				final int ampRaw = (int) shorts[j];
+				final int ampRaw = (int) wav[q*framesPerSlice + j];
 				final int amp = ampRaw < 0 ? Math.max(ampRaw, -clipLevel) : Math.min(ampRaw, clipLevel);
 				sinAcc += trigTable.sin(j)*amp;
 				cosAcc += trigTable.cos(j)*amp;
