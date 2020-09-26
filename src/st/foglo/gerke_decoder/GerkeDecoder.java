@@ -58,7 +58,7 @@ public final class GerkeDecoder {
 	enum HiddenOptions {BREAK_LONG_DASH};
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.8");
+		new VersionOption("V", "version", "gerke-decoder version 1.8-coherrent-gaussian");
 
 		new SingleValueOption("w", "wpm", "15.0");
 		new SingleValueOption("f", "freq", "-1");
@@ -292,6 +292,33 @@ new String[]{
 		
 		double cos(int j) {
 			return coses[j];
+		}
+	}
+	
+	
+	static  class GTrigTable {
+		final double[] sines;
+		final double[] coses;
+		
+		final int offset;
+		
+		GTrigTable(int f, int jc, int frameRate) {
+			this.sines = new double[2*jc - 1];
+			this.coses = new double[2*jc - 1];
+			for (int j = 0; j < 2*jc - 1; j++) {
+				final double angle = TWO_PI*f*j/frameRate;
+				sines[j] = Math.sin(angle);
+				coses[j] = Math.cos(angle);
+			}
+			this.offset = jc - 1;
+		}
+		
+		double sin(int j) {
+			return sines[j + offset];
+		}
+		
+		double cos(int j) {
+			return coses[j + offset];
 		}
 	}
 	
@@ -769,9 +796,33 @@ new String[]{
 			final double[] sinSum = new double[nofSlices];
 			final double[] wphi = new double[nofSlices];
 			
-			final TrigTable trigTable =
+			
+
+			// determine the width of gaussian averaging
+			// j values 0, 1, 2, ..., jc-1 are valid in averaging
+			// also -(jc-1), .., -2, -1
+			final double sigmaPar = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()];
+			int jc1 = 0;
+			for (int j = 0; true; j++) {
+				// hardcoded PARAMETER 0.01
+				if (Math.exp(gex(j, frameRate, sigmaPar, tuMillis)) < 0.01) {
+					jc1 = j;
+					break;
+				}
+			}
+			final int jc = jc1;
+			new Debug("nof. terms in gaussian average: %d", 2*jc -1);
+			
+			// TODO: A new trig table
+			// array mapping: array index = j + jc - 1
+			
+			final GTrigTable gTrigTable =
 					phasePlot? null :
-						new TrigTable(fBest, framesPerSlice, frameRate);
+						new GTrigTable(fBest, jc, frameRate);
+			
+//			final TrigTable trigTable =
+//					phasePlot? null :
+//						new TrigTable(fBest, framesPerSlice, frameRate);
 			
 			for (int q = 0; true; q++) {
 				
@@ -782,27 +833,52 @@ new String[]{
 				// needed only if phase plot requested
 				final double angleOffset =
 						TWO_PI*fBest*timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+				
 				double sinAcc = 0.0;
 				double cosAcc = 0.0;
-				for (int j = 0; j < framesPerSlice; j++) {
-					// j is frame index
-					final int ampRaw = wav[q*framesPerSlice + j];
-					final int amp = ampRaw < 0 ?
-							Math.max(-clipLevel, ampRaw) :
-								Math.min(clipLevel, ampRaw);
+				double sumWeight = 0.0;
+				for (int j = 0; j < jc; j++) {
+
+
 
 					if (phasePlot) {
+						final int ampRaw = wav[q*framesPerSlice + j];
+						final int amp = ampRaw < 0 ?
+								Math.max(-clipLevel, ampRaw) :
+									Math.min(clipLevel, ampRaw);
 						final double angle = angleOffset + TWO_PI*fBest*j/frameRate;
 						sinAcc += Math.sin(angle)*amp;
 						cosAcc += Math.cos(angle)*amp;
 					}
+					else if (j == 0) {
+						final int ampRaw = wav[q*framesPerSlice];
+						final int amp = ampRaw < 0 ?
+								Math.max(-clipLevel, ampRaw) :
+									Math.min(clipLevel, ampRaw);
+						sinAcc += gTrigTable.sin(0)*amp;
+						cosAcc += gTrigTable.cos(0)*amp;
+						sumWeight += 1.0;
+					}
 					else {
-						sinAcc += trigTable.sin(j)*amp;
-						cosAcc += trigTable.cos(j)*amp;
+						final double weight = Math.exp(gex(j, frameRate, sigmaPar, tuMillis));
+						for (int m = -1; m <= 1; m += 2) {
+							final int wavIndex = q*framesPerSlice + m*j;
+							if (wavIndex < 0 || wavIndex >= wav.length) {
+								continue;
+							}
+							final int ampRaw = wav[wavIndex];
+							final int amp = ampRaw < 0 ?
+									Math.max(-clipLevel, ampRaw) :
+										Math.min(clipLevel, ampRaw);
+							sinAcc += weight*gTrigTable.sin(m*j)*amp;
+							cosAcc += weight*gTrigTable.cos(m*j)*amp;
+							sumWeight += weight;
+						}
+
 					}
 				}
 
-				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/framesPerSlice;
+				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/sumWeight;
 				
 				cosSum[q] = cosAcc;
 				sinSum[q] = sinAcc;
@@ -849,13 +925,16 @@ new String[]{
 			double spikeAcc = 0.0;
 			double thresholdMax = -1.0;
 
-			final double sigma = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()]/tsLength;		
+			final double sigma = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()]/tsLength;
 			final double twoSigmaSquared = 2*sigma*sigma;
 
 			// hard-coded PARAMETER 0.01
 			// choosing a smaller value will lessen edge effects
 			int nofExpValues = 1;
-			for (int j = 1; Math.exp(-squared(j)/twoSigmaSquared) >= 0.01; j++) {
+			for (int j = 1; Math.exp(-squared(j)/twoSigmaSquared) >= 
+					//0.01
+					2
+					; j++) {
 				nofExpValues++;
 			}
 			final double[] weights = new double[nofExpValues];
@@ -1144,6 +1223,18 @@ new String[]{
 		catch (Exception e) {
 			new Death(e);
 		}
+	}
+
+	/**
+	 * Compute exponent for gaussian weight factor
+	 * @param i                frame
+	 * @param frameRate        frames/s
+	 * @param sigma                 sigma parameter, relative to TU
+	 * @param tuMillis         TU in millis
+	 * @return
+	 */
+	private static double gex(int i, int frameRate, double sigma, double tuMillis) {
+		return -squared(1000*i/(frameRate*sigma*tuMillis))/2;
 	}
 
 	private static double squared(double x) {

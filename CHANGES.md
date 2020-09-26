@@ -1,3 +1,13 @@
+Version 1.8-coherent-gaussian
+
+EXPERIMENTAL: Integrating the signal over multiple time slices,
+coherently and with a Gaussian weight function. This scheme may
+improve the S/N ratio, but only if the signal has good phase
+stability. Signals from the Grimeton transmitter seem to have
+considerable short-term frequency drift, making this signal detection
+scheme less successful.
+
+NOTE: The -Q option (phase plot) is not supported on this branch.
 
 Version 1.8:
 

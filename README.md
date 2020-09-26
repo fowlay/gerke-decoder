@@ -174,6 +174,8 @@ how to set the -Z option.
 
 ### Phase plot
 
+NOTE: This plot is not supported in version 1.8-coherent-gaussian
+
 The relative phase angle of the signal may be plotted with the -Q
 option. If the decoder frequency is set correctly, the phase angle
 should wander only slowly.
