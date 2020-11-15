@@ -199,6 +199,10 @@ public final class GerkeLib {
 		public Debug(String format, int i, int j, double v, double w) {
 			this(String.format(format, i, j, v, w));
 		}
+		
+		public Debug(String format, int i, int j, double v, double w, double x) {
+			this(String.format(format, i, j, v, w, x));
+		}
 
 		public Debug(String format, long j, long k) {
 			this(String.format(format, j, k));

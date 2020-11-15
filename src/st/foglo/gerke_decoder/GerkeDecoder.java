@@ -43,7 +43,7 @@ public final class GerkeDecoder {
 	
 	static final double TWO_PI = 2*Math.PI;
 	
-	static final double THRESHOLD = 0.630;
+	static final double THRESHOLD = 0.45;
 	
 	/**
 	 * The tone amplitude is computed by taking signal values in time slices
@@ -51,71 +51,93 @@ public final class GerkeDecoder {
 	 * and building a histogram, discarding the low signal values, and
 	 * taking the average of remaining values.
 	 */
-	static final int NOF_TU_FOR_HISTOGRAM = 50;
-			
-	enum DetPar {TS_FRACTION, SIGMA};
+	static final int NOF_TU_FOR_CEILING_HISTOGRAM = 30; // 50;
+	static final int NOF_TU_FOR_FLOOR_HISTOGRAM = 30; // 50;
 	
+	static final int HIST_SIZE_CEILING = 100;
+	static final int HIST_SIZE_FLOOR = 100;
+
 	enum HiddenOptions {BREAK_LONG_DASH};
+	
+	static final double WORD_SPACE_LIMIT = 5.3;    // words break <---------+---------> words stick
+	static final double CHAR_SPACE_LIMIT = 1.8;    // chars break <---------+---------> chars cluster
+	static final double DASH_LIMIT = 1.7;          // 1.6
+	static final double TWO_DASH_LIMIT = 5.0;      // 5.0
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 1.8");
+		new VersionOption("V", "version", "gerke-decoder version 2.0");
 
-		new SingleValueOption("w", "wpm", "15.0");
-		new SingleValueOption("f", "freq", "-1");
-		new SingleValueOption("F", "frange", "400,1200");
 		new SingleValueOption("o", "offset", "0");
 		new SingleValueOption("l", "length", "-1");
-		new SingleValueOption("L", "length", "-1"); // deprecated
+
+		new SingleValueOption("F", "frange", "400,1200");
+		new SingleValueOption("f", "freq", "-1");
+		
+		new SingleValueOption("w", "wpm", "15.0");
+
 		new SingleValueOption("c", "clip", "-1");
-		new SingleValueOption("u", "level", "1.0");
-		
-		new SingleValueOption("X", "detpar", "0.09,0.19");
+		new SingleValueOption("q", "qtime", "0.10");
+		new SingleValueOption("y", "sigma", "0.33");
+		new SingleValueOption("z", "ctime", "0.30");
+
 		new SingleValueOption("D", "dip-spike", "0.005,0.005");
-		
+
+		new SingleValueOption("u", "level", "1.0");
+		new Flag("t", "timestamps");
+
 		new Flag("S", "frequency-plot");
 		
+		new SingleValueOption("Z", "plot-interval", "0,-1");
 		new Flag("P", "plot");
 		new Flag("Q", "phase-plot");
-		new SingleValueOption("Z", "plot-interval", "0,-1");
-		
-		new Flag("t", "timestamps");
+
 		new SteppingOption("v", "verbose");
-		
+
 		// 0=false, 1=true
 		// break-long-dashes, ...
 		new SingleValueOption("H", "hidden-options", "0");
-		
+
 		new HelpOption(
 				"h",
 new String[]{
 		"Usage is: java -jar gerke-decoder.jar [OPTIONS] WAVFILE",
 		"Options are:",
-		String.format("  -w WPM           WPM, tentative, defaults to %s", GerkeLib.getDefault("wpm")),
-		String.format("  -F LOW,HIGH      Audio frequency search range, defaults to %s", GerkeLib.getDefault("frange")),
-		String.format("  -f FREQ          Audio frequency, bypassing search"),
-		String.format("  -c CLIPLEVEL     Clipping level, optional"),
-		String.format("  -u ADJUSTMENT    Threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
-		String.format("  -o OFFSET        Offset (seconds)"),
-		String.format("  -l LENGTH        Length (seconds)"),
-		String.format("  -X TS,SIGMA      Detection parameters, default: %s", GerkeLib.getDefault("detpar")),
-		String.format("  -D DIP,SPIKE     Limits for dip and spike removal, default: %s", GerkeLib.getDefault("dip-spike")),
-		String.format("  -P               Generate signal plot"),
-		String.format("  -Q               Generate phase angle plot"),
-		String.format("  -S               Frequency spectrum plot"),
-		String.format("  -Z START,LENGTH  Plot selected time interval (seconds)"),
-		String.format("  -t               Insert timestamps in decoded text"),
-		String.format("  -v               Verbosity (may be given several times)"),
-		String.format("  -V               Show version"),
-		String.format("  -h               This help"),
+		String.format("  -w WPM             WPM, tentative, defaults to %s", GerkeLib.getDefault("wpm")),
+		String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault("frange")),
+		String.format("  -f FREQ            Audio frequency, bypassing search"),
+		String.format("  -c CLIPLEVEL       Clipping level, optional"),
+		String.format("  -u ADJUSTMENT      Threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
+		String.format("  -o OFFSET          Offset (seconds)"),
+		String.format("  -l LENGTH          Length (seconds)"),
+		
+		String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault("qtime")),
+		
+		String.format("  -y SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault("sigma")),
+		String.format("  -z COHERENCE_TIME  Coherence time, defaults to %s TU", GerkeLib.getDefault("ctime")),
+		
+		String.format("  -D DIP,SPIKE       Limits for dip and spike removal, default: %s", GerkeLib.getDefault("dip-spike")),
+		
+		String.format("  -S                 Generate frequency spectrum plot"),
+		String.format("  -P                 Generate signal plot"),
+		String.format("  -Q                 Generate phase angle plot"),
+
+		String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
+		String.format("  -t                 Insert timestamps in decoded text"),
+		String.format("  -v                 Verbosity (may be given several times)"),
+		String.format("  -V                 Show version"),
+		String.format("  -h                 This help"),
 		"",
 		"A tentative TU length (dot length) is derived from the tentative WPM value",
 		"given in milliseconds as TU = 1200/WPM.",
 		"",
-		"The TS parameter defines a time slice length as a fraction of the TU. The",
-		"signal strength is evaluated in each time slice.",
+		"The SAMPLE_PERIOD parameter defines the periodicity of signal evaluation",
+		"as a fraction of the TU.",
 		"",
-		"The SIGMA parameter defines the width of the Gaussian used for averaging",
-		"the signal value over nearby time slices."
+		"The SIGMA parameter defines the width, as a fraction of the TU, of the",
+		"Gaussian used in computing the signal value.",
+		"",
+		"The COHERENCE_TIME as a fraction of the TU is the time for which phase",
+		"stability of the signal is required."
 				});
 	}
 
@@ -372,11 +394,21 @@ new String[]{
 	static class PlotCollector {
 		
 		enum Mode {
-			LINES("lines"), POINTS("points");
+			LINES_PURPLE("lines ls 1"),
+			LINES_GREEN("lines ls 2"),
+			LINES_CYAN("lines ls 3"),
+			LINES_GOLD("lines ls 4"),
+			LINES_YELLOW("lines ls 5"),
+			LINES_BLUE("lines ls 6"),
+			LINES_RED("lines ls 7"),
+			LINES_BLACK("lines ls 8"),
+			POINTS("points");
 
 			String s;
 
-			Mode(String s) { this.s = s; }
+			Mode(String s) {
+				this.s = s;
+			}
 		};
 		
 		String fileName;
@@ -391,7 +423,7 @@ new String[]{
 					new File(fileNameWin != null ? fileNameWin : fileName));
 		}
 		
-		void plot(Mode mode, int nofCurves) throws IOException, InterruptedException {
+		void plot(Mode mode[], int nofCurves) throws IOException, InterruptedException {
 			ps.close();
 			doGnuplot(fileName, nofCurves, mode);
 			Files.delete(
@@ -410,7 +442,7 @@ new String[]{
 		void doGnuplot(
 				String tempFileName,
 				int nofCurves,
-				Mode mode) throws IOException, InterruptedException {
+				Mode[] mode) throws IOException, InterruptedException {
 			final ProcessBuilder pb =
 					new ProcessBuilder(
 							isWindows() ? "gnuplot-X11" : "gnuplot",
@@ -418,23 +450,49 @@ new String[]{
 							"-e",
 							"set term x11 size 1400 200",
 							"-e",
+							nofCurves == 5 ? 
+									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s, '%s' using 1:4 with %s, '%s' using 1:5 with %s, '%s' using 1:6 with %s",
+											tempFileName,
+											mode[0].s,
+											tempFileName,
+											mode[1].s,
+											tempFileName,
+											mode[2].s,
+											tempFileName,
+											mode[3].s,
+											tempFileName,
+											mode[4].s) :
+							
+							
+							nofCurves == 4 ? 
+									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s, '%s' using 1:4 with %s, '%s' using 1:5 with %s",
+											tempFileName,
+											mode[0].s,
+											tempFileName,
+											mode[1].s,
+											tempFileName,
+											mode[2].s,
+											tempFileName,
+											mode[3].s) :
+							
+							
 							nofCurves == 3 ? 
 									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s, '%s' using 1:4 with %s",
 											tempFileName,
-											mode.s,
+											mode[0].s,
 											tempFileName,
-											mode.s,
+											mode[1].s,
 											tempFileName,
-											mode.s) :
+											mode[2].s) :
 							nofCurves == 2 ? 
 									String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s",
 											tempFileName,
-											mode.s,
+											mode[0].s,
 											tempFileName,
-											mode.s) :
+											mode[1].s) :
 							        String.format("plot '%s' using 1:2 with %s",
 											tempFileName,
-											mode.s)
+											mode[0].s)
 							);
 			pb.inheritIO();
 			final Process pr = pb.start();
@@ -491,10 +549,14 @@ new String[]{
 
 		final double sig;
 		final double threshold;
+		final double ceiling;
+		final double floor;
 		
-		public PlotEntrySig(double sig, double threshold) {
+		public PlotEntrySig(double sig, double threshold, double ceiling, double floor) {
 			this.sig = sig;
 			this.threshold = threshold;
+			this.ceiling = ceiling;
+			this.floor = floor;
 		}
 	}
 	
@@ -579,9 +641,11 @@ new String[]{
 			new Info("dot time, tentative: %.3f ms", tuMillis);
 
 			// tsLength is the relative TS length.
-			// 0.125 is a typical value.
+			// 0.10 is a typical value.
 			// TS length in ms is: tsLength*tuMillis
-			final double tsLength = GerkeLib.getDoubleOptMulti("detpar")[DetPar.TS_FRACTION.ordinal()];
+			
+			final double tsLength = GerkeLib.getDoubleOpt("qtime");
+			
 			final int framesPerSlice = (int) (tsLength*frameRate*tuMillis/1000.0);
 			new Info("time slice: %.3f ms", 1000.0*framesPerSlice/frameRate);
 			new Info("frames per time slice: %d", framesPerSlice);
@@ -612,17 +676,17 @@ new String[]{
 				
 				final double t1 = ((double) frameLength)/frameRate;
 				
-				final double t2 = GerkeLib.getDoubleOpt("offset");
+				final double t2 = (double) (GerkeLib.getIntOpt("offset"));
 				
 				final double t3 = 
 						length == -1 ? t1 :
-							Math.min(t2 + length, t1);
+							dMin(t2 + length, t1);
 				if (length != -1 && t2 + length > t1) {
 					new Warning("offset+length exceeds %.1f seconds", t1);
 				}
 				
 				final double t4 =
-						Math.max(GerkeLib.getDoubleOptMulti("plot-interval")[0], t2);
+						dMax(GerkeLib.getDoubleOptMulti("plot-interval")[0], t2);
 				if (t4 >= t3) {
 					new Death("plot interval out of bounds");
 				}
@@ -633,7 +697,7 @@ new String[]{
 				final double t5 =
 						GerkeLib.getDoubleOptMulti("plot-interval")[1] == -1.0 ?
 								t3 :
-									Math.min(t3, t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1]);
+									dMin(t3, t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1]);
 				if (GerkeLib.getDoubleOptMulti("plot-interval")[1] != -1.0 &&
 						t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1] > t3) {
 					new Warning("ending plot interval at: %.1f s", t3);
@@ -742,10 +806,12 @@ new String[]{
 
 			// The limits are expressed as "number of time slice".
 			
-			final long dashLimit = Math.round(1.9*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
-			final long wordSpaceLimit = Math.round(5.2*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
-			final long charSpaceLimit = Math.round(1.6*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
-			final long twoDashLimit = Math.round(5.0*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
+
+			
+			final long dashLimit = Math.round(DASH_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
+			final long wordSpaceLimit = Math.round(WORD_SPACE_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
+			final long charSpaceLimit = Math.round(CHAR_SPACE_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
+			final long twoDashLimit = Math.round(TWO_DASH_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
 			
 			final double level = GerkeLib.getDoubleOpt("level");
 			new Info("relative tone/silence threshold: %.3f", level);
@@ -758,62 +824,160 @@ new String[]{
 			final double sa = signalAverage(fBest, frameRate, framesPerSlice, clipLevel);
 			new Debug("signal average clipped: %f", sa);
 			
-			final int histWidth = (int)(NOF_TU_FOR_HISTOGRAM*tuMillis/(1000.0*framesPerSlice/frameRate));
+			final int histWidth = (int)(NOF_TU_FOR_CEILING_HISTOGRAM*tuMillis/(1000.0*framesPerSlice/frameRate));
 			new Debug("histogram half-width (nof. slices): %d", histWidth);
 
 			Node p = tree;
 
-			// compute an array holding amplitude per time slice
 			final double[] sig = new double[nofSlices];
-			final double[] cosSum = new double[nofSlices];
-			final double[] sinSum = new double[nofSlices];
-			final double[] wphi = new double[nofSlices];
 			
-			final TrigTable trigTable =
-					phasePlot? null :
-						new TrigTable(fBest, framesPerSlice, frameRate);
 			
+
+
+			// new folding summation
+			// PARAMETER .. two of them
+			final double tau = GerkeLib.getDoubleOpt("sigma")*tuMillis/1000;  // tau = sigma
+			final double tauSegm = GerkeLib.getDoubleOpt("ctime")*tuMillis/1000;
+			new Debug("sigma: %f", tau);
+			new Debug("coherence time: %f", tauSegm);
+			final double dt = 1.0/frameRate;
+
+
+			// determine folding tables size
+			// PARAMETER 0.01
+			int foldSize = 0;
+			for (int j = 0; true; j++) {
+				double earg = j*dt/tau;
+				final double w = Math.exp(-earg*earg/2);
+				if (w < 0.001) {
+					break;
+				}
+				else {
+					foldSize++;
+				}
+			}
+			double expTable[] = new double[foldSize];
+			double sinTable[] = new double[foldSize];
+			double cosTable[] = new double[foldSize];
+
+			for (int j = 0; j < expTable.length; j++) {
+				double earg = j*dt/tau;
+				expTable[j] = Math.exp(-earg*earg);
+				double angle = TWO_PI*fBest*j/frameRate;
+				sinTable[j] = Math.sin(angle);
+				cosTable[j] = Math.cos(angle);
+			}
+
 			for (int q = 0; true; q++) {
-				
+
 				if (wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
-				
-				// needed only if phase plot requested
-				final double angleOffset =
-						TWO_PI*fBest*timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+
 				double sinAcc = 0.0;
 				double cosAcc = 0.0;
-				for (int j = 0; j < framesPerSlice; j++) {
-					// j is frame index
-					final int ampRaw = wav[q*framesPerSlice + j];
-					final int amp = ampRaw < 0 ?
-							Math.max(-clipLevel, ampRaw) :
-								Math.min(clipLevel, ampRaw);
+				double weightAcc = 0.0;
+				double sumWeightInSeg = 0.0;
+				double tauSegmMultiple = tauSegm;
+				double sigAcc = 0.0;
+				for (int j = 0; j < expTable.length; j++) {
 
-					if (phasePlot) {
-						final double angle = angleOffset + TWO_PI*fBest*j/frameRate;
-						sinAcc += Math.sin(angle)*amp;
-						cosAcc += Math.cos(angle)*amp;
-					}
-					else {
-						sinAcc += trigTable.sin(j)*amp;
-						cosAcc += trigTable.cos(j)*amp;
+					if (q*framesPerSlice - j >= 0) {
+
+						if (j*dt > tauSegmMultiple) {
+							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+							tauSegmMultiple += tauSegm;
+							sinAcc = 0.0;
+							cosAcc = 0.0;
+							sumWeightInSeg += weightAcc;
+							weightAcc = 0.0;
+						}
+
+						int ampRaw = wav[q*framesPerSlice - j];
+						final int amp = ampRaw < 0 ?
+								iMax(-clipLevel, ampRaw) :
+									iMin(clipLevel, ampRaw);
+								sinAcc += expTable[j]*sinTable[j]*amp;
+								cosAcc += expTable[j]*cosTable[j]*amp;
+								weightAcc += expTable[j];
 					}
 				}
 
-				sig[q] = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/framesPerSlice;
+				if (weightAcc != 0.0) {
+					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+					sumWeightInSeg += weightAcc;
+				}
+
+				sinAcc = 0.0;
+				cosAcc = 0.0;
+				weightAcc = 0.0;
 				
-				cosSum[q] = cosAcc;
-				sinSum[q] = sinAcc;
-			}
-			
-			for (int q = 0; q < wphi.length; q++) {
-				// compute per-timeslice phase
-				wphi[q] = wphi(q, cosSum, sinSum, sig, level, histWidth);
+				for (int j = 0; j < expTable.length; j++) {
+
+					if (j > 0 && q*framesPerSlice + j < wav.length) {
+
+						if (j*dt > tauSegmMultiple) {
+							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+							tauSegmMultiple += tauSegm;
+							sinAcc = 0.0;
+							cosAcc = 0.0;
+							sumWeightInSeg += weightAcc;
+							weightAcc = 0.0;
+						}
+
+						int ampRaw2 = wav[q*framesPerSlice + j];
+						final int amp2 = ampRaw2 < 0 ? iMax(-clipLevel, ampRaw2) : iMin(clipLevel, ampRaw2);
+
+						sinAcc -= expTable[j]*sinTable[j]*amp2;
+						cosAcc += expTable[j]*cosTable[j]*amp2;
+						weightAcc += expTable[j];
+					}
+
+				}
+
+				if (weightAcc != 0.0) {
+					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+					sumWeightInSeg += weightAcc;
+				}
+
+				sig[q] = sigAcc/sumWeightInSeg;
 			}
 
 			if (phasePlot) {
+				final double[] cosSum = new double[nofSlices];
+				final double[] sinSum = new double[nofSlices];
+				final double[] wphi = new double[nofSlices];
+
+				for (int q = 0; true; q++) {
+
+					if (wav.length - q*framesPerSlice < framesPerSlice) {
+						break;
+					}
+
+					final double angleOffset =
+							phasePlot ? TWO_PI*fBest*timeSeconds(q, framesPerSlice, frameRate, offsetFrames) : 0.0;
+
+							double sinAcc = 0.0;
+							double cosAcc = 0.0;
+							for (int j = 0; j < framesPerSlice; j++) {
+								// j is frame index
+								final int ampRaw = wav[q*framesPerSlice + j];
+								final int amp = ampRaw < 0 ?
+										iMax(-clipLevel, ampRaw) :
+											iMin(clipLevel, ampRaw);
+
+										final double angle = angleOffset + TWO_PI*fBest*j/frameRate;
+										sinAcc += Math.sin(angle)*amp;
+										cosAcc += Math.cos(angle)*amp;
+							}
+							cosSum[q] = cosAcc;
+							sinSum[q] = sinAcc;
+				}
+
+				for (int q = 0; q < wphi.length; q++) {
+					wphi[q] = wphi(q, cosSum, sinSum, sig, level, histWidth);
+				}
+
 				PlotCollector pcPhase = new PlotCollector();
 				for (int q = 0; q < wphi.length; q++) {
 					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
@@ -824,7 +988,7 @@ new String[]{
 						}
 					}
 				}
-				pcPhase.plot(Mode.POINTS, 1);
+				pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
 			}
 
 			final PlotCollector pcSignal;
@@ -844,24 +1008,11 @@ new String[]{
 			final Trans[] trans = new Trans[nofSlices];
 			int transIndex = 0;
 			boolean tone = false;
-			int deltaMax = 0;
 			double dipAcc = 0.0;
 			double spikeAcc = 0.0;
 			double thresholdMax = -1.0;
+			new Debug("thresholdMax is: %e", thresholdMax);
 
-			final double sigma = GerkeLib.getDoubleOptMulti("detpar")[DetPar.SIGMA.ordinal()]/tsLength;		
-			final double twoSigmaSquared = 2*sigma*sigma;
-
-			// hard-coded PARAMETER 0.01
-			// choosing a smaller value will lessen edge effects
-			int nofExpValues = 1;
-			for (int j = 1; Math.exp(-squared(j)/twoSigmaSquared) >= 0.01; j++) {
-				nofExpValues++;
-			}
-			final double[] weights = new double[nofExpValues];
-			for (int j = 1; j < nofExpValues; j++) {
-				weights[j] = Math.exp(-squared(j)/twoSigmaSquared);
-			}
 
 			for (int q = 0; true; q++) {
 				if (wav.length - q*framesPerSlice < framesPerSlice) {
@@ -869,32 +1020,22 @@ new String[]{
 					break;
 				}
 
-				final double sigAverage;
-
-				double sumValues = sig[q];
-				double sumWeights = 1.0;
-
-				for (int k = 1; k < nofExpValues; k++) {
-					if (q-k >= 0) {
-						sumValues += weights[k]*sig[q-k];
-						sumWeights += weights[k];	
-					}
-					if (q+k < nofSlices) {
-						sumValues += weights[k]*sig[q+k];
-						sumWeights += weights[k];
-					}
-				}
-				sigAverage = sumValues/sumWeights;
+				final double sigAverage = sig[q];
 	
-				final double threshold = level*THRESHOLD*localAmpByHist(q, sig, histWidth);
-				thresholdMax = Math.max(thresholdMax, threshold);
+				final double floor = localFloorByHist(q, sig, histWidth);
+				final double ceiling = localAmpByHist(q, sig, histWidth);
+				final double threshold = floor + level*THRESHOLD*(ceiling - floor);
+		
+				thresholdMax = dMax(threshold, thresholdMax);
+				
+				// new Debug("thresholdMax is (2): %e", thresholdMax);
 				final boolean newTone = sigAverage > threshold;
 				
 				if (pcSignal != null) {
 					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
 					if (plotBegin <= seconds && seconds <= plotEnd) {
 						final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>(2);
-						list.add(new PlotEntrySig(sigAverage, threshold));
+						list.add(new PlotEntrySig(sigAverage, threshold, ceiling, floor));
 						plotEntries.put(new Double(seconds), list);
 					}
 				}
@@ -925,18 +1066,23 @@ new String[]{
 					spikeAcc += squared(threshold - sigAverage);
 				}
 			}
-			new Debug("nof. terms in Gaussian blur: %d", 2*deltaMax + 1);
+			
+			new Debug("transIndex: %d", transIndex);
 						
 			// Eliminate small dips
 			
-			final double silentTu = (1/tsLength)*squared(0.5*thresholdMax);
+			final double silentTu = (1.0/tsLength)*(0.5*thresholdMax)*(0.5*thresholdMax);
+			new Debug("thresholdMax is: %e", thresholdMax);
+			new Debug("tsLength is: %e", tsLength);
+			new Debug("silentTu is: %e", silentTu);
 			final double dipLimit = GerkeLib.getDoubleOptMulti("dip-spike")[0];
+			final int veryShortDip = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
 
 			for (int t = 1; t < transIndex; t++) {
 				if (transIndex > 0 &&
 						trans[t].rise &&
 						trans[t].dipAcc != -1.0 &&
-						trans[t].dipAcc < dipLimit*silentTu) {
+						(trans[t].dipAcc < dipLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortDip)) {
 					new Debug("dip at: %d, width: %d, mass: %f, fraction: %f",
 							t,
 							trans[t].q - trans[t-1].q,
@@ -951,6 +1097,15 @@ new String[]{
 					}
 					trans[t-1] = null;
 					trans[t] = null;
+				}
+				else if (transIndex > 0 &&
+						trans[t].rise &&
+						trans[t].dipAcc != -1.0 && t % 200 == 0) {
+					new Debug("dip at: %d, width: %d, mass: %e, limit: %e",
+							t,
+							trans[t].q - trans[t-1].q,
+							trans[t].dipAcc,
+							dipLimit*silentTu);
 				}
 			}
 
@@ -967,11 +1122,12 @@ new String[]{
 
 			// remove spikes
 
+			final int veryShortSpike = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
 			if (hasSpikes) {
 				final double spikeLimit = GerkeLib.getDoubleOptMulti("dip-spike")[1];
 				for (int t = 1; t < transIndex; t++) {
 					if (!trans[t].rise && trans[t].spikeAcc != -1.0 &&
-							trans[t].spikeAcc < spikeLimit*silentTu) {
+							(trans[t].spikeAcc < spikeLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortSpike)) {
 						trans[t-1] = null;
 						trans[t] = null;
 					}
@@ -1008,6 +1164,8 @@ new String[]{
 				// at this point the plot stream can be created
 				double signa = 0.0;
 				double thresha = 0.0;
+				double ceiling = 0.0;
+				double floor = 0.0;
 				int digitizedSignal = initDigitizedSignal;
 				for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
 
@@ -1018,11 +1176,13 @@ new String[]{
 						else if (peb instanceof PlotEntrySig) {
 							signa = ((PlotEntrySig)peb).sig;
 							thresha = ((PlotEntrySig)peb).threshold;
+							ceiling = ((PlotEntrySig)peb).ceiling;
+							floor = ((PlotEntrySig)peb).floor;
 						}
 					}
 
-					pcSignal.ps.println(String.format("%f %f %f %f",
-							e.getKey().doubleValue(), signa, thresha, digitizedSignal*sa/20));
+					pcSignal.ps.println(String.format("%f %f %f %f %f %f",
+							e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal*sa/20));
 				}
 			}
 
@@ -1048,6 +1208,7 @@ new String[]{
 			final boolean breakLongDash =
 					GerkeLib.getIntOptMulti("hidden-options")[HiddenOptions.BREAK_LONG_DASH.ordinal()] == 1;
 			
+			final int offset = GerkeLib.getIntOpt("offset");
 			for (int t = 0; t < transIndex; t++) {
 
 				final boolean newTone = trans[t].rise;
@@ -1061,7 +1222,7 @@ new String[]{
 						if (GerkeLib.getFlag("timestamps")) {
 							formatter.add(true,
 									p.text,
-									(int) Math.round(trans[t].q*tsLength*tuMillis/1000));
+									offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000));
 						}
 						else {
 							formatter.add(true, p.text, -1);
@@ -1130,7 +1291,7 @@ new String[]{
 			new Info("decoded text MD5 digest: %s", formatter.getDigest());
 
 			if (pcSignal != null) {
-				pcSignal.plot(Mode.LINES, 3);
+				pcSignal.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
 			}
 			
 			final double tuEffMillisActual =
@@ -1191,7 +1352,7 @@ new String[]{
 		double sumy = 0.0;
 		double ampAve = 0.0;
 		int m = 0;
-		for (int j = Math.max(0, k-width); j <= Math.min(len-1, k+width); j++) {
+		for (int j = iMax(0, k-width); j <= iMin(len-1, k+width); j++) {
 			final double amp = sig[j];
 			ampAve += amp;
 			m++;
@@ -1200,7 +1361,7 @@ new String[]{
 		}
 		ampAve = ampAve/m;
 		
-		if (ampAve < level*THRESHOLD*localAmpByHist(k, sig, histWidth)) {
+		if (ampAve < 0.2* level*THRESHOLD*localAmpByHist(k, sig, histWidth)) {
 			return 0.0;
 		}
 		else {
@@ -1242,7 +1403,7 @@ new String[]{
 		
 		// refine, steps of 1 Hz
 		final int fStepFine = 1;
-		final int g0 = Math.max(0, fBest - 18*fStepFine);
+		final int g0 = iMax(0, fBest - 18*fStepFine);
 		final int g1 = fBest + 18*fStepFine;
 		for (int f = g0; f <= g1; f += fStepFine) {
 			final double rSquaredSum = r2Sum(f, frameRate, framesPerSlice, shorts);
@@ -1265,7 +1426,7 @@ new String[]{
 			for(Entry<Integer, Double> e : pairs.entrySet()) {
 				fPlot.ps.println(String.format("%d %f", e.getKey().intValue(), e.getValue()));
 			}
-			fPlot.plot(Mode.POINTS, 1);
+			fPlot.plot(new Mode[] {Mode.POINTS}, 1);
 		}
 		
 		return fBest;
@@ -1280,8 +1441,12 @@ new String[]{
 			new Info("offset: %d", GerkeLib.getIntOpt("offset"));
 			new Info("length: %d", GerkeLib.getIntOpt("length"));
 			new Info("clipLevel: %d", GerkeLib.getIntOpt("clip"));
+			
+			new Info("sampling period: %f", GerkeLib.getDoubleOpt("qtime"));
+			new Info("sigma: %f", GerkeLib.getDoubleOpt("sigma"));
+			new Info("coherence time: %f", GerkeLib.getDoubleOpt("ctime"));
+			
 			new Info("level: %f", GerkeLib.getDoubleOpt("level"));
-			new Info("detection parameters: %s", GerkeLib.getOpt("detpar"));
 			new Info("frequency plot: %b", GerkeLib.getFlag("frequency-plot"));
 			new Info("signal plot: %b", GerkeLib.getFlag("plot"));
 			new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
@@ -1298,44 +1463,105 @@ new String[]{
 
 	private static double localAmpByHist(int q, double[] sig, int width) {
 
-		int q1 = Math.max(q-width, 0);
-		int q2 = Math.min(q+width, sig.length);
+		int q1 = iMax(q-width, 0);
+		int q2 = iMin(q+width, sig.length);
 		
 		// find the maximal sig value
 		double sigMax = -1.0;
 		for (int j = q1; j < q2; j++) {
-			sigMax = Math.max(sig[j], sigMax);
+			sigMax = dMax(sig[j], sigMax);
 		}
 		
-		// produce a histogram with 100 slots
-		final int[] hist = new int[100];
+		// produce a histogram with HIST_SIZE_CEILING slots
+		int sumPoints = 0;
+		final int[] hist = new int[HIST_SIZE_CEILING];
 		for (int j = q1; j < q2; j++) {
 			final int index = (int) Math.round(99*sig[j]/sigMax);
-			hist[index] += 1;
+			int x = j < q ? q-j : j-q;
+			int points = (int)Math.round(500/(1 + squared(3*x/width)));   // PARAMETER 3
+			hist[index] += points;
+			sumPoints += points;
 		}
 		
 		// remove the low-amp counts
-		// TODO, consider removing more than 50%
-		// hardcoded PARAMETER 0.50
-		int count = (int) Math.round(0.50*(q2-q1));
-		for (int k = 0; k < 100; k++) {
-			final int decr = Math.min(hist[k], count);
+		final double remFrac = 0.70;   // hard-coded PARAMETER, larger value removes more
+		int count = (int) Math.round(remFrac*sumPoints);
+		int kCleared = -1;
+		for (int k = 0; k < HIST_SIZE_CEILING; k++) {
+			final int decr = iMin(hist[k], count);
 			hist[k] -= decr;
 			count -= decr;
+			if (hist[k] == 0)  {
+				kCleared = k;
+			}
+			if (count == 0) {
+				break;
+			}
 		}
 		
 		// now produce a weighted average
 		int sumCount = 0;
 		double sumAmp = 0.0;
 		
-		for (int k = 0; k < 100; k++) {
+		for (int k = kCleared+1; k < HIST_SIZE_CEILING; k++) {
 			sumCount += hist[k];
-			sumAmp += hist[k]*(k/100.0)*sigMax;
+			sumAmp += hist[k]*k*sigMax/HIST_SIZE_CEILING;
 		}
 		
 		return sumAmp/sumCount;
 	}
 
+	private static double localFloorByHist(int q, double[] sig, int width) {
+
+		int q1 = iMax(q-width, 0);
+		int q2 = iMin(q+width, sig.length);
+		
+		// find the maximal sig value
+		double sigMax = -1.0;
+		for (int j = q1; j < q2; j++) {
+			sigMax = dMax(sig[j], sigMax);
+		}
+		
+		// produce a histogram with HIST_SIZE_FLOOR slots
+		int sumPoints = 0;
+		final int[] hist = new int[HIST_SIZE_FLOOR];
+		for (int j = q1; j < q2; j++) {
+			final int index = (int) Math.round((HIST_SIZE_FLOOR-1)*sig[j]/sigMax);
+			int x = j < q ? q-j : j-q;                              // abs value
+			int points = (int)Math.round(500/(1 + squared(4*x/width)));
+			hist[index] += points;
+			sumPoints += points;
+		}
+		
+		// remove the high-signal counts
+		final double remFrac = 0.50; // hard-coded PARAMETER; larger value removes more
+		int kCleared = HIST_SIZE_FLOOR;
+		int count = (int) Math.round(remFrac*sumPoints);
+		for (int k = HIST_SIZE_FLOOR-1; k >= 0; k--) {
+			final int decr = iMin(hist[k], count);
+			hist[k] -= decr;
+			if (hist[k] == 0) {
+				kCleared = k;
+			}
+			count -= decr;
+			if (count == 0) {
+				break;
+			}
+		}
+		
+		// now produce a weighted average
+		int sumCount = 0;
+		double sumAmp = 0.0;
+		
+		for (int k = 0; k < kCleared; k++) {
+			sumCount += hist[k];
+			sumAmp += hist[k]*k*sigMax/HIST_SIZE_FLOOR;
+		}
+		
+		return sumAmp/sumCount;
+	}
+
+	
 	private static double r2Sum(int f, int frameRate, int framesPerSlice, short[] shorts) {
 		
 		double rSquaredSum = 0.0;
@@ -1421,7 +1647,7 @@ new String[]{
 
 			for (int j = 0; j < framesPerSlice; j++) {
 				final int ampRaw = (int) wav[q*framesPerSlice + j];
-				final int amp = ampRaw < 0 ? Math.max(ampRaw, -clipLevel) : Math.min(ampRaw, clipLevel);
+				final int amp = ampRaw < 0 ? iMax(ampRaw, -clipLevel) : iMin(ampRaw, clipLevel);
 				sinAcc += trigTable.sin(j)*amp;
 				cosAcc += trigTable.cos(j)*amp;
 			}
@@ -1435,4 +1661,21 @@ new String[]{
 
 		return rSum/divisor;
 	}
+	
+	private static double dMax(double a, double b) {
+		return a > b ? a : b;
+	}
+	
+	private static double dMin(double a, double b) {
+		return a < b ? a : b;
+	}
+	
+	private static int iMax(int a, int b) {
+		return a > b ? a : b;
+	}
+	
+	private static int iMin(int a, int b) {
+		return a < b ? a : b;
+	}
+
 }
