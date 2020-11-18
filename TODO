@@ -1,0 +1,65 @@
+
+
+
+Refactoring
+
+Identify truly global variables and arrays. Break up the big main
+function into procedures that operate on those. Have threading in
+mind.
+
+
+
+Consistency
+
+Option -w (WPM) defines TU
+
+Option -q (sample period) defines a fraction of TU, should be rounded
+to an integer number of wav samples. This integer to be used in
+calculation of times, and a re-adjusted tsLength parameter.
+
+Break superlong dashes: Do not break in half, instead break off 3+1 TU
+and reconsider the remaining dash for possibly another breakup. Also
+distribute the collected weight fairly, even though it will not be
+used.
+
+
+
+
+Performance
+
+Maybe make the floor detection a bit more localized.
+
+Make the post-filter smoothing action properly scaled.
+
+Consider running the filters on separate threads.
+
+Do not exit before gnuplot subprocesses have terminated.
+
+Quantify the performance gain obtained by digital filtering. Use the
+2019-12-24 material.
+
+Tests on the super-noisy synchronous RSCW sample: Done, no success.
+
+
+Logistics
+
+Maven build
+
+Installation on Cygwin
+
+Installation on Linux
+
+Current launch command is:
+java -classpath "bin;../iirj/target/classes;C:\Users\Rabbe.Fogelholm\.m2\repository\org\apache\commons\commons-math3\3.6.1\commons-math3-3.6.1.jar" st.foglo.gerke_decoder.GerkeDecoder
+
+
+
+Documentation
+
+Revise the .md file
+
+
+Extension
+
+Processing of I/Q data. Multiply with a single sine wave, then filter,
+then combine the two channels by square root of amplitudes.

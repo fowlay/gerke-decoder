@@ -366,7 +366,12 @@ public final class GerkeLib {
 		final StringTokenizer st = new StringTokenizer(multiValue, ",");
 		final int[] result = new int[st.countTokens()];
 		for (int k = 0; k < result.length; k++) {
-			result[k] = Integer.parseInt(st.nextToken());
+			try {
+				result[k] = Integer.parseInt(st.nextToken());
+			}
+			catch (NumberFormatException e) {
+				result[k] = 0;
+			}
 		}
 		return result;
 	}

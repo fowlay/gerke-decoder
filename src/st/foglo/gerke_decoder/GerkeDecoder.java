@@ -38,6 +38,10 @@ import javax.sound.sampled.AudioSystem;
 
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
+import uk.me.berndporr.iirj.Bessel;
+import uk.me.berndporr.iirj.Butterworth;
+import uk.me.berndporr.iirj.ChebyshevI;
+import uk.me.berndporr.iirj.ChebyshevII;
 
 public final class GerkeDecoder {
 	
@@ -51,21 +55,21 @@ public final class GerkeDecoder {
 	 * and building a histogram, discarding the low signal values, and
 	 * taking the average of remaining values.
 	 */
-	static final int NOF_TU_FOR_CEILING_HISTOGRAM = 30; // 50;
-	static final int NOF_TU_FOR_FLOOR_HISTOGRAM = 30; // 50;
+	static final int NOF_TU_FOR_CEILING_HISTOGRAM = 30; // 30;
+	static final int NOF_TU_FOR_FLOOR_HISTOGRAM = 30; // 30;
 	
 	static final int HIST_SIZE_CEILING = 100;
 	static final int HIST_SIZE_FLOOR = 100;
 
-	enum HiddenOptions {BREAK_LONG_DASH};
+	enum HiddenOptions {BREAK_LONG_DASH, CUTOFF, AVE_SIZE};
 	
 	static final double WORD_SPACE_LIMIT = 5.3;    // words break <---------+---------> words stick
 	static final double CHAR_SPACE_LIMIT = 1.8;    // chars break <---------+---------> chars cluster
 	static final double DASH_LIMIT = 1.7;          // 1.6
-	static final double TWO_DASH_LIMIT = 5.0;      // 5.0
+	static final double TWO_DASH_LIMIT = 6.0;      // 6.0
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 2.0");
+		new VersionOption("V", "version", "gerke-decoder version 2.0 preliminary 1");
 
 		new SingleValueOption("o", "offset", "0");
 		new SingleValueOption("l", "length", "-1");
@@ -95,7 +99,7 @@ public final class GerkeDecoder {
 
 		// 0=false, 1=true
 		// break-long-dashes, ...
-		new SingleValueOption("H", "hidden-options", "0");
+		new SingleValueOption("H", "hidden-options", "1,1.7,8");
 
 		new HelpOption(
 				"h",
@@ -116,6 +120,8 @@ new String[]{
 		String.format("  -z COHERENCE_TIME  Coherence time, defaults to %s TU", GerkeLib.getDefault("ctime")),
 		
 		String.format("  -D DIP,SPIKE       Limits for dip and spike removal, default: %s", GerkeLib.getDefault("dip-spike")),
+		
+		String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault("hidden-options")),
 		
 		String.format("  -S                 Generate frequency spectrum plot"),
 		String.format("  -P                 Generate signal plot"),
@@ -830,9 +836,6 @@ new String[]{
 			Node p = tree;
 
 			final double[] sig = new double[nofSlices];
-			
-			
-
 
 			// new folding summation
 			// PARAMETER .. two of them
@@ -868,79 +871,139 @@ new String[]{
 				cosTable[j] = Math.cos(angle);
 			}
 
-			for (int q = 0; true; q++) {
+			double cutoff =
+					GerkeLib.getDoubleOptMulti("hidden-options")[HiddenOptions.CUTOFF.ordinal()];
+			
+			int order = 2;   // PARAMETER 2
+			
+			final Butterworth buSin = new Butterworth();
+			buSin.lowPass(order, (double)frameRate, cutoff* 1000.0/tuMillis);
+			
+			final Butterworth buCos = new Butterworth();
+			buCos.lowPass(order, (double)frameRate, cutoff* 1000.0/tuMillis);
+//			
+//			
+//			final ChebyshevI che1Sin = new ChebyshevI();
+//			che1Sin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
+//			
+//			final ChebyshevI che1Cos = new ChebyshevI();
+//			che1Cos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
+			
+//			final ChebyshevII che2Sin = new ChebyshevII();
+//			che2Sin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
+//			
+//			final ChebyshevII che2Cos = new ChebyshevII();
+//			che2Cos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
+//			
+//
+//			final Bessel besSin = new Bessel();
+//			besSin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis);
+//			
+//			final Bessel besCos = new Bessel();
+//			besCos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis);
+			
+			final int aveSize = GerkeLib.getIntOptMulti("hidden-options")[HiddenOptions.AVE_SIZE.ordinal()];
+			double[] av10 = new double[aveSize];
+			for (int j = 0; j < aveSize; j++) { av10[j] = 0.0; }
+			for (int q = 0; true; q++) {      //  q is sig[] index
 
 				if (wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
+			
+			    // feed the filters with wav samples
+			    for (int k = -framesPerSlice+1; k <= 0; k++) {
+			    	
+			    	int wavIndex = q*framesPerSlice + k;
+			    	
+			    	double outSin = 0.0;
+		    		double outCos = 0.0;
+			    	if (wavIndex >= 0) {
+			    		int ampRaw = wav[wavIndex];   // k is non-positive!
+			    		final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
 
-				double sinAcc = 0.0;
-				double cosAcc = 0.0;
-				double weightAcc = 0.0;
-				double sumWeightInSeg = 0.0;
-				double tauSegmMultiple = tauSegm;
-				double sigAcc = 0.0;
-				for (int j = 0; j < expTable.length; j++) {
-
-					if (q*framesPerSlice - j >= 0) {
-
-						if (j*dt > tauSegmMultiple) {
-							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-							tauSegmMultiple += tauSegm;
-							sinAcc = 0.0;
-							cosAcc = 0.0;
-							sumWeightInSeg += weightAcc;
-							weightAcc = 0.0;
+			    		double angle = TWO_PI*fBest*wavIndex/frameRate;
+			    		outSin = buSin.filter(amp*Math.sin(angle));
+			    		outCos = buCos.filter(amp*Math.cos(angle));
+			    	}
+					if (k == 0) {
+						for (int kk = 0; kk < aveSize; kk++) {
+							av10[kk] *= 0.8;
 						}
-
-						int ampRaw = wav[q*framesPerSlice - j];
-						final int amp = ampRaw < 0 ?
-								iMax(-clipLevel, ampRaw) :
-									iMin(clipLevel, ampRaw);
-								sinAcc += expTable[j]*sinTable[j]*amp;
-								cosAcc += expTable[j]*cosTable[j]*amp;
-								weightAcc += expTable[j];
+						av10[q % aveSize] = Math.sqrt(outSin*outSin + outCos*outCos);
+						double ss = 0.0;
+						for (int j = 0; j < aveSize; j++) { ss += av10[j]; }
+						sig[q] = ss/aveSize;
 					}
-				}
-
-				if (weightAcc != 0.0) {
-					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-					sumWeightInSeg += weightAcc;
-				}
-
-				sinAcc = 0.0;
-				cosAcc = 0.0;
-				weightAcc = 0.0;
-				
-				for (int j = 0; j < expTable.length; j++) {
-
-					if (j > 0 && q*framesPerSlice + j < wav.length) {
-
-						if (j*dt > tauSegmMultiple) {
-							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-							tauSegmMultiple += tauSegm;
-							sinAcc = 0.0;
-							cosAcc = 0.0;
-							sumWeightInSeg += weightAcc;
-							weightAcc = 0.0;
-						}
-
-						int ampRaw2 = wav[q*framesPerSlice + j];
-						final int amp2 = ampRaw2 < 0 ? iMax(-clipLevel, ampRaw2) : iMin(clipLevel, ampRaw2);
-
-						sinAcc -= expTable[j]*sinTable[j]*amp2;
-						cosAcc += expTable[j]*cosTable[j]*amp2;
-						weightAcc += expTable[j];
-					}
-
-				}
-
-				if (weightAcc != 0.0) {
-					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-					sumWeightInSeg += weightAcc;
-				}
-
-				sig[q] = sigAcc/sumWeightInSeg;
+			    }
+//
+//				double sinAcc = 0.0;
+//				double cosAcc = 0.0;
+//				double weightAcc = 0.0;
+//				double sumWeightInSeg = 0.0;
+//				double tauSegmMultiple = tauSegm;
+//				double sigAcc = 0.0;
+//				for (int j = 0; j < expTable.length; j++) {
+//
+//					if (q*framesPerSlice - j >= 0) {
+//
+//						if (j*dt > tauSegmMultiple) {
+//							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+//							tauSegmMultiple += tauSegm;
+//							sinAcc = 0.0;
+//							cosAcc = 0.0;
+//							sumWeightInSeg += weightAcc;
+//							weightAcc = 0.0;
+//						}
+//
+//						int ampRaw = wav[q*framesPerSlice - j];
+//						final int amp = ampRaw < 0 ?
+//								iMax(-clipLevel, ampRaw) :
+//									iMin(clipLevel, ampRaw);
+//								sinAcc += expTable[j]*sinTable[j]*amp;
+//								cosAcc += expTable[j]*cosTable[j]*amp;
+//								weightAcc += expTable[j];
+//					}
+//				}
+//
+//				if (weightAcc != 0.0) {
+//					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+//					sumWeightInSeg += weightAcc;
+//				}
+//
+//				sinAcc = 0.0;
+//				cosAcc = 0.0;
+//				weightAcc = 0.0;
+//				
+//				for (int j = 0; j < expTable.length; j++) {
+//
+//					if (j > 0 && q*framesPerSlice + j < wav.length) {
+//
+//						if (j*dt > tauSegmMultiple) {
+//							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+//							tauSegmMultiple += tauSegm;
+//							sinAcc = 0.0;
+//							cosAcc = 0.0;
+//							sumWeightInSeg += weightAcc;
+//							weightAcc = 0.0;
+//						}
+//
+//						int ampRaw2 = wav[q*framesPerSlice + j];
+//						final int amp2 = ampRaw2 < 0 ? iMax(-clipLevel, ampRaw2) : iMin(clipLevel, ampRaw2);
+//
+//						sinAcc -= expTable[j]*sinTable[j]*amp2;
+//						cosAcc += expTable[j]*cosTable[j]*amp2;
+//						weightAcc += expTable[j];
+//					}
+//
+//				}
+//
+//				if (weightAcc != 0.0) {
+//					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
+//					sumWeightInSeg += weightAcc;
+//				}
+//
+//				sig[q] = sigAcc/sumWeightInSeg;
 			}
 
 			if (phasePlot) {
@@ -1011,6 +1074,7 @@ new String[]{
 			double dipAcc = 0.0;
 			double spikeAcc = 0.0;
 			double thresholdMax = -1.0;
+			double ceilingMax = -1.0;
 			new Debug("thresholdMax is: %e", thresholdMax);
 
 
@@ -1027,6 +1091,7 @@ new String[]{
 				final double threshold = floor + level*THRESHOLD*(ceiling - floor);
 		
 				thresholdMax = dMax(threshold, thresholdMax);
+				ceilingMax = dMax(ceiling, ceilingMax);
 				
 				// new Debug("thresholdMax is (2): %e", thresholdMax);
 				final boolean newTone = sigAverage > threshold;
@@ -1134,6 +1199,39 @@ new String[]{
 				}
 			}
 			transIndex = removeHoles(trans, transIndex);
+			
+			// break up very long dashes
+			
+			final boolean breakLongDash =
+					GerkeLib.getIntOptMulti("hidden-options")
+					[HiddenOptions.BREAK_LONG_DASH.ordinal()] == 1;
+
+			if (breakLongDash) {
+				// TODO, refactor
+				for (int t = 1; t < transIndex; ) {
+					if (trans[t-1].rise && !trans[t].rise && trans[t].q - trans[t-1].q > twoDashLimit) {
+						// break up a very long dash, make room for 2 more events
+						for (int tt = transIndex-1; tt > t; tt--) {
+							trans[tt+2] = trans[tt];
+						}
+						transIndex += 2;
+						// fair split
+						Trans big = trans[t];
+						int dashSize = big.q - trans[t-1].q;
+						int q1 = trans[t-1].q + dashSize/2 - (int) Math.round(0.5/tsLength);
+						int q2 = trans[t-1].q + dashSize/2 + (int) Math.round(0.5/tsLength);
+						int q3 = big.q;
+						double acc = big.spikeAcc;
+						trans[t] = new Trans(q1, false, acc/2);
+						trans[t+1] = new Trans(q2, true, acc/2);
+						trans[t+2] = new Trans(q3, false, acc/2);
+						t +=3;
+					}
+					else {
+						t++;
+					}
+				}
+			}
 
 			if (GerkeLib.getFlag("plot")) {
 				// scan the trans[] array, create Plot entries
@@ -1156,7 +1254,10 @@ new String[]{
 							plotEntries.put(new Double(sec0), newList);
 						}
 						else {
-							list.add(new PlotEntryDecode(trans[t].rise ? 2 : 1));
+							list.add(
+									new PlotEntryDecode(
+											(int) Math.round(
+													(trans[t].rise ? 2 : 1) * ceilingMax/20)));
 						}
 					}
 				}
@@ -1181,8 +1282,8 @@ new String[]{
 						}
 					}
 
-					pcSignal.ps.println(String.format("%f %f %f %f %f %f",
-							e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal*sa/20));
+					pcSignal.ps.println(String.format("%f %f %f %f %f %d",
+							e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
 				}
 			}
 
@@ -1205,8 +1306,7 @@ new String[]{
 			int nTuSpace = 0;
 			int qSpace = 0;
 			
-			final boolean breakLongDash =
-					GerkeLib.getIntOptMulti("hidden-options")[HiddenOptions.BREAK_LONG_DASH.ordinal()] == 1;
+
 			
 			final int offset = GerkeLib.getIntOpt("offset");
 			for (int t = 0; t < transIndex; t++) {
@@ -1242,21 +1342,7 @@ new String[]{
 					// tone -> silent
 					qBeginSilence = trans[t].q;
 					final int dashSize = trans[t].q - trans[t-1].q;
-					if (breakLongDash && dashSize > twoDashLimit) {
-						new Debug("breaking up too long dash");
-						if (p.dash == null) {
-							final String newCode = p.code + "-";
-							p.dash = new Node(null, newCode);
-						}
-						p = p.dash;
-						
-						if (p.dash == null) {
-							final String newCode = p.code + "-";
-							p.dash = new Node(null, newCode);
-						}
-						p = p.dash;
-					}
-					else if (dashSize > dashLimit) {
+					if (dashSize > dashLimit) {
 						if (p.dash == null) {
 							final String newCode = p.code + "-";
 							p.dash = new Node(null, newCode);
@@ -1534,7 +1620,7 @@ new String[]{
 		}
 		
 		// remove the high-signal counts
-		final double remFrac = 0.50; // hard-coded PARAMETER; larger value removes more
+		final double remFrac = 0.50; // hard-coded PARAMETER 0.50; larger value removes more
 		int kCleared = HIST_SIZE_FLOOR;
 		int count = (int) Math.round(remFrac*sumPoints);
 		for (int k = HIST_SIZE_FLOOR-1; k >= 0; k--) {
