@@ -16,6 +16,11 @@
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+# For alternative mirrors, see https://www.apache.org/mirrors/
+APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/
+APACHE_REL = 3.6.3
+
+
 gerke-decoder.jar: \
     classes/st/foglo/gerke_decoder/GerkeLib.class \
     classes/st/foglo/gerke_decoder/GerkeDecoder.class
@@ -49,3 +54,20 @@ test: gerke-decoder.jar grimeton-clip.wav
 grimeton-clip.wav:
 	rm -f $@
 	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
+
+
+.PHONY: x
+
+x:
+	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" mvn compile
+
+
+
+
+# x: apache-maven-$(APACHE_REL)/conf/settings.xml
+
+apache-maven-$(APACHE_REL)/conf/settings.xml:
+	wget $(APACHE_MIRROR)/maven/maven-3/$(APACHE_REL)/binaries/apache-maven-$(APACHE_REL)-bin.tar.gz \
+	  --output-document=- \
+	| tar -xzf -
+	sed -i -e "/<!-- localRepository/s|.*|<localRepository>m2</localRepository> <!--|" $@
