@@ -38,10 +38,7 @@ import javax.sound.sampled.AudioSystem;
 
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
-import uk.me.berndporr.iirj.Bessel;
 import uk.me.berndporr.iirj.Butterworth;
-import uk.me.berndporr.iirj.ChebyshevI;
-import uk.me.berndporr.iirj.ChebyshevII;
 
 public final class GerkeDecoder {
 	
@@ -69,7 +66,7 @@ public final class GerkeDecoder {
 	static final double TWO_DASH_LIMIT = 6.0;      // 6.0
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 2.0 preliminary 1");
+		new VersionOption("V", "version", "gerke-decoder version 2.0 preliminary 2");
 
 		new SingleValueOption("o", "offset", "0");
 		new SingleValueOption("l", "length", "-1");

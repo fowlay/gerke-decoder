@@ -43,15 +43,15 @@ Tests on the super-noisy synchronous RSCW sample: Done, no success.
 
 Logistics
 
-Maven build
+Release identifier
+
+Code in 3 places, should be one or two. Generate a Java interface
+class to hold the value, taken from the pom.xml?
+
 
 Installation on Cygwin
 
 Installation on Linux
-
-Current launch command is:
-java -classpath "bin;../iirj/target/classes;C:\Users\Rabbe.Fogelholm\.m2\repository\org\apache\commons\commons-math3\3.6.1\commons-math3-3.6.1.jar" st.foglo.gerke_decoder.GerkeDecoder
-
 
 
 Documentation
