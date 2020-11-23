@@ -168,9 +168,20 @@ public final class GerkeLib {
 		}
 	}
 
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
+	public static class Trace extends Message {
+		public Trace(String message) {
+			super("TRACE", message, getIntOpt("verbose") >= 3);
+		}
+		
+		public Trace(String format, int j, double x) {
+			this(String.format(format, j, x));
+		}
+		
+		public Trace(String format, int j, int k, double x, double y) {
+			this(String.format(format, j, k, x, y));
+		}
+	}
+
 	public static class Debug extends Message {
 		public Debug(String message) {
 			super("DEBUG", message, getIntOpt("verbose") >= 2);
@@ -213,11 +224,6 @@ public final class GerkeLib {
 		}
 	}
 	
-	
-	
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
 	public static class Info extends Message {
 		public Info(String message) {
 			super("INFO", message, getIntOpt("verbose") >= 1);
@@ -269,10 +275,6 @@ public final class GerkeLib {
 
 	}
 
-	
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
 	public static class Warning extends Message {
 		public Warning(String message) {
 			super("WARNING", message, true);
@@ -360,6 +362,16 @@ public final class GerkeLib {
 	public static int getIntOpt(String key) {
 		return Integer.parseInt(getOpt(key));
 	}
+
+	public static String[] getOptMulti(String key) {
+		final String multiValue = getOpt(key);
+		final StringTokenizer st = new StringTokenizer(multiValue, ",");
+		final String[] result = new String[st.countTokens()];
+		for (int k = 0; k < result.length; k++) {
+			result[k] = st.nextToken();
+		}
+		return result;
+	}
 	
 	public static int[] getIntOptMulti(String key) {
 		final String multiValue = getOpt(key);
@@ -381,7 +393,12 @@ public final class GerkeLib {
 		final StringTokenizer st = new StringTokenizer(multiValue, ",");
 		final double[] result = new double[st.countTokens()];
 		for (int k = 0; k < result.length; k++) {
-			result[k] = Double.parseDouble(st.nextToken());
+			try {
+				result[k] = Double.parseDouble(st.nextToken());
+			}
+			catch (NumberFormatException e) {
+				result[k] = 0.0;
+			}
 		}
 		return result;
 	}

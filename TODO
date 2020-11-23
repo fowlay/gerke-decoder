@@ -1,4 +1,29 @@
 
+Separate thresholds
+
+one for character detection, one for pattern matching. How sensitive is the latter?
+
+
+
+Spike removal
+
+still meaningful, to improve detection of character boundaries.
+
+
+Dip removal
+
+No longer meaningful?
+
+
+
+Best filter
+
+Does the Butterworth filter produce a better result than sliding window? Test this on the Ukraine 17205 recording?
+
+
+
+Re-test the Cohoe recording
+
 
 
 Refactoring
@@ -10,12 +35,6 @@ mind.
 
 
 Consistency
-
-Option -w (WPM) defines TU
-
-Option -q (sample period) defines a fraction of TU, should be rounded
-to an integer number of wav samples. This integer to be used in
-calculation of times, and a re-adjusted tsLength parameter.
 
 Break superlong dashes: Do not break in half, instead break off 3+1 TU
 and reconsider the remaining dash for possibly another breakup. Also
@@ -31,14 +50,19 @@ Maybe make the floor detection a bit more localized.
 
 Make the post-filter smoothing action properly scaled.
 
-Consider running the filters on separate threads.
+DONE Consider running the filters on separate threads. This
+works; the filtering time is down by 50%.
+
+Consider letting the FilterRunner build a list of angle values and
+reuse trig function results when periodicity is decent. This
+introduces a small frequency error.
 
 Do not exit before gnuplot subprocesses have terminated.
 
 Quantify the performance gain obtained by digital filtering. Use the
 2019-12-24 material.
 
-Tests on the super-noisy synchronous RSCW sample: Done, no success.
+Tests on the super-noisy synchronous RSCW sample: DONE, no success.
 
 
 Logistics
@@ -63,3 +87,35 @@ Extension
 
 Processing of I/Q data. Multiply with a single sine wave, then filter,
 then combine the two channels by square root of amplitudes.
+
+
+Best-match recognition of characters
+
+The current event-check loop can recognize word breaks and character
+breaks. Assuming that this can be done accurately, a list of items can
+be collected, where each item is a word break, a char break, or a
+character. A character is represented by
+
+  - the leading 'rise' event
+  - the final 'fall' event
+
+From these events the length of the character can be derived. The
+lengths should cluster around 1 TU, 3 TU, 5 TU, etc. Each length
+implies a number of possible decoded characters.
+
+Test against each possible character by integrating the product of a
+square wave alternating between 1 and -1, and a function of the signal
+value. This function is the actual signal at sampling points, minus a
+threshold level.
+
+The threshold level may be computed as a linear interpolation between
+the threshold values at entry and exit. Since intra-char silences tend
+to be weak it is important to keep the threshold high, and perhaps to
+give extra weight to negative values.
+
+With this decoding scheme there is less need for removing dips and
+spikes. Identifying and removing spikes within word and character
+breaks may still be important however.
+
+Also breaking of superlong dashes should not be needed. An 'm' with a
+missing inter-dash silence will still produce a best fit for 'm'.

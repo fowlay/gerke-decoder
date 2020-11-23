@@ -28,9 +28,11 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.CountDownLatch;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -38,9 +40,11 @@ import javax.sound.sampled.AudioSystem;
 
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
-import uk.me.berndporr.iirj.Butterworth;
 
 public final class GerkeDecoder {
+	
+	static final int HI = 10;
+	static final int LO = -15;
 	
 	static final double TWO_PI = 2*Math.PI;
 	
@@ -58,67 +62,87 @@ public final class GerkeDecoder {
 	static final int HIST_SIZE_CEILING = 100;
 	static final int HIST_SIZE_FLOOR = 100;
 
-	enum HiddenOptions {BREAK_LONG_DASH, CUTOFF, AVE_SIZE};
+	static final String O_VERSION = "version";
+	static final String O_OFFSET = "offset";
+	static final String O_LENGTH = "length";
+	static final String O_FRANGE = "frange";
+	static final String O_FREQ = "freq";
+	static final String O_WPM = "wpm";
+	static final String O_CLIPPING = "clip";
+	static final String O_STIME = "sample-time";
+	static final String O_SIGMA = "sigma";
+	static final String O_LEVEL = "level";
+	static final String O_TSTAMPS = "timestamps";
+	static final String O_FPLOT = "frequency-plot";
+	static final String O_PLINT = "plot-interval";
+	static final String O_PLOT = "plot";
+	static final String O_PPLOT = "phase-plot";
+	static final String O_VERBOSE = "verbose";
+	
+	static final String O_HIDDEN = "hidden-options";
+	enum HiddenOpts {DIP, SPIKE, BREAK_LONG_DASH, CUTOFF, FILTER, ORDER, PMLEVEL};
 	
 	static final double WORD_SPACE_LIMIT = 5.3;    // words break <---------+---------> words stick
-	static final double CHAR_SPACE_LIMIT = 1.8;    // chars break <---------+---------> chars cluster
+	static final double CHAR_SPACE_LIMIT = 1.75;   // chars break <---------+---------> chars cluster
 	static final double DASH_LIMIT = 1.7;          // 1.6
 	static final double TWO_DASH_LIMIT = 6.0;      // 6.0
 
 	static {
-		new VersionOption("V", "version", "gerke-decoder version 2.0 preliminary 2");
+		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0 preliminary 2");
 
-		new SingleValueOption("o", "offset", "0");
-		new SingleValueOption("l", "length", "-1");
+		new SingleValueOption("o", O_OFFSET, "0");
+		new SingleValueOption("l", O_LENGTH, "-1");
 
-		new SingleValueOption("F", "frange", "400,1200");
-		new SingleValueOption("f", "freq", "-1");
+		new SingleValueOption("F", O_FRANGE, "400,1200");
+		new SingleValueOption("f", O_FREQ, "-1");
 		
 		new SingleValueOption("w", "wpm", "15.0");
 
-		new SingleValueOption("c", "clip", "-1");
-		new SingleValueOption("q", "qtime", "0.10");
-		new SingleValueOption("y", "sigma", "0.33");
-		new SingleValueOption("z", "ctime", "0.30");
+		new SingleValueOption("c", O_CLIPPING, "-1");
+		new SingleValueOption("q", O_STIME, "0.10");
+		new SingleValueOption("s", O_SIGMA, "0.33");
 
-		new SingleValueOption("D", "dip-spike", "0.005,0.005");
+		new SingleValueOption("D", "dip-spike", "0.002,0.005");
 
-		new SingleValueOption("u", "level", "1.0");
-		new Flag("t", "timestamps");
+		new SingleValueOption("u", O_LEVEL, "1.0");
+		new Flag("t", O_TSTAMPS);
 
-		new Flag("S", "frequency-plot");
+		new Flag("S", O_FPLOT);
 		
-		new SingleValueOption("Z", "plot-interval", "0,-1");
-		new Flag("P", "plot");
-		new Flag("Q", "phase-plot");
+		new SingleValueOption("Z", O_PLINT, "0,-1");
+		new Flag("P", O_PLOT);
+		new Flag("Q", O_PPLOT);
 
-		new SteppingOption("v", "verbose");
+		new SteppingOption("v", O_VERBOSE);
 
-		// 0=false, 1=true
-		// break-long-dashes, ...
-		new SingleValueOption("H", "hidden-options", "1,1.7,8");
+		new SingleValueOption("H", O_HIDDEN,
+				        "0.002"+                    // dip removal
+		                ",0.005"+                   // spike removal
+				        ",1"+                       // break too long dashes
+						",1.2"+                     // frequency, relative to 1/TU
+						",b"+                       // b: butterworth, cI: chebyshev I, w: sliding window, n: no filter
+						",2"+                       // filter order
+						",1.0"                      // level in character decoder
+				);
 
 		new HelpOption(
 				"h",
 new String[]{
 		"Usage is: java -jar gerke-decoder.jar [OPTIONS] WAVFILE",
 		"Options are:",
-		String.format("  -w WPM             WPM, tentative, defaults to %s", GerkeLib.getDefault("wpm")),
-		String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault("frange")),
-		String.format("  -f FREQ            Audio frequency, bypassing search"),
-		String.format("  -c CLIPLEVEL       Clipping level, optional"),
-		String.format("  -u ADJUSTMENT      Threshold adjustment, defaults to %s", GerkeLib.getDefault("level")),
 		String.format("  -o OFFSET          Offset (seconds)"),
 		String.format("  -l LENGTH          Length (seconds)"),
 		
-		String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault("qtime")),
-		
-		String.format("  -y SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault("sigma")),
-		String.format("  -z COHERENCE_TIME  Coherence time, defaults to %s TU", GerkeLib.getDefault("ctime")),
-		
-		String.format("  -D DIP,SPIKE       Limits for dip and spike removal, default: %s", GerkeLib.getDefault("dip-spike")),
-		
-		String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault("hidden-options")),
+		String.format("  -w WPM             WPM, tentative, defaults to %s", GerkeLib.getDefault(O_WPM)),
+		String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault(O_FRANGE)),
+		String.format("  -f FREQ            Audio frequency, bypassing search"),
+		String.format("  -c CLIPLEVEL       Clipping level, optional"),
+		String.format("  -u ADJUSTMENT      Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
+
+		String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault(O_STIME)),
+		String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
+
+		String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault(O_HIDDEN)),
 		
 		String.format("  -S                 Generate frequency spectrum plot"),
 		String.format("  -P                 Generate signal plot"),
@@ -130,17 +154,14 @@ new String[]{
 		String.format("  -V                 Show version"),
 		String.format("  -h                 This help"),
 		"",
-		"A tentative TU length (dot length) is derived from the tentative WPM value",
-		"given in milliseconds as TU = 1200/WPM.",
+		"A tentative TU length (length of one dot) is derived from the WPM value",
+		"The TU length in ms is taken as = 1200/WPM.",
 		"",
 		"The SAMPLE_PERIOD parameter defines the periodicity of signal evaluation",
-		"as a fraction of the TU.",
+		"given in TU units.",
 		"",
-		"The SIGMA parameter defines the width, as a fraction of the TU, of the",
-		"Gaussian used in computing the signal value.",
-		"",
-		"The COHERENCE_TIME as a fraction of the TU is the time for which phase",
-		"stability of the signal is required."
+		"The SIGMA parameter defines the width, given in TU units, of the Gaussian",
+		"used in computing the signal value."
 				});
 	}
 
@@ -195,8 +216,7 @@ new String[]{
 	static {
 		new Node("e", ".");
 		new Node("t", "-");
-		
-		
+
 		new Node("i", "..");
 		new Node("a", ".-");
 		new Node("n", "-.");
@@ -290,12 +310,169 @@ new String[]{
 		new Node(null, "...---..");
 		new Node("<SOS>", "...---...");
 	}
+	
+	
+	static Map<Integer, CharTemplates> templs = new TreeMap<Integer, CharTemplates>();
+	
+	static {
+		new CharTemplate("a", ".-");
+		new CharTemplate("b", "-...");
+		new CharTemplate("c", "-.-.");
+		new CharTemplate("d", "-..");
+		new CharTemplate("e", ".");
+		new CharTemplate("f", "..-.");
+		new CharTemplate("g", "--.");
+		new CharTemplate("h", "....");
+		new CharTemplate("i", "..");
+		new CharTemplate("j", ".---");
+		new CharTemplate("k", "-.-");
+		new CharTemplate("l", ".-..");
+		new CharTemplate("m", "--");
+		new CharTemplate("n", "-.");
+		new CharTemplate("o", "---");
+		new CharTemplate("p", ".--.");
+		new CharTemplate("q", "--.-");
+		new CharTemplate("r", ".-.");
+		new CharTemplate("s", "...");
+		new CharTemplate("t", "-");
+		new CharTemplate("u", "..-");
+		new CharTemplate("v", "...-");
+		new CharTemplate("w", ".--");
+		new CharTemplate("x", "-..-");
+		new CharTemplate("y", "-.--");
+		new CharTemplate("z", "--..");
+		
+		new CharTemplate("1", ".----");
+		new CharTemplate("2", "..---");
+		new CharTemplate("3", "...--");
+		new CharTemplate("4", "....-");
+		new CharTemplate("5", ".....");
+		new CharTemplate("6", "-....");
+		new CharTemplate("7", "--...");
+		new CharTemplate("8", "---..");
+		new CharTemplate("9", "----.");
+		new CharTemplate("0", "-----");
+
+		new CharTemplate(encodeLetter(252), "..--");
+		new CharTemplate(encodeLetter(228), ".-.-");
+		new CharTemplate(encodeLetter(246), "---.");
+		new CharTemplate("ch", "----");
+		new CharTemplate(encodeLetter(233), "..-..");
+		
+		new CharTemplate(encodeLetter(229), ".--.-");
+		
+		new CharTemplate("/", "-..-.");
+		new CharTemplate("+", ".-.-.");
+		new CharTemplate(".", ".-.-.-");
+		new CharTemplate(null, "--..-");
+		new CharTemplate(",", "--..--");
+		new CharTemplate("=", "-...-");
+		new CharTemplate("-", "-....-");
+		new CharTemplate(null, ".-....-");
+		new CharTemplate(":", "---...");
+		new CharTemplate(null, "-.-.-");
+		new CharTemplate(";", "-.-.-.");
+		new CharTemplate("(", "-.--.");
+		new CharTemplate(")", "-.--.-");
+		new CharTemplate("'", ".----.");
+		new CharTemplate(null, "..--.");
+		new CharTemplate("?", "..--..");
+		new CharTemplate(null, ".-..-");
+		new CharTemplate("\"", ".-..-.");
+		new CharTemplate("<AS>", ".-...");
+		new CharTemplate(null, "-...-.");
+		new CharTemplate("<BK>", "-...-.-");
+		new CharTemplate(null, "...-.");
+		new CharTemplate("<SK>", "...-.-");
+		new CharTemplate(null, "...-..");
+		new CharTemplate("$", "...-..-");
+		new CharTemplate(null, "-.-..");
+		new CharTemplate(null, "-.-..-");
+		new CharTemplate(null, "-.-..-.");
+		new CharTemplate("<CL>", "-.-..-..");
+		new CharTemplate(null, "...---");
+		new CharTemplate(null, "...---.");
+		new CharTemplate(null, "...---..");
+		new CharTemplate("<SOS>", "...---...");
+	}
+	
 
 	private static String encodeLetter(int i) {
 		return new String(new int[]{i}, 0, 1);
 	}
 
 	static short[] wav;
+	
+	static class FilterRunner implements Runnable {
+
+		final LowpassFilter f;
+		final short[] wav;
+		final double[] out;
+
+		final int framesPerSlice;
+		final int clipLevel;
+
+		final int freq;
+		final int frameRate;
+		final double phaseShift;
+
+		final CountDownLatch cdl;
+
+		public FilterRunner(LowpassFilter f, short[] wav, double[] out,
+				int framesPerSlice,
+				int clipLevel,
+				int freq,
+				int frameRate,
+				double phaseShift,
+				CountDownLatch cdl) {
+			this.f = f;
+			this.wav = wav;
+			this.out = out;
+
+			this.framesPerSlice = framesPerSlice;
+			this.clipLevel = clipLevel;
+
+			this.freq = freq;
+			this.frameRate = frameRate;
+
+			this.phaseShift = phaseShift;
+
+			this.cdl = cdl;
+		}
+
+		@Override
+		public void run() {
+			for (int q = 0; true; q++) {      //  q is out[] index
+
+				if (wav.length - q*framesPerSlice < framesPerSlice) {
+					break;
+				}
+
+				// feed the filters with wav samples
+				for (int k = -framesPerSlice+1; k <= 0; k++) {
+
+					int wavIndex = q*framesPerSlice + k;
+
+					double outSignal = 0.0;
+					if (wavIndex >= 0) {
+						int ampRaw = wav[wavIndex];   // k is non-positive!
+						final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
+
+						double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
+						outSignal = f.filter(amp*Math.sin(angle+phaseShift));
+					}
+
+					if (k == 0) {
+						out[q] = outSignal;
+						f.reset();
+					}
+				}
+			}
+			if (cdl != null) {
+				cdl.countDown();
+			}
+		}
+	}
 
 	static class TrigTable {
 		final double[] sines;
@@ -577,14 +754,18 @@ new String[]{
 		final boolean rise;
 		final double dipAcc;
 		final double spikeAcc;
+		final double ceiling;
+		final double floor;
 
-		Trans(int q, boolean rise) {
-			this(q, rise, -1.0);
+		Trans(int q, boolean rise, double ceiling, double floor) {
+			this(q, rise, -1.0, ceiling, floor);
 		}
 		
-		Trans(int q, boolean rise, double sigAcc) {
+		Trans(int q, boolean rise, double sigAcc, double ceiling, double floor) {
 			this.q = q;
 			this.rise = rise;
+			this.ceiling = ceiling;
+			this.floor = floor;
 			if (rise) {
 				this.dipAcc = sigAcc;
 				this.spikeAcc = -1.0;
@@ -593,6 +774,105 @@ new String[]{
 				this.spikeAcc = sigAcc;
 				this.dipAcc = -1.0;
 			}
+		}
+	}
+	
+	static class CharTemplates {
+		final List<CharTemplate> list;
+
+		public CharTemplates(List<CharTemplate> list) {
+			this.list = list;
+		}
+	}
+
+	
+	static class CharTemplate {
+		final int[] pattern;
+		final String text;
+		
+		public CharTemplate(String text, String code) {
+			
+			this.text = text == null ? "["+code+"]" : text;
+			
+			int size = 0;
+			int count = 0;
+			for (char x : code.toCharArray()) {
+				count++;
+				if (x == '.') {
+					size++;
+				}
+				else if (x == '-') {
+					size += 3;
+				}
+			}
+			size += (count-1);
+			final Integer sizeKey = new Integer(size);
+			
+			pattern = new int[size];
+			
+			int index = 0;
+			for (char x : code.toCharArray()) {
+				if (index > 0) {
+					pattern[index] = LO;
+					index++;
+				}
+				if (x == '.') {
+					pattern[index] = HI;
+					index++;
+				}
+				else if (x == '-') {
+					pattern[index] = HI;
+					pattern[index+1] = HI;
+					pattern[index+2] = HI;
+					index += 3;
+				}
+			}
+			
+			for (int i = 0; i < pattern.length; i++) {
+				if (pattern[i] != LO && pattern[i] != HI) {
+					new Death("bad CharTemplate");  // impossible
+				}
+			}
+			
+			final CharTemplates existing = templs.get(sizeKey);
+			if (existing == null) {
+				final List<CharTemplate> list = new ArrayList<CharTemplate>();
+				list.add(this);
+				templs.put(sizeKey, new CharTemplates(list));
+			}
+			else {
+				existing.list.add(this);
+			}
+		}
+	}
+	
+	/**
+	 * Maybe only head and last list element are ever used? TODO
+	 */
+	static class CharData {
+		List<Trans> transes;
+		Trans lastAdded = null;
+
+		public CharData() {
+			this.transes = new ArrayList<Trans>();
+		}
+		
+		public CharData(Trans trans) {
+			this.transes = new ArrayList<Trans>();
+			add(trans);
+		}
+		
+		void add(Trans trans) {
+			transes.add(trans);
+			lastAdded = trans;
+		}
+		
+		boolean isComplete() {
+			return lastAdded.rise == false;
+		}
+		
+		boolean isEmpty() {
+			return transes.isEmpty();
 		}
 	}
 
@@ -639,7 +919,7 @@ new String[]{
 			new Info("nof. frames: %d", frameLength);
 
 			// Get the tentative WPM
-			final double wpm = GerkeLib.getDoubleOpt("wpm");
+			final double wpm = GerkeLib.getDoubleOpt(O_WPM);
 			final double tuMillis = 1200/wpm;
 			new Info("dot time, tentative: %.3f ms", tuMillis);
 
@@ -647,19 +927,25 @@ new String[]{
 			// 0.10 is a typical value.
 			// TS length in ms is: tsLength*tuMillis
 			
-			final double tsLength = GerkeLib.getDoubleOpt("qtime");
+			final double tsLengthGiven = GerkeLib.getDoubleOpt(O_STIME);
 			
-			final int framesPerSlice = (int) (tsLength*frameRate*tuMillis/1000.0);
+			final int framesPerSlice = (int) Math.round(tsLengthGiven*frameRate*tuMillis/1000.0);
+			
+			final double tsLength = 1000.0*framesPerSlice/(frameRate*tuMillis);
+			
+			
 			new Info("time slice: %.3f ms", 1000.0*framesPerSlice/frameRate);
 			new Info("frames per time slice: %d", framesPerSlice);
+			
+			new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
 
 			// Set number of frames to use from offset and length given in seconds
-			final int length = GerkeLib.getIntOpt("length");
+			final int length = GerkeLib.getIntOpt(O_LENGTH);
 			
-			if (GerkeLib.getIntOpt("offset") < 0) {
+			if (GerkeLib.getIntOpt(O_OFFSET) < 0) {
 				new Death("offset cannot be negative");
 			}
-			final int offsetFrames = GerkeLib.getIntOpt("offset")*frameRate;
+			final int offsetFrames = GerkeLib.getIntOpt(O_OFFSET)*frameRate;
 			final int nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
 
 			final int nofSlices = nofFrames/framesPerSlice;
@@ -670,16 +956,16 @@ new String[]{
 			
 			final double plotBegin;
 			final double plotEnd;
-			if (GerkeLib.getOptMultiLength("plot-interval") != 2) {
+			if (GerkeLib.getOptMultiLength(O_PLINT) != 2) {
 				new Death("bad plot interval: wrong number of suboptions");
 			}
 			
-			final boolean phasePlot = GerkeLib.getFlag("phase-plot");
-			if (GerkeLib.getFlag("plot") || phasePlot) {
+			final boolean phasePlot = GerkeLib.getFlag(O_PPLOT);
+			if (GerkeLib.getFlag(O_PLOT) || phasePlot) {
 				
 				final double t1 = ((double) frameLength)/frameRate;
 				
-				final double t2 = (double) (GerkeLib.getIntOpt("offset"));
+				final double t2 = (double) (GerkeLib.getIntOpt(O_OFFSET));
 				
 				final double t3 = 
 						length == -1 ? t1 :
@@ -689,20 +975,20 @@ new String[]{
 				}
 				
 				final double t4 =
-						dMax(GerkeLib.getDoubleOptMulti("plot-interval")[0], t2);
+						dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
 				if (t4 >= t3) {
 					new Death("plot interval out of bounds");
 				}
-				else if (GerkeLib.getDoubleOptMulti("plot-interval")[0] < t2) {
+				else if (GerkeLib.getDoubleOptMulti(O_PLINT)[0] < t2) {
 					new Warning("starting plot interval at: %.1f s", t2);
 				}
 				
 				final double t5 =
-						GerkeLib.getDoubleOptMulti("plot-interval")[1] == -1.0 ?
+						GerkeLib.getDoubleOptMulti(O_PLINT)[1] == -1.0 ?
 								t3 :
-									dMin(t3, t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1]);
-				if (GerkeLib.getDoubleOptMulti("plot-interval")[1] != -1.0 &&
-						t4 + GerkeLib.getDoubleOptMulti("plot-interval")[1] > t3) {
+									dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
+				if (GerkeLib.getDoubleOptMulti(O_PLINT)[1] != -1.0 &&
+						t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1] > t3) {
 					new Warning("ending plot interval at: %.1f s", t3);
 				}
 
@@ -780,12 +1066,12 @@ new String[]{
 
 			// Estimate audible signal frequency
 			final int fBest;
-			if (GerkeLib.getIntOpt("freq") != -1) {
+			if (GerkeLib.getIntOpt(O_FREQ) != -1) {
 				// frequency is specified on the command line
-				if (GerkeLib.getFlag("frequency-plot")) {
+				if (GerkeLib.getFlag(O_FPLOT)) {
 					new Warning("frequency plot skipped when -f option given");
 				}
-				fBest = GerkeLib.getIntOpt("freq");
+				fBest = GerkeLib.getIntOpt(O_FREQ);
 				new Info("specified frequency: %d", fBest);
 			}
 			else {
@@ -798,7 +1084,7 @@ new String[]{
 			// using the frequency, and a time slice, and a frame time,
 			// find the average rSquared for use as a threshold value
 
-			final int clipLevelOverride = GerkeLib.getIntOpt("clip");
+			final int clipLevelOverride = GerkeLib.getIntOpt(O_CLIPPING);
 			
 			final int clipLevel =
 					clipLevelOverride != -1 ? clipLevelOverride : getClipLevel(fBest, frameRate, framesPerSlice);
@@ -816,7 +1102,7 @@ new String[]{
 			final long charSpaceLimit = Math.round(CHAR_SPACE_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
 			final long twoDashLimit = Math.round(TWO_DASH_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
 			
-			final double level = GerkeLib.getDoubleOpt("level");
+			final double level = GerkeLib.getDoubleOpt(O_LEVEL);
 			new Info("relative tone/silence threshold: %.3f", level);
 
 			new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
@@ -830,178 +1116,146 @@ new String[]{
 			final int histWidth = (int)(NOF_TU_FOR_CEILING_HISTOGRAM*tuMillis/(1000.0*framesPerSlice/frameRate));
 			new Debug("histogram half-width (nof. slices): %d", histWidth);
 
-			Node p = tree;
+			
 
 			final double[] sig = new double[nofSlices];
 
-			// new folding summation
-			// PARAMETER .. two of them
-			final double tau = GerkeLib.getDoubleOpt("sigma")*tuMillis/1000;  // tau = sigma
-			final double tauSegm = GerkeLib.getDoubleOpt("ctime")*tuMillis/1000;
-			new Debug("sigma: %f", tau);
-			new Debug("coherence time: %f", tauSegm);
-			final double dt = 1.0/frameRate;
-
-
-			// determine folding tables size
-			// PARAMETER 0.01
-			int foldSize = 0;
-			for (int j = 0; true; j++) {
-				double earg = j*dt/tau;
-				final double w = Math.exp(-earg*earg/2);
-				if (w < 0.001) {
-					break;
-				}
-				else {
-					foldSize++;
-				}
+			final LowpassFilter filterI;
+			final LowpassFilter filterQ;
+			if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("b")) {
+				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
+				double cutoff =
+						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
+				filterI = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
+				filterQ = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
 			}
-			double expTable[] = new double[foldSize];
-			double sinTable[] = new double[foldSize];
-			double cosTable[] = new double[foldSize];
-
-			for (int j = 0; j < expTable.length; j++) {
-				double earg = j*dt/tau;
-				expTable[j] = Math.exp(-earg*earg);
-				double angle = TWO_PI*fBest*j/frameRate;
-				sinTable[j] = Math.sin(angle);
-				cosTable[j] = Math.cos(angle);
+			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("cI")) {
+				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
+				double cutoff =
+						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
+				// PARAMETER 2.0 dB, ripple
+				filterI = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
+				filterQ = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
+			}
+			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("w")) {
+				double cutoff =
+						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
+				filterI = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
+				filterQ = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
+			}
+			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("t")) {
+				filterI = new LowpassTimeSliceSum(framesPerSlice);
+				filterQ = new LowpassTimeSliceSum(framesPerSlice);
+			}
+			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("n")) {
+				filterI = new LowpassNone();
+				filterQ = new LowpassNone();
+			}
+			else {
+				new Death("no such filter supported");
+				throw new Exception();
 			}
 
-			double cutoff =
-					GerkeLib.getDoubleOptMulti("hidden-options")[HiddenOptions.CUTOFF.ordinal()];
+			final double[] outSin = new double[nofSlices];
+			final double[] outCos = new double[nofSlices];
 			
-			int order = 2;   // PARAMETER 2
+			final long tBegin = System.currentTimeMillis();
+			final CountDownLatch cdl = new CountDownLatch(2);
 			
-			final Butterworth buSin = new Butterworth();
-			buSin.lowPass(order, (double)frameRate, cutoff* 1000.0/tuMillis);
+			final Thread t1 =
+					new Thread(
+							new FilterRunner(
+									filterI,
+									wav,
+									outSin,
+									framesPerSlice,
+									clipLevel, fBest,
+									frameRate,
+									0.0,
+									cdl));
+			t1.start();
+			final Thread t2 =
+					new Thread(
+							new FilterRunner(
+									filterQ,
+									wav,
+									outCos,
+									framesPerSlice,
+									clipLevel, fBest,
+									frameRate,
+									Math.PI/2,
+									cdl));
+			t2.start();
+			cdl.await();
 			
-			final Butterworth buCos = new Butterworth();
-			buCos.lowPass(order, (double)frameRate, cutoff* 1000.0/tuMillis);
-//			
-//			
-//			final ChebyshevI che1Sin = new ChebyshevI();
-//			che1Sin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
-//			
-//			final ChebyshevI che1Cos = new ChebyshevI();
-//			che1Cos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
+			new Info("filtering took ms: %d", System.currentTimeMillis() - tBegin);
+
+			final double sigma = GerkeLib.getDoubleOpt(O_SIGMA);
+			final double eps = 0.01; // PARAMETER eps
 			
-//			final ChebyshevII che2Sin = new ChebyshevII();
-//			che2Sin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
-//			
-//			final ChebyshevII che2Cos = new ChebyshevII();
-//			che2Cos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis, 3);
-//			
-//
-//			final Bessel besSin = new Bessel();
-//			besSin.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis);
-//			
-//			final Bessel besCos = new Bessel();
-//			besCos.lowPass(order, (double) frameRate, cutoff*1000.0/tuMillis);
-			
-			final int aveSize = GerkeLib.getIntOptMulti("hidden-options")[HiddenOptions.AVE_SIZE.ordinal()];
-			double[] av10 = new double[aveSize];
-			for (int j = 0; j < aveSize; j++) { av10[j] = 0.0; }
+			final int gaussSize = roundToOdd((sigma/tsLength)*Math.sqrt(-2*Math.log(eps)));
+			new Debug("nof. gaussian terms: %d", gaussSize);
+
+			final double[] ringBuffer = new double[gaussSize];
+			final double[] expTable = new double[gaussSize];
+
+			for (int j = 0; j < gaussSize; j++) {
+				int m = (gaussSize-1)/2;
+				expTable[j] = Math.exp(-squared((j-m)*tsLength/sigma)/2);
+			}
+
 			for (int q = 0; true; q++) {      //  q is sig[] index
 
 				if (wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
-			
-			    // feed the filters with wav samples
-			    for (int k = -framesPerSlice+1; k <= 0; k++) {
-			    	
-			    	int wavIndex = q*framesPerSlice + k;
-			    	
-			    	double outSin = 0.0;
-		    		double outCos = 0.0;
-			    	if (wavIndex >= 0) {
-			    		int ampRaw = wav[wavIndex];   // k is non-positive!
-			    		final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
-
-			    		double angle = TWO_PI*fBest*wavIndex/frameRate;
-			    		outSin = buSin.filter(amp*Math.sin(angle));
-			    		outCos = buCos.filter(amp*Math.cos(angle));
-			    	}
-					if (k == 0) {
-						for (int kk = 0; kk < aveSize; kk++) {
-							av10[kk] *= 0.8;
-						}
-						av10[q % aveSize] = Math.sqrt(outSin*outSin + outCos*outCos);
-						double ss = 0.0;
-						for (int j = 0; j < aveSize; j++) { ss += av10[j]; }
-						sig[q] = ss/aveSize;
-					}
-			    }
-//
-//				double sinAcc = 0.0;
-//				double cosAcc = 0.0;
-//				double weightAcc = 0.0;
-//				double sumWeightInSeg = 0.0;
-//				double tauSegmMultiple = tauSegm;
-//				double sigAcc = 0.0;
-//				for (int j = 0; j < expTable.length; j++) {
-//
-//					if (q*framesPerSlice - j >= 0) {
-//
-//						if (j*dt > tauSegmMultiple) {
-//							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-//							tauSegmMultiple += tauSegm;
-//							sinAcc = 0.0;
-//							cosAcc = 0.0;
-//							sumWeightInSeg += weightAcc;
-//							weightAcc = 0.0;
-//						}
-//
-//						int ampRaw = wav[q*framesPerSlice - j];
-//						final int amp = ampRaw < 0 ?
-//								iMax(-clipLevel, ampRaw) :
-//									iMin(clipLevel, ampRaw);
-//								sinAcc += expTable[j]*sinTable[j]*amp;
-//								cosAcc += expTable[j]*cosTable[j]*amp;
-//								weightAcc += expTable[j];
-//					}
-//				}
-//
-//				if (weightAcc != 0.0) {
-//					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-//					sumWeightInSeg += weightAcc;
-//				}
-//
-//				sinAcc = 0.0;
-//				cosAcc = 0.0;
-//				weightAcc = 0.0;
-//				
-//				for (int j = 0; j < expTable.length; j++) {
-//
-//					if (j > 0 && q*framesPerSlice + j < wav.length) {
-//
-//						if (j*dt > tauSegmMultiple) {
-//							sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-//							tauSegmMultiple += tauSegm;
-//							sinAcc = 0.0;
-//							cosAcc = 0.0;
-//							sumWeightInSeg += weightAcc;
-//							weightAcc = 0.0;
-//						}
-//
-//						int ampRaw2 = wav[q*framesPerSlice + j];
-//						final int amp2 = ampRaw2 < 0 ? iMax(-clipLevel, ampRaw2) : iMin(clipLevel, ampRaw2);
-//
-//						sinAcc -= expTable[j]*sinTable[j]*amp2;
-//						cosAcc += expTable[j]*cosTable[j]*amp2;
-//						weightAcc += expTable[j];
-//					}
-//
-//				}
-//
-//				if (weightAcc != 0.0) {
-//					sigAcc += Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc);
-//					sumWeightInSeg += weightAcc;
-//				}
-//
-//				sig[q] = sigAcc/sumWeightInSeg;
+				
+	    		int ringIndex = q % gaussSize;
+	    		ringBuffer[ringIndex] = Math.sqrt(outSin[q]*outSin[q] + outCos[q]*outCos[q]);
+	    		int rr = ringIndex;
+	    		double ss = 0.0;
+	    		for (int ii = 0; ii < gaussSize; ii++) {
+	    			ss += expTable[ii]*ringBuffer[rr];
+	    			rr = rr+1 == gaussSize ? 0 : rr+1;
+	    		}
+	    		sig[q] = ss/gaussSize;
 			}
+
+				
+				
+				
+//			
+//			    // feed the filters with wav samples
+//			    for (int k = -framesPerSlice+1; k <= 0; k++) {
+//			    	
+//			    	int wavIndex = q*framesPerSlice + k;
+//			    	
+//			    	double outSin = 0.0;
+//		    		double outCos = 0.0;
+//			    	if (wavIndex >= 0) {
+//			    		int ampRaw = wav[wavIndex];   // k is non-positive!
+//			    		final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
+//
+//			    		double angle = TWO_PI*fBest*wavIndex/frameRate;
+//			    		outSin = filterSin.filter(amp*Math.sin(angle));
+//			    		outCos = filterCos.filter(amp*Math.cos(angle));
+//			    	}
+//			    	
+//			    	if (k == 0) {
+//			    		int ringIndex = q % gaussSize;
+//			    		ringBuffer[ringIndex] = Math.sqrt(outSin*outSin + outCos*outCos);
+//			    		int rr = ringIndex;
+//			    		double ss = 0.0;
+//			    		for (int ii = 0; ii < gaussSize; ii++) {
+//			    			ss += expTable[ii]*ringBuffer[rr];
+//			    			rr = rr+1 == gaussSize ? 0 : rr+1;
+//			    		}
+//			    		sig[q] = ss/gaussSize;
+//			    		filterSin.reset();
+//			    		filterCos.reset();
+//			    	}
+//			    }
+//			}
 
 			if (phasePlot) {
 				final double[] cosSum = new double[nofSlices];
@@ -1054,7 +1308,7 @@ new String[]{
 			final PlotCollector pcSignal;
 			final SortedMap<Double, List<PlotEntryBase>> plotEntries;
 			
-			if (GerkeLib.getFlag("plot")) {
+			if (GerkeLib.getFlag(O_PLOT)) {
 				pcSignal = new PlotCollector();
 				plotEntries = new TreeMap<Double, List<PlotEntryBase>>();
 			}
@@ -1063,7 +1317,7 @@ new String[]{
 				plotEntries = null;
 			}
 
-			// iterate again over time slices
+
 
 			final Trans[] trans = new Trans[nofSlices];
 			int transIndex = 0;
@@ -1105,10 +1359,10 @@ new String[]{
 				if (newTone && !tone) {
 					// raise
 					if (transIndex > 0 && q - trans[transIndex-1].q <= charSpaceLimit) {
-						trans[transIndex] = new Trans(q, true, dipAcc);
+						trans[transIndex] = new Trans(q, true, dipAcc, ceiling, floor);
 					}
 					else {
-						trans[transIndex] = new Trans(q, true);
+						trans[transIndex] = new Trans(q, true, ceiling, floor);
 					}
 					transIndex++;
 					tone = true;
@@ -1116,7 +1370,7 @@ new String[]{
 				}
 				else if (!newTone && tone) {
 					// fall
-					trans[transIndex] = new Trans(q, false, spikeAcc);
+					trans[transIndex] = new Trans(q, false, spikeAcc, ceiling, floor);
 					transIndex++;
 					tone = false;
 					dipAcc = squared(threshold - sigAverage);
@@ -1137,7 +1391,7 @@ new String[]{
 			new Debug("thresholdMax is: %e", thresholdMax);
 			new Debug("tsLength is: %e", tsLength);
 			new Debug("silentTu is: %e", silentTu);
-			final double dipLimit = GerkeLib.getDoubleOptMulti("dip-spike")[0];
+			final double dipLimit = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.DIP.ordinal()];
 			final int veryShortDip = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
 
 			for (int t = 1; t < transIndex; t++) {
@@ -1145,7 +1399,7 @@ new String[]{
 						trans[t].rise &&
 						trans[t].dipAcc != -1.0 &&
 						(trans[t].dipAcc < dipLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortDip)) {
-					new Debug("dip at: %d, width: %d, mass: %f, fraction: %f",
+					new Trace("dip at: %d, width: %d, mass: %f, fraction: %f",
 							t,
 							trans[t].q - trans[t-1].q,
 							trans[t].dipAcc,
@@ -1155,7 +1409,10 @@ new String[]{
 						trans[t+1] =
 								new Trans(trans[t+1].q,
 										false,
-										trans[t+1].spikeAcc + trans[t-1].spikeAcc);
+										trans[t+1].spikeAcc + trans[t-1].spikeAcc,
+										trans[t].ceiling,
+										trans[t].floor
+										);
 					}
 					trans[t-1] = null;
 					trans[t] = null;
@@ -1163,7 +1420,7 @@ new String[]{
 				else if (transIndex > 0 &&
 						trans[t].rise &&
 						trans[t].dipAcc != -1.0 && t % 200 == 0) {
-					new Debug("dip at: %d, width: %d, mass: %e, limit: %e",
+					new Trace("dip at: %d, width: %d, mass: %e, limit: %e",
 							t,
 							trans[t].q - trans[t-1].q,
 							trans[t].dipAcc,
@@ -1186,7 +1443,7 @@ new String[]{
 
 			final int veryShortSpike = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
 			if (hasSpikes) {
-				final double spikeLimit = GerkeLib.getDoubleOptMulti("dip-spike")[1];
+				final double spikeLimit = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.SPIKE.ordinal()];
 				for (int t = 1; t < transIndex; t++) {
 					if (!trans[t].rise && trans[t].spikeAcc != -1.0 &&
 							(trans[t].spikeAcc < spikeLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortSpike)) {
@@ -1200,8 +1457,8 @@ new String[]{
 			// break up very long dashes
 			
 			final boolean breakLongDash =
-					GerkeLib.getIntOptMulti("hidden-options")
-					[HiddenOptions.BREAK_LONG_DASH.ordinal()] == 1;
+					GerkeLib.getIntOptMulti(O_HIDDEN)
+					[HiddenOpts.BREAK_LONG_DASH.ordinal()] == 1;
 
 			if (breakLongDash) {
 				// TODO, refactor
@@ -1219,9 +1476,11 @@ new String[]{
 						int q2 = trans[t-1].q + dashSize/2 + (int) Math.round(0.5/tsLength);
 						int q3 = big.q;
 						double acc = big.spikeAcc;
-						trans[t] = new Trans(q1, false, acc/2);
-						trans[t+1] = new Trans(q2, true, acc/2);
-						trans[t+2] = new Trans(q3, false, acc/2);
+						double ceiling = trans[t-1].ceiling;
+						double floor = trans[t-1].floor;
+						trans[t] = new Trans(q1, false, acc/2, ceiling, floor);
+						trans[t+1] = new Trans(q2, true, acc/2, ceiling, floor);
+						trans[t+2] = new Trans(q3, false, acc/2, ceiling, floor);
 						t +=3;
 					}
 					else {
@@ -1230,7 +1489,7 @@ new String[]{
 				}
 			}
 
-			if (GerkeLib.getFlag("plot")) {
+			if (GerkeLib.getFlag(O_PLOT)) {
 				// scan the trans[] array, create Plot entries
 				int initDigitizedSignal = 0;
 				for (int t = 0; t < transIndex; t++) {
@@ -1303,9 +1562,12 @@ new String[]{
 			int nTuSpace = 0;
 			int qSpace = 0;
 			
-
+			Node p = tree;
 			
-			final int offset = GerkeLib.getIntOpt("offset");
+			final List<CharData> cdList = new ArrayList<CharData>();
+			CharData charCurrent = null;
+			
+			final int offset = GerkeLib.getIntOpt(O_OFFSET);
 			for (int t = 0; t < transIndex; t++) {
 
 				final boolean newTone = trans[t].rise;
@@ -1314,9 +1576,10 @@ new String[]{
 					// silent -> tone
 					if (t == 0) {
 						p = tree;
+						charCurrent = new CharData(trans[t]);
 					}
 					else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
-						if (GerkeLib.getFlag("timestamps")) {
+						if (GerkeLib.getFlag(O_TSTAMPS)) {
 							formatter.add(true,
 									p.text,
 									offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000));
@@ -1326,6 +1589,9 @@ new String[]{
 						}
 						nTuTotal += p.nTus + 7;
 						p = tree;
+						cdList.add(charCurrent);
+						cdList.add(new CharData());                   // empty CharData represents word space
+						charCurrent = new CharData(trans[t]);
 					}
 					else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
 						formatter.add(false, p.text, -1);
@@ -1333,6 +1599,11 @@ new String[]{
 						nTuSpace += 3;
 						qSpace += (trans[t].q - qBeginSilence);
 						p = tree;
+						cdList.add(charCurrent);
+						charCurrent = new CharData(trans[t]);
+					}
+					else {
+						charCurrent.add(trans[t]);
 					}
 				}
 				else if (prevTone && !newTone) {
@@ -1353,6 +1624,7 @@ new String[]{
 						}
 						p = p.dot;
 					}
+					charCurrent.add(trans[t]);
 				}
 				else {
 					new Death("internal error");
@@ -1371,7 +1643,21 @@ new String[]{
 				formatter.newLine();
 			}
 			
-			new Info("decoded text MD5 digest: %s", formatter.getDigest());
+			
+			if (!charCurrent.isEmpty()) {
+				if (charCurrent.isComplete()) {
+					cdList.add(charCurrent);
+				}
+			}
+			
+			new Info("decoded text MD5 digest: %s\n", formatter.getDigest());			
+			
+			
+			
+			decoder(cdList, sig, tsLength, offset, tuMillis);
+			
+			
+
 
 			if (pcSignal != null) {
 				pcSignal.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
@@ -1388,6 +1674,103 @@ new String[]{
 		catch (Exception e) {
 			new Death(e);
 		}
+	}
+
+	private static void decoder(List<CharData> cdList, double[] sig, double tsLength, int offset, double tuMillis) throws Exception {
+		
+		final Formatter ff = new Formatter();
+
+		int ts = -1;
+		
+		for (CharData cd : cdList) {
+
+			if (cd.isEmpty()) {
+				ff.add(true, "", ts);
+			}
+			else {
+				
+				ts = GerkeLib.getFlag(O_TSTAMPS) ? 
+						offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000) : -1;
+				
+				String text = decodeChar(cd, sig, tsLength, offset, tuMillis);
+				ff.add(false, text, -1);
+			}
+		}
+		ff.flush();
+		if (ff.getPos() > 0) {
+			ff.newLine();
+		}
+		
+		new Info("decoded text MD5 digest: %s", ff.getDigest());
+		
+	}
+
+	private static String decodeChar(CharData cd, double[] sig, double tsLength, int offset, double tuMillis) {
+		final int qSize = cd.lastAdded.q - cd.transes.get(0).q;
+		final int tuClass = (int) Math.round(tsLength*qSize);
+		
+		final double level = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.PMLEVEL.ordinal()];
+
+		CharTemplates[] candsArray = 
+				tuClass == 0 ? new CharTemplates[] {templs.get(new Integer(tuClass+1))} :
+					tuClass == 1 ? new CharTemplates[] {templs.get(new Integer(tuClass))} :
+						tuClass % 2 == 0 ? new CharTemplates[] {templs.get(new Integer(tuClass-1)), templs.get(new Integer(tuClass+1))} :
+							new CharTemplates[] {templs.get(new Integer(tuClass)), templs.get(new Integer(tuClass-2))};
+
+		CharTemplate best = null;
+		double bestSum = -999999.0;
+		double prio = 1.0;
+		for (int j = 0; j < candsArray.length; j++) {
+			if (candsArray[j] != null) {
+				prio *= 0.9;
+
+				for (CharTemplate cand : candsArray[j].list) {
+
+					int candSize = cand.pattern.length;
+					double sum = 0.0;
+
+					double deltaCeiling = cd.lastAdded.ceiling - cd.transes.get(0).ceiling;
+					double deltaFloor = cd.lastAdded.floor - cd.transes.get(0).floor;
+
+					double slopeCeiling = deltaCeiling/qSize;
+					double slopeFloor = deltaFloor/qSize;
+					for (int q = cd.transes.get(0).q; q < cd.lastAdded.q; q++) {
+
+						int qq = q - cd.transes.get(0).q;
+
+						double ceiling = cd.transes.get(0).ceiling + slopeCeiling*qq;
+
+						double floor = cd.transes.get(0).floor + slopeFloor*qq;
+
+						int indx = (candSize*qq)/qSize;
+
+						// PARAMETER 0.65
+						sum += (sig[q] - (floor + level*0.5*(ceiling - floor)))*cand.pattern[indx];
+					}
+					
+					sum *= prio;
+
+					if (sum > bestSum) {
+						bestSum = sum;
+						best = cand;
+					}
+				}
+			}
+		}
+
+		final String result = best == null ? "???" : best.text;
+
+		if (GerkeLib.getIntOpt(O_VERBOSE) >= 3) {
+			System.out.println(
+					String.format(
+							"character result: %s, time: %d, class: %d, size: %d",
+							result,
+							offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000),
+							tuClass,
+							qSize));
+		}
+
+		return result;
 	}
 
 	private static double squared(double x) {
@@ -1454,17 +1837,17 @@ new String[]{
 
 	private static int findFrequency(int frameRate, int framesPerSlice) throws IOException, InterruptedException {
 		
-		final int nofSubOptions = GerkeLib.getOptMultiLength("frange");
+		final int nofSubOptions = GerkeLib.getOptMultiLength(O_FRANGE);
 		if (nofSubOptions != 2) {
 			new Death("expecting 2 suboptions, got: %d", nofSubOptions);
 			
 		}
-		final int f0 = GerkeLib.getIntOptMulti("frange")[0];
-		final int f1 = GerkeLib.getIntOptMulti("frange")[1];
+		final int f0 = GerkeLib.getIntOptMulti(O_FRANGE)[0];
+		final int f1 = GerkeLib.getIntOptMulti(O_FRANGE)[1];
 		new Debug("search for frequency in range: %d to %d", f0, f1);
 
 		final SortedMap<Integer, Double> pairs =
-				GerkeLib.getFlag("frequency-plot") ? new TreeMap<Integer, Double>() : null;
+				GerkeLib.getFlag(O_FPLOT) ? new TreeMap<Integer, Double>() : null;
 		
 		// search in steps of 10 Hz, PARAMETER
 		final int fStepCoarse = 10;
@@ -1516,27 +1899,26 @@ new String[]{
 	}
 
 	private static void showClData() {
-		if (GerkeLib.getIntOpt("verbose") >= 2) {
-			new Info("version: %s", GerkeLib.getOpt("version"));
-			new Info("WPM, tentative: %f", GerkeLib.getDoubleOpt("wpm"));
-			new Info("frequency: %d", GerkeLib.getIntOpt("freq"));
-			new Info("f0,f1: %s", GerkeLib.getOpt("frange"));
-			new Info("offset: %d", GerkeLib.getIntOpt("offset"));
-			new Info("length: %d", GerkeLib.getIntOpt("length"));
-			new Info("clipLevel: %d", GerkeLib.getIntOpt("clip"));
+		if (GerkeLib.getIntOpt(O_VERBOSE) >= 2) {
+			new Info("version: %s", GerkeLib.getOpt(O_VERSION));
+			new Info("WPM, tentative: %f", GerkeLib.getDoubleOpt(O_WPM));
+			new Info("frequency: %d", GerkeLib.getIntOpt(O_FREQ));
+			new Info("f0,f1: %s", GerkeLib.getOpt(O_FRANGE));
+			new Info("offset: %d", GerkeLib.getIntOpt(O_OFFSET));
+			new Info("length: %d", GerkeLib.getIntOpt(O_LENGTH));
+			new Info("clipLevel: %d", GerkeLib.getIntOpt(O_CLIPPING));
 			
-			new Info("sampling period: %f", GerkeLib.getDoubleOpt("qtime"));
-			new Info("sigma: %f", GerkeLib.getDoubleOpt("sigma"));
-			new Info("coherence time: %f", GerkeLib.getDoubleOpt("ctime"));
+			new Info("sampling period: %f", GerkeLib.getDoubleOpt(O_STIME));
+			new Info("sigma: %f", GerkeLib.getDoubleOpt(O_SIGMA));
 			
-			new Info("level: %f", GerkeLib.getDoubleOpt("level"));
-			new Info("frequency plot: %b", GerkeLib.getFlag("frequency-plot"));
-			new Info("signal plot: %b", GerkeLib.getFlag("plot"));
-			new Info("phase plot: %b", GerkeLib.getFlag("phase-plot"));
-			new Info("plot interval: %s", GerkeLib.getOpt("plot-interval"));
-			new Info("timestamps: %b", GerkeLib.getFlag("timestamps"));
-			new Info("hidden: %s", GerkeLib.getOpt("hidden-options"));
-			new Info("verbose: %d", GerkeLib.getIntOpt("verbose"));
+			new Info("level: %f", GerkeLib.getDoubleOpt(O_LEVEL));
+			new Info("frequency plot: %b", GerkeLib.getFlag(O_FPLOT));
+			new Info("signal plot: %b", GerkeLib.getFlag(O_PLOT));
+			new Info("phase plot: %b", GerkeLib.getFlag(O_PPLOT));
+			new Info("plot interval: %s", GerkeLib.getOpt(O_PLINT));
+			new Info("timestamps: %b", GerkeLib.getFlag(O_TSTAMPS));
+			new Info("hidden: %s", GerkeLib.getOpt(O_HIDDEN));
+			new Info("verbose: %d", GerkeLib.getIntOpt(O_VERBOSE));
 
 			for (int k = 0; k < GerkeLib.nofArguments(); k++) {
 				new Info("argument %d: %s", k+1, GerkeLib.getArgument(k));
@@ -1561,7 +1943,7 @@ new String[]{
 		for (int j = q1; j < q2; j++) {
 			final int index = (int) Math.round(99*sig[j]/sigMax);
 			int x = j < q ? q-j : j-q;
-			int points = (int)Math.round(500/(1 + squared(3*x/width)));   // PARAMETER 3
+			int points = (int)Math.round(500/(1 + squared(7*x/width)));   // PARAMETER 3
 			hist[index] += points;
 			sumPoints += points;
 		}
@@ -1611,13 +1993,14 @@ new String[]{
 		for (int j = q1; j < q2; j++) {
 			final int index = (int) Math.round((HIST_SIZE_FLOOR-1)*sig[j]/sigMax);
 			int x = j < q ? q-j : j-q;                              // abs value
-			int points = (int)Math.round(500/(1 + squared(4*x/width)));
+			// hard-coded parameter 4; larger value -> more localized
+			int points = (int)Math.round(500/(1 + squared(5*x/width)));
 			hist[index] += points;
 			sumPoints += points;
 		}
 		
 		// remove the high-signal counts
-		final double remFrac = 0.50; // hard-coded PARAMETER 0.50; larger value removes more
+		final double remFrac = 0.60; // hard-coded PARAMETER 0.50; larger value removes more
 		int kCleared = HIST_SIZE_FLOOR;
 		int count = (int) Math.round(remFrac*sumPoints);
 		for (int k = HIST_SIZE_FLOOR-1; k >= 0; k--) {
@@ -1688,7 +2071,7 @@ new String[]{
 			}
 
 			double uNew = signalAverage(f, frameRate, framesPerSlice, midpoint);
-			new Debug("clip level: %d, signal: %f", midpoint, uNew);
+			new Trace("clip level: %d, signal: %f", midpoint, uNew);
 			
 			if ((1 - clipStrength)*uNoClip > uNew && uNew > (1 - clipStrength - delta)*uNoClip) {
 				new Debug("using clip level: %d", midpoint);
@@ -1759,6 +2142,11 @@ new String[]{
 	
 	private static int iMin(int a, int b) {
 		return a < b ? a : b;
+	}
+	
+	private static int roundToOdd(double x) {
+		final int k = (int) Math.round(x);
+		return k % 2 == 0 ? k+1 : k;
 	}
 
 }

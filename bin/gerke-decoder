@@ -7,11 +7,26 @@
 # assuming this script is one directory level below Git repo root
 declare -r GitRepo=$(dirname $(dirname $0))
 
+declare -r -a ClassPathElements=(
+    "$(find $GitRepo/target -type f -name 'gerke_decoder-*.jar')"
+    "$GitRepo/m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar"
+    "$GitRepo/m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar"
+)
 
+function join {
+    local -r sep=$(case "$(uname -o)" in Cygwin) echo ';';; *) echo ':'; esac)
+    local result=""
+    for e in "$@"; do
+        if [[ -z "$result" ]]; then
+            result+="$e"
+        else
+            result+="${sep}$e"
+        fi
+    done
+    echo "$result"
+}
 
-declare ClassPath=""
-ClassPath+="$(find $GitRepo/target -type f -name 'gerke_decoder-*.jar')"
-ClassPath+=";$GitRepo/m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar"
-ClassPath+=";$GitRepo/m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar"
-
-exec java -classpath "$ClassPath" st.foglo.gerke_decoder.GerkeDecoder "$@"
+exec java \
+     -classpath "$(join ${ClassPathElements[@]})" \
+     st.foglo.gerke_decoder.GerkeDecoder \
+     "$@"
