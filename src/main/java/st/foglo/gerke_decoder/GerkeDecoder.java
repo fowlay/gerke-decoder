@@ -44,7 +44,7 @@ import st.foglo.gerke_decoder.GerkeLib.*;
 public final class GerkeDecoder {
 	
 	static final int HI = 10;
-	static final int LO = -15;
+	static final int LO = -10;
 	
 	static final double TWO_PI = 2*Math.PI;
 	
@@ -442,6 +442,14 @@ new String[]{
 
 		@Override
 		public void run() {
+			
+			final ArrayList<Double> sinTable = new ArrayList<Double>(); sinTable.clear();
+			int tableSize = -1;
+			boolean useTable = false;
+			int index = -1;
+			double firstAngle = -999999.9;
+			boolean firstAngleDefined = false;
+			
 			for (int q = 0; true; q++) {      //  q is out[] index
 
 				if (wav.length - q*framesPerSlice < framesPerSlice) {
@@ -457,9 +465,38 @@ new String[]{
 					if (wavIndex >= 0) {
 						int ampRaw = wav[wavIndex];   // k is non-positive!
 						final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
-
-						double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
-						outSignal = f.filter(amp*Math.sin(angle+phaseShift));
+						final double sinValue;
+						if (!useTable) {
+							double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
+							if (!firstAngleDefined) {
+								firstAngle = angle;
+								firstAngleDefined = true;
+								sinValue = Math.sin(angle+phaseShift);
+								index = 0;
+								sinTable.add(new Double(sinValue));
+							}
+							else {
+								double laps = (angle - firstAngle)/TWO_PI;
+								// PARAMETER 0.005, not critical, introduces phase jitter < 0.3 degrees
+								if (laps > 0.5 && Math.abs(laps - Math.round(laps)) < 0.005) {
+									useTable = true;
+									index++;
+									tableSize = index;
+									new Info("sine table size: %d", sinTable.size());
+									sinValue = sinTable.get(0).doubleValue();
+								}
+								else {
+									sinValue = Math.sin(angle+phaseShift);
+									index++;
+									sinTable.add(new Double(sinValue));
+								}
+							}
+						}
+						else {
+							index++;
+							sinValue = sinTable.get(index % tableSize).doubleValue();
+						}
+						outSignal = f.filter(amp*sinValue);
 					}
 
 					if (k == 0) {
@@ -742,9 +779,9 @@ new String[]{
 	
 	
 	static final class PlotEntryDecode extends PlotEntryBase {
-		final int dec;
+		final double dec;
 
-		public PlotEntryDecode(int dec) {
+		public PlotEntryDecode(double dec) {
 			this.dec = dec;
 		}
 	}
@@ -1122,14 +1159,15 @@ new String[]{
 
 			final LowpassFilter filterI;
 			final LowpassFilter filterQ;
-			if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("b")) {
+			final String filterCode = GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()];
+			if (filterCode.equals("b")) {
 				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
 				filterI = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
 				filterQ = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
 			}
-			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("cI")) {
+			else if (filterCode.equals("cI")) {
 				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
@@ -1137,22 +1175,22 @@ new String[]{
 				filterI = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
 				filterQ = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
 			}
-			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("w")) {
+			else if (filterCode.equals("w")) {
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
 				filterI = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
 				filterQ = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
 			}
-			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("t")) {
+			else if (filterCode.equals("t")) {
 				filterI = new LowpassTimeSliceSum(framesPerSlice);
 				filterQ = new LowpassTimeSliceSum(framesPerSlice);
 			}
-			else if (GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()].equals("n")) {
+			else if (filterCode.equals("n")) {
 				filterI = new LowpassNone();
 				filterQ = new LowpassNone();
 			}
 			else {
-				new Death("no such filter supported");
+				new Death("no such filter supported: '%s'", filterCode);
 				throw new Exception();
 			}
 
@@ -1491,14 +1529,14 @@ new String[]{
 
 			if (GerkeLib.getFlag(O_PLOT)) {
 				// scan the trans[] array, create Plot entries
-				int initDigitizedSignal = 0;
+				double initDigitizedSignal = -1.0;
 				for (int t = 0; t < transIndex; t++) {
 					final double sec0 = timeSeconds(trans[t].q, framesPerSlice, frameRate, offsetFrames);
 					
 					if (plotBegin <= sec0 && sec0 <= plotEnd) {
 						
-						if (initDigitizedSignal == 0) {
-							initDigitizedSignal = trans[t].rise ? 1 : 2;
+						if (initDigitizedSignal < 0) {
+							initDigitizedSignal = (trans[t].rise ? 1 : 2)*ceilingMax/20;
 						}
 						
 						final List<PlotEntryBase> list = plotEntries.get(new Double(sec0));
@@ -1510,10 +1548,7 @@ new String[]{
 							plotEntries.put(new Double(sec0), newList);
 						}
 						else {
-							list.add(
-									new PlotEntryDecode(
-											(int) Math.round(
-													(trans[t].rise ? 2 : 1) * ceilingMax/20)));
+							list.add(new PlotEntryDecode((trans[t].rise ? 2 : 1)*ceilingMax/20));
 						}
 					}
 				}
@@ -1523,7 +1558,7 @@ new String[]{
 				double thresha = 0.0;
 				double ceiling = 0.0;
 				double floor = 0.0;
-				int digitizedSignal = initDigitizedSignal;
+				double digitizedSignal = initDigitizedSignal;
 				for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
 
 					for (PlotEntryBase peb : e.getValue()) {
@@ -1538,7 +1573,7 @@ new String[]{
 						}
 					}
 
-					pcSignal.ps.println(String.format("%f %f %f %f %f %d",
+					pcSignal.ps.println(String.format("%f %f %f %f %f %f",
 							e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
 				}
 			}
@@ -1744,8 +1779,10 @@ new String[]{
 
 						int indx = (candSize*qq)/qSize;
 
-						// PARAMETER 0.65
-						sum += (sig[q] - (floor + level*0.5*(ceiling - floor)))*cand.pattern[indx];
+						// PARAMETER 0.5
+						double u = sig[q] - (floor + level*0.5*(ceiling - floor));
+						// sum += Math.signum(u)*u*u*cand.pattern[indx];
+						sum += u*cand.pattern[indx];
 					}
 					
 					sum *= prio;
