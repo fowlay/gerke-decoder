@@ -10,47 +10,61 @@ A decoder that translates Morse code audio to text.
 |1.4|Linux support|
 |1.5|Optional phase angle plot|
 |1.6|Spikes suppression, selectable plot interval|
-|1.7|Gaussian blur, frequency plot|
+|1.7|
+ian blur, frequency plot|
 |1.8|Dropouts and spikes removal, improved plot|
+|2.0|Integrating decoder|
 
 ## Platforms
 
 - Linux
-- Windows
+- Windows with Cygwin/X
 
 ## Dependencies
 
 ### Java
 
-Running under Oracle JDK 1.8 version 202 and OpenJDK version 1.8.0_262
-has been tested; other versions may work also.
+Running under Oracle JDK 1.8 version 202 and OpenJDK version
+1.8.0_262. Other versions may work also.
 
 ### Optional: Gnuplot
 
-The -P and -Q options, for plotting signal amplitude and phase, invoke
-the 'gnuplot' program.
+The -S, -A and -P options, for plotting signal frequency, amplitude
+and phase, invoke the 'gnuplot' program. On Windows with Cygwin/X the
+gnuplot-base and gnuplot-X11 packages are needed.
 
-### On Windows: Cygwin
+### GNU Make
 
-When running on Windows it is recommended to set up Cygwin with X
-support. The 'gnuplot' program, and Gnu 'make', can then be
-conveniently installed as Cygwin packages.
+Building requires GNU Make. On Windows with Cygwin/X GNU Make is
+provided in the 'make' package.
 
-Running on Windows without Cygwin works also, except for the plot
-features.
+### The 'iirj' filter package
+
+The build process downloads the 'iirj' filter package. For licensing
+information, read here:
+<https://github.com/berndporr/iirj/blob/master/LICENSE.txt>
+
+## Disk requirements
+
+Installing gerke-decoder requires of the order 50 MB of disk space.
 
 ## Building
 
-To build the .jar file, type
+To build executables, type
 
     make
+
+The build procedure will install a dedicated copy of Maven in the
+local directory. This installation will not interfere with possible
+other use of Maven on the same host. For licensing info, read here:
+<http://maven.apache.org/#>
 
 ## Running
 
 Invoke the program as follows:
 
-    java -jar gerke-decoder.jar -h                for built-in help
-    java -jar gerke-decoder.jar WAV_FILE          to decode a .wav file
+    bin/gerke-decoder -h                for built-in help
+    bin/gerke-decoder WAV_FILE          to decode a .wav file
 
 ## Assumptions
 
@@ -70,8 +84,8 @@ word breaks.
 
 ### Verbosity
 
-Add the -v option to get some diagnostics printed. To get even more
-diagnostics use -v -v.
+Add the -v option to have some diagnostics printed. To get even more
+diagnostics use -v -v or -v -v -v.
 
 Diagnostics are printed to the standard error stream.
 
@@ -85,20 +99,14 @@ non-default search range may be set with the -F option, e.g.:
 
 Add the -S option to get a plot of average signal amplitude versus
 frequency. There should be a maximum somewhere in the frequency range.
-If no maximum is seen, try a wider search range.
+If no maximum is seen, try a different search range.
 
-The signal vs. frequency graph can be made more sharp by setting a
-small value for the -w option. The default is 15, so a value like 10
-or 5 may be tried. Note however that the -w option affects decoding,
-so use this only while inspecting the frequency content.
-
-The chosen best frequency is reported when the -v option is
-given. Once the frequency has been determined it can be passed to the
+Once the tone frequency has been determined it can be passed to the
 decoder with the -f option, e.g.:
 
     -f 690
 
-If the frequency is prescribed with the -f option then the somewhat
+If the frequency is given with the -f option, the somewhat
 time-consuming frequency search is skipped.
 
 ### WPM
@@ -108,7 +116,7 @@ length of 1200/15 = 80 ms. If the WPM speed of the .wav file is higher
 or lower than 15, the -w option must be used. For example, if the
 speed is believed to be 22 WPM, then use
 
-    -w 22
+ -w 22
 
 A too high value of the -w option will cause the decoder to interpret
 many tones as dashes. A too low value will cause tones to be
@@ -118,9 +126,9 @@ decoder will distinguish dashes and dots properly.
 When the -v option is given the effective WPM, as calculated from the
 timing of dots and dashes in decoded characters, will be
 reported. Re-running with the -w option set to this value may result
-in some improvement.
+in somewhat improved decoding.
 
-### Clipping
+### Clipping level
 
 By default the decoder will apply a small degree of clipping, with
 intention to reduce the impact of spiky noise. With the -v option the
@@ -135,6 +143,40 @@ The clipping level is applied to the recording as a whole. In the
 presence of fading it may thus be that clipping is not effective in
 faded parts of the recording. To process different parts of the
 recording differently the -o and -l options can be used.
+
+### Sample period
+
+For accurate decoding the signal amplitude should be sampled with a
+period of about 0.1 TU. A non-default sampling period of 0.15 TU can
+be given like this:
+
+    -u 0.15
+
+### Gaussian sigma
+
+To further reduce signal fluctuations a Gaussian average of samples is
+taken.  A sigma value of about 0.25 TU is used by default. To specify
+a non-default sigma value, add
+
+    -s 0.35
+
+### Decoding method
+
+Two different decoding methods are provided:
+
+1: Tone/silence crossings based: Dots and dashes are recognized as the
+signal amplitude raises above and falls below a threshold level.
+
+2: Pattern matching: The signal is multiplied with a rectangular wave
+function representing a character. The product is integrated over the
+extent of the character and the best matching character is chosen. The
+beginning and end of a character is still based on tone/silence
+crossings.
+
+The pattern matching method is enabled by default. To use the
+tone/silence crossings method, specify
+
+    -D 1
 
 ### Threshold level
 
@@ -154,12 +196,10 @@ the threshold.
 
 ### Signal plot
 
-The signal, after gaussian blurring, as a function of time, the
-silence/tone threshold and the resolved binary output after dips and
-spikes removal can be studied grapically. Request plotting with the -P
-option:
+The signal as a function of time can be studied grapically. Request
+plotting with the -A option:
 
-    -P
+    -A
 
 To get a good view it may be necessary to select a sufficiently short
 time interval. For WPM around 15 a 10 s interval may be convenient. To
@@ -174,9 +214,18 @@ how to set the -Z option.
 
 ### Phase plot
 
-The relative phase angle of the signal may be plotted with the -Q
+The relative phase angle of the signal may be plotted with the -P
 option. If the decoder frequency is set correctly, the phase angle
 should wander only slowly.
+
+### Frequency plot
+
+Signal content versus frequency can be plotted with the -S option.
+
+The signal vs. frequency graph can be made more peaked by increasing
+the -q option value (try -h to see what the default is). Note however
+that this may cause decoding to be impaired, so do this only for
+finding the frequency.
 
 ### Offset and length
 
@@ -190,38 +239,35 @@ extending for 180 s is to be decoded, specify
 
 All options refer to the same time axis, starting at 0 seconds at the
 beginning of the .wav file.  To plot a 10 s interval out of the 180 s
-segment one can therefore add
+segment, add
 
-    -P -Z 4300,10
-
-### Dip and spike removal parameters
-
-The default setting is
-
-    -D 0.005,0.005
-
-In noisy conditions there may be sub-TU dips and spikes. The decoder
-removes those before resolving the signal into characters. Tuning the
-values may give some improvement; use the signal plot to monitor the
-effect.
-
-### Low-level detection parameters
-
-The -X option specifies two detection parameters. The default setting
-is
-
-    -X 0.09,0.19
-
-where 0.09 TU is the length of signal collecting time slices and 0.19
-TU defines the width of a "gaussian blur" averaging that reduces false
-tone/silence transitions. Tuning these parameters may possibly give
-somewhat improved decoding; use the signal plot for visualizing the
-effect.
+    -A -Z 4300,10
 
 ### Timestamps
 
 The -t option causes a timestamp in seconds to be inserted after every
 decoded word.
+
+### Experimental parameters
+
+A number of experimental parameters can be set with the -H option. To
+see the default values, use -h. Values must be given as a
+comma-separated space-free string, with no values omitted. The
+parameters are:
+
+    DIP     Threshold for dips removal
+    SPIKE   Threshold for spikes removal
+    BREAK   Break very long dashes in two: 0=disabled, 1=enabled
+    FILTER  Low-pass filter
+    CUTOFF  Low-pass filter cutoff frequency relative to 1/TU
+    ORDER   Filter order
+
+Valid values for FILTER are:
+
+    b       Butterworth
+    cI      Chebyshev type I
+    w       Sliding window (ignoring ORDER)
+    n       No filter (ignoring CUTOFF and ORDER)
 
 ### Version
 
@@ -244,10 +290,10 @@ This file can be decoded with default settings.
 
 The spectrum for VLF radio transmissions overlaps at the lower end
 with the frequency range of computer soundcards. With an antenna
-connected to the soundcard input port it ought to be possible to
-record the signal directly to a .wav file, using a sound recorder
-program. This program, with a suitably chosen -F option, can then
-presumably be used for decoding the transmission.
+connected to the soundcard input port it is possible to record the
+signal directly to a .wav file, using a sound recorder program. This
+program, with a suitably chosen -F option, can then be used for
+decoding the transmission.
 
 ## The name
 

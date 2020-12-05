@@ -37,6 +37,7 @@ import java.util.concurrent.CountDownLatch;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.UnsupportedAudioFileException;
 
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
@@ -48,7 +49,11 @@ public final class GerkeDecoder {
 	
 	static final double TWO_PI = 2*Math.PI;
 	
-	static final double THRESHOLD = 0.45;
+	/**
+	 * Do not change this value. It was determined by decoding some recordings
+	 * with good signal strength.
+	 */
+	static final double THRESHOLD = 0.5634;
 	
 	/**
 	 * The tone amplitude is computed by taking signal values in time slices
@@ -71,6 +76,7 @@ public final class GerkeDecoder {
 	static final String O_CLIPPING = "clip";
 	static final String O_STIME = "sample-time";
 	static final String O_SIGMA = "sigma";
+	static final String O_DECODER = "decoder";
 	static final String O_LEVEL = "level";
 	static final String O_TSTAMPS = "timestamps";
 	static final String O_FPLOT = "frequency-plot";
@@ -80,15 +86,15 @@ public final class GerkeDecoder {
 	static final String O_VERBOSE = "verbose";
 	
 	static final String O_HIDDEN = "hidden-options";
-	enum HiddenOpts {DIP, SPIKE, BREAK_LONG_DASH, CUTOFF, FILTER, ORDER, PMLEVEL};
+	enum HiddenOpts {DIP, SPIKE, BREAK_LONG_DASH, FILTER, CUTOFF, ORDER};
 	
-	static final double WORD_SPACE_LIMIT = 5.3;    // words break <---------+---------> words stick
+	static final double WORD_SPACE_LIMIT = 5.1;    // words break <---------+---------> words stick
 	static final double CHAR_SPACE_LIMIT = 1.75;   // chars break <---------+---------> chars cluster
 	static final double DASH_LIMIT = 1.7;          // 1.6
 	static final double TWO_DASH_LIMIT = 6.0;      // 6.0
 
 	static {
-		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0 preliminary 2");
+		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0");
 
 		new SingleValueOption("o", O_OFFSET, "0");
 		new SingleValueOption("l", O_LENGTH, "-1");
@@ -100,9 +106,9 @@ public final class GerkeDecoder {
 
 		new SingleValueOption("c", O_CLIPPING, "-1");
 		new SingleValueOption("q", O_STIME, "0.10");
-		new SingleValueOption("s", O_SIGMA, "0.33");
+		new SingleValueOption("s", O_SIGMA, "0.25");
 
-		new SingleValueOption("D", "dip-spike", "0.002,0.005");
+		new SingleValueOption("D", O_DECODER, "2");
 
 		new SingleValueOption("u", O_LEVEL, "1.0");
 		new Flag("t", O_TSTAMPS);
@@ -110,25 +116,24 @@ public final class GerkeDecoder {
 		new Flag("S", O_FPLOT);
 		
 		new SingleValueOption("Z", O_PLINT, "0,-1");
-		new Flag("P", O_PLOT);
-		new Flag("Q", O_PPLOT);
+		new Flag("A", O_PLOT);
+		new Flag("P", O_PPLOT);
 
 		new SteppingOption("v", O_VERBOSE);
 
 		new SingleValueOption("H", O_HIDDEN,
-				        "0.002"+                    // dip removal
+				         "0.002"+                   // dip removal
 		                ",0.005"+                   // spike removal
 				        ",1"+                       // break too long dashes
-						",1.2"+                     // frequency, relative to 1/TU
-						",b"+                       // b: butterworth, cI: chebyshev I, w: sliding window, n: no filter
-						",2"+                       // filter order
-						",1.0"                      // level in character decoder
+						",b"+                       // b: Butterworth, cI: Chebyshev I, w: sliding Window, n: No filter
+						",2.0"+                     // frequency, relative to 1/TU
+						",2"                        // filter order
 				);
 
 		new HelpOption(
 				"h",
 new String[]{
-		"Usage is: java -jar gerke-decoder.jar [OPTIONS] WAVFILE",
+		"Usage is: bin/gerke-decoder [OPTIONS] WAVEFILE",
 		"Options are:",
 		String.format("  -o OFFSET          Offset (seconds)"),
 		String.format("  -l LENGTH          Length (seconds)"),
@@ -137,7 +142,9 @@ new String[]{
 		String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault(O_FRANGE)),
 		String.format("  -f FREQ            Audio frequency, bypassing search"),
 		String.format("  -c CLIPLEVEL       Clipping level, optional"),
-		String.format("  -u ADJUSTMENT      Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
+		String.format("  -D DECODER         1: Tone/silence crossings, 2: Pattern matching, defaults to %s",
+				GerkeLib.getDefault(O_DECODER)),
+		String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
 
 		String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault(O_STIME)),
 		String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
@@ -145,8 +152,8 @@ new String[]{
 		String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault(O_HIDDEN)),
 		
 		String.format("  -S                 Generate frequency spectrum plot"),
-		String.format("  -P                 Generate signal plot"),
-		String.format("  -Q                 Generate phase angle plot"),
+		String.format("  -A                 Generate amplitude plot"),
+		String.format("  -P                 Generate phase angle plot"),
 
 		String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
 		String.format("  -t                 Insert timestamps in decoded text"),
@@ -164,6 +171,176 @@ new String[]{
 		"used in computing the signal value."
 				});
 	}
+	
+	static class Parameters {
+		
+		final int frameRate;
+		final int offsetFrames;
+		
+		final double tuMillis;
+		final double tsLength;
+		final int framesPerSlice;
+		
+		final long wordSpaceLimit;
+		final long charSpaceLimit;
+		final long dashLimit;
+		
+		final double plotBegin;
+		final double plotEnd;
+		
+		public Parameters(int frameRate, int offsetFrames, double tuMillis, double tsLength, int framesPerSlice,
+				long wordSpaceLimit, long charSpaceLimit, long dashLimit, double plotBegin, double plotEnd) {
+			this.frameRate = frameRate;
+			this.offsetFrames = offsetFrames;
+			this.tuMillis = tuMillis;
+			this.tsLength = tsLength;
+			this.framesPerSlice = framesPerSlice;
+			this.wordSpaceLimit = wordSpaceLimit;
+			this.charSpaceLimit = charSpaceLimit;
+			this.dashLimit = dashLimit;
+			this.plotBegin = plotBegin;
+			this.plotEnd = plotEnd;
+		}
+		
+
+
+
+	}
+	
+	/**
+	 * Read a WAV file into a short[] array.
+	 */
+	static class Wav {
+		
+		final String file;   // file path
+		
+		final AudioInputStream ais;
+		final AudioFormat af;
+		final long frameLength;
+		
+		final int frameRate; // frames/s
+		final int offset;    // offset (s)
+		final int offsetFrames;   // offset as nof. frames
+		final int length;    // length (s)
+		final short[] wav;   // signal values
+		
+		final int nofFrames;
+
+		public Wav() throws IOException, UnsupportedAudioFileException {
+			
+			if (GerkeLib.nofArguments() != 1) {
+				new Death("expecting one filename argument, try -h for help");
+			}
+			file = GerkeLib.getArgument(0);
+			
+			ais = AudioSystem.getAudioInputStream(new File(file));
+			af = ais.getFormat();
+			new Info("audio format: %s", af.toString());
+			
+			frameRate = Math.round(af.getFrameRate());
+			new Info("frame rate: %d", frameRate);
+			
+			final int nch = af.getChannels();  // needed in reading, localize?
+			new Info("nof. channels: %d", nch);
+			final int bpf = af.getFrameSize();
+			if (bpf == AudioSystem.NOT_SPECIFIED) {
+				new Death("bytes per frame is NOT SPECIFIED");
+			} 
+			else {
+				new Info("bytes per frame: %d", bpf);
+			}
+			if (af.isBigEndian()) {
+				new Death("cannot handle big-endian WAV file");
+			}
+			
+			
+			frameLength = ais.getFrameLength();
+			new Info(".wav file length: %.1f s", (double)frameLength/frameRate);
+			new Info("nof. frames: %d", frameLength);
+			
+			// find out nof frames to go in array
+			
+			offset = GerkeLib.getIntOpt(O_OFFSET);
+			length = GerkeLib.getIntOpt(O_LENGTH);
+			
+			if (offset < 0) {
+				new Death("offset cannot be negative");
+			}
+			
+			offsetFrames = offset*frameRate;
+			
+			final int offsetFrames = GerkeLib.getIntOpt(O_OFFSET)*frameRate;
+			nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
+			
+			if (nofFrames < 0) {
+				new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);
+			}
+
+
+			wav = new short[nofFrames];
+			
+			int frameCount = 0;
+			
+			if (bpf == 1 && nch == 1) {
+				final int blockSize = frameRate;
+				for (int k = 0; true; k += blockSize) {
+					final byte[] b = new byte[blockSize];
+					final int nRead = ais.read(b, 0, blockSize);
+					if (k >= offsetFrames) {
+						if (nRead == -1 || frameCount == nofFrames) {
+							break;
+						}
+						for (int j = 0; j < nRead && frameCount < nofFrames; j++) {
+							wav[k - offsetFrames + j] = (short) (100*b[j]);
+							frameCount++;
+						}
+					}
+				}
+			}
+			else if (bpf == 2 && nch == 1) {
+				final int blockSize = bpf*frameRate;
+				for (int k = 0; true; k += blockSize) {
+					final byte[] b = new byte[blockSize];
+					final int nRead = ais.read(b, 0, blockSize);
+					if (k >= offsetFrames*bpf) {
+						if (nRead == -1 || frameCount == nofFrames) {
+							break;
+						}
+						for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
+							wav[k/bpf - offsetFrames + j] =
+									(short) (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
+							frameCount++;
+						}
+					}
+				}
+			}
+			else if (bpf == 4 && nch == 2) {
+				final int blockSize = bpf*frameRate;
+				for (int k = 0; true; k += blockSize) {
+					final byte[] b = new byte[blockSize];
+					final int nRead = ais.read(b, 0, blockSize);
+					if (k >= offsetFrames*bpf) {
+						if (nRead == -1 || frameCount == nofFrames) {
+							break;
+						}
+						for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
+							final int left = (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
+							final int right = (256*b[bpf*j+3] + (b[bpf*j+2] < 0 ? (b[bpf*j+2] + 256) : b[bpf*j+2]));
+							wav[k/bpf - offsetFrames + j] =
+									(short) ((left + right)/2);
+							frameCount++;
+						}
+					}
+				}
+			}
+			else {
+				ais.close();
+				new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);
+			}
+			ais.close();
+		}
+	}
+	
 
 	static class Node {
 		final String code;
@@ -400,8 +577,6 @@ new String[]{
 	private static String encodeLetter(int i) {
 		return new String(new int[]{i}, 0, 1);
 	}
-
-	static short[] wav;
 	
 	static class FilterRunner implements Runnable {
 
@@ -884,7 +1059,8 @@ new String[]{
 	}
 	
 	/**
-	 * Maybe only head and last list element are ever used? TODO
+	 * TODO: Improve detection by making use of level crossings within the
+	 * character as well?
 	 */
 	static class CharData {
 		List<Trans> transes;
@@ -922,40 +1098,14 @@ new String[]{
 			GerkeLib.parseArgs(clArgs);
 			showClData();
 
-			if (GerkeLib.nofArguments() != 1) {
-				new Death("expecting one filename argument, try -h for help");
-			}
+			// ===================================== Wave file
+			
+			final Wav w = new Wav();
+			final double[] plotLimits = getPlotLimits(w);
 
-			final String file = GerkeLib.getArgument(0);
-
-			final AudioInputStream ais = AudioSystem.getAudioInputStream(new File(file));
 			
-			final AudioFormat af = ais.getFormat();
-			new Info("audio format: %s", af.toString());
+			// ===================================== TU and time slice
 			
-			final int nch = af.getChannels();
-			new Info("nof. channels: %d", nch);
-			
-			final int bpf = af.getFrameSize();
-			if (bpf == AudioSystem.NOT_SPECIFIED) {
-				new Death("bytes per frame is NOT SPECIFIED");
-			} 
-			else {
-				new Info("bytes per frame: %d", bpf);
-			}
-			
-			if (af.isBigEndian()) {
-				new Death("cannot handle big-endian WAV file");
-			}
-
-			final int frameRate = Math.round(af.getFrameRate());
-			new Info("frame rate: %d", frameRate);
-			
-			final long frameLength = ais.getFrameLength();
-			new Info(".wav file length: %.1f s", (double)frameLength/frameRate);
-			new Info("nof. frames: %d", frameLength);
-
-			// Get the tentative WPM
 			final double wpm = GerkeLib.getDoubleOpt(O_WPM);
 			final double tuMillis = 1200/wpm;
 			new Info("dot time, tentative: %.3f ms", tuMillis);
@@ -966,195 +1116,50 @@ new String[]{
 			
 			final double tsLengthGiven = GerkeLib.getDoubleOpt(O_STIME);
 			
-			final int framesPerSlice = (int) Math.round(tsLengthGiven*frameRate*tuMillis/1000.0);
+			final int framesPerSlice = (int) Math.round(tsLengthGiven*w.frameRate*tuMillis/1000.0);
 			
-			final double tsLength = 1000.0*framesPerSlice/(frameRate*tuMillis);
+			final double tsLength = 1000.0*framesPerSlice/(w.frameRate*tuMillis);
 			
-			
-			new Info("time slice: %.3f ms", 1000.0*framesPerSlice/frameRate);
+			new Info("time slice: %.3f ms", 1000.0*framesPerSlice/w.frameRate);
 			new Info("frames per time slice: %d", framesPerSlice);
-			
 			new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
 
-			// Set number of frames to use from offset and length given in seconds
-			final int length = GerkeLib.getIntOpt(O_LENGTH);
 			
-			if (GerkeLib.getIntOpt(O_OFFSET) < 0) {
-				new Death("offset cannot be negative");
-			}
-			final int offsetFrames = GerkeLib.getIntOpt(O_OFFSET)*frameRate;
-			final int nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
+			// ===================================== Estimate frequency, or use given
 
-			final int nofSlices = nofFrames/framesPerSlice;
-
-			if (nofFrames < 0) {
-				new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);
-			}
-			
-			final double plotBegin;
-			final double plotEnd;
-			if (GerkeLib.getOptMultiLength(O_PLINT) != 2) {
-				new Death("bad plot interval: wrong number of suboptions");
-			}
-			
-			final boolean phasePlot = GerkeLib.getFlag(O_PPLOT);
-			if (GerkeLib.getFlag(O_PLOT) || phasePlot) {
-				
-				final double t1 = ((double) frameLength)/frameRate;
-				
-				final double t2 = (double) (GerkeLib.getIntOpt(O_OFFSET));
-				
-				final double t3 = 
-						length == -1 ? t1 :
-							dMin(t2 + length, t1);
-				if (length != -1 && t2 + length > t1) {
-					new Warning("offset+length exceeds %.1f seconds", t1);
-				}
-				
-				final double t4 =
-						dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
-				if (t4 >= t3) {
-					new Death("plot interval out of bounds");
-				}
-				else if (GerkeLib.getDoubleOptMulti(O_PLINT)[0] < t2) {
-					new Warning("starting plot interval at: %.1f s", t2);
-				}
-				
-				final double t5 =
-						GerkeLib.getDoubleOptMulti(O_PLINT)[1] == -1.0 ?
-								t3 :
-									dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
-				if (GerkeLib.getDoubleOptMulti(O_PLINT)[1] != -1.0 &&
-						t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1] > t3) {
-					new Warning("ending plot interval at: %.1f s", t3);
-				}
-
-				plotBegin = t4;
-				plotEnd = t5;
-				if (plotBegin >= plotEnd) {
-					new Death("bad plot interval");
-				}
-			}
-			else {
-				plotBegin = 0.0;
-				plotEnd = 0.0;
-			}
-
-			wav = new short[nofFrames];
-			int frameCount = 0;
-			
-			if (bpf == 1 && nch == 1) {
-				final int blockSize = frameRate;
-				for (int k = 0; true; k += blockSize) {
-					final byte[] b = new byte[blockSize];
-					final int nRead = ais.read(b, 0, blockSize);
-					if (k >= offsetFrames) {
-						if (nRead == -1 || frameCount == nofFrames) {
-							break;
-						}
-						for (int j = 0; j < nRead && frameCount < nofFrames; j++) {
-							wav[k - offsetFrames + j] = (short) (100*b[j]);
-							frameCount++;
-						}
-					}
-				}
-			}
-			else if (bpf == 2 && nch == 1) {
-				final int blockSize = bpf*frameRate;
-				for (int k = 0; true; k += blockSize) {
-					final byte[] b = new byte[blockSize];
-					final int nRead = ais.read(b, 0, blockSize);
-					if (k >= offsetFrames*bpf) {
-						if (nRead == -1 || frameCount == nofFrames) {
-							break;
-						}
-						for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
-							wav[k/bpf - offsetFrames + j] =
-									(short) (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
-							frameCount++;
-						}
-					}
-				}
-			}
-			else if (bpf == 4 && nch == 2) {
-				final int blockSize = bpf*frameRate;
-				for (int k = 0; true; k += blockSize) {
-					final byte[] b = new byte[blockSize];
-					final int nRead = ais.read(b, 0, blockSize);
-					if (k >= offsetFrames*bpf) {
-						if (nRead == -1 || frameCount == nofFrames) {
-							break;
-						}
-						for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
-							final int left = (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
-							final int right = (256*b[bpf*j+3] + (b[bpf*j+2] < 0 ? (b[bpf*j+2] + 256) : b[bpf*j+2]));
-							wav[k/bpf - offsetFrames + j] =
-									(short) ((left + right)/2);
-							frameCount++;
-						}
-					}
-				}
-			}
-			else {
-				ais.close();
-				new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);
-			}
-			ais.close();
-
-			// Estimate audible signal frequency
 			final int fBest;
 			if (GerkeLib.getIntOpt(O_FREQ) != -1) {
-				// frequency is specified on the command line
+				fBest = GerkeLib.getIntOpt(O_FREQ);
+				new Info("specified frequency: %d", fBest);
 				if (GerkeLib.getFlag(O_FPLOT)) {
 					new Warning("frequency plot skipped when -f option given");
 				}
-				fBest = GerkeLib.getIntOpt(O_FREQ);
-				new Info("specified frequency: %d", fBest);
 			}
 			else {
 				// no frequency specified, search for best value
-				fBest = findFrequency(frameRate, framesPerSlice);
+				fBest = findFrequency(framesPerSlice, w);
 				new Info("estimated frequency: %d", fBest);
 			}
 
-			// ===========================================================================
-			// using the frequency, and a time slice, and a frame time,
-			// find the average rSquared for use as a threshold value
+			
+
+			// ========================== Find clip level
+			// TODO, could clipping be applied once and for all, after
+			// a certain point has been passed?
 
 			final int clipLevelOverride = GerkeLib.getIntOpt(O_CLIPPING);
 			
 			final int clipLevel =
-					clipLevelOverride != -1 ? clipLevelOverride : getClipLevel(fBest, frameRate, framesPerSlice);
+					clipLevelOverride != -1 ? clipLevelOverride : getClipLevel(fBest, framesPerSlice, w);
 			new Info("clipping level: %d", clipLevel);
 
-			// ===========================================================================
-			// decode the stream
-
-			// The limits are expressed as "number of time slice".
 			
-
 			
-			final long dashLimit = Math.round(DASH_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));        // PARAMETER
-			final long wordSpaceLimit = Math.round(WORD_SPACE_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
-			final long charSpaceLimit = Math.round(CHAR_SPACE_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));   // PARAMETER
-			final long twoDashLimit = Math.round(TWO_DASH_LIMIT*tuMillis*frameRate/(1000*framesPerSlice));     // PARAMETER
 			
-			final double level = GerkeLib.getDoubleOpt(O_LEVEL);
-			new Info("relative tone/silence threshold: %.3f", level);
-
-			new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
-
 			
-			final double saRaw = signalAverage(fBest, frameRate, framesPerSlice, Short.MAX_VALUE);
-			new Debug("signal average: %f", saRaw);
-			final double sa = signalAverage(fBest, frameRate, framesPerSlice, clipLevel);
-			new Debug("signal average clipped: %f", sa);
-			
-			final int histWidth = (int)(NOF_TU_FOR_CEILING_HISTOGRAM*tuMillis/(1000.0*framesPerSlice/frameRate));
-			new Debug("histogram half-width (nof. slices): %d", histWidth);
+			// ============  Multiply by sine and cosine functions, apply filtering
 
-			
-
+			final int nofSlices = w.nofFrames/framesPerSlice;
 			final double[] sig = new double[nofSlices];
 
 			final LowpassFilter filterI;
@@ -1164,22 +1169,22 @@ new String[]{
 				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
-				filterI = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
-				filterQ = new LowpassButterworth(order, (double)frameRate, cutoff* 1000.0/tuMillis, 0.0);
+				filterI = new LowpassButterworth(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 0.0);
+				filterQ = new LowpassButterworth(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 0.0);
 			}
 			else if (filterCode.equals("cI")) {
 				final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
 				// PARAMETER 2.0 dB, ripple
-				filterI = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
-				filterQ = new LowPassChebyshevI(order, (double)frameRate, cutoff* 1000.0/tuMillis, 1.5);
+				filterI = new LowPassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
+				filterQ = new LowPassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
 			}
 			else if (filterCode.equals("w")) {
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
-				filterI = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
-				filterQ = new LowpassWindow(frameRate, cutoff* 1000.0/tuMillis);
+				filterI = new LowpassWindow(w.frameRate, cutoff* 1000.0/tuMillis);
+				filterQ = new LowpassWindow(w.frameRate, cutoff* 1000.0/tuMillis);
 			}
 			else if (filterCode.equals("t")) {
 				filterI = new LowpassTimeSliceSum(framesPerSlice);
@@ -1199,35 +1204,28 @@ new String[]{
 			
 			final long tBegin = System.currentTimeMillis();
 			final CountDownLatch cdl = new CountDownLatch(2);
-			
-			final Thread t1 =
-					new Thread(
-							new FilterRunner(
-									filterI,
-									wav,
-									outSin,
-									framesPerSlice,
-									clipLevel, fBest,
-									frameRate,
-									0.0,
-									cdl));
-			t1.start();
-			final Thread t2 =
-					new Thread(
-							new FilterRunner(
-									filterQ,
-									wav,
-									outCos,
-									framesPerSlice,
-									clipLevel, fBest,
-									frameRate,
-									Math.PI/2,
-									cdl));
-			t2.start();
+			(new Thread(
+					new FilterRunner(
+							filterI,
+							w.wav,
+							outSin,
+							framesPerSlice,
+							clipLevel, fBest,
+							w.frameRate,
+							0.0,
+							cdl))).start();
+			(new Thread(
+					new FilterRunner(
+							filterQ,
+							w.wav,
+							outCos,
+							framesPerSlice,
+							clipLevel, fBest,
+							w.frameRate,
+							Math.PI/2,
+							cdl))).start();
 			cdl.await();
 			
-			new Info("filtering took ms: %d", System.currentTimeMillis() - tBegin);
-
 			final double sigma = GerkeLib.getDoubleOpt(O_SIGMA);
 			final double eps = 0.01; // PARAMETER eps
 			
@@ -1244,7 +1242,7 @@ new String[]{
 
 			for (int q = 0; true; q++) {      //  q is sig[] index
 
-				if (wav.length - q*framesPerSlice < framesPerSlice) {
+				if (w.wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
 				
@@ -1258,104 +1256,67 @@ new String[]{
 	    		}
 	    		sig[q] = ss/gaussSize;
 			}
-
-				
-				
-				
-//			
-//			    // feed the filters with wav samples
-//			    for (int k = -framesPerSlice+1; k <= 0; k++) {
-//			    	
-//			    	int wavIndex = q*framesPerSlice + k;
-//			    	
-//			    	double outSin = 0.0;
-//		    		double outCos = 0.0;
-//			    	if (wavIndex >= 0) {
-//			    		int ampRaw = wav[wavIndex];   // k is non-positive!
-//			    		final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
-//
-//			    		double angle = TWO_PI*fBest*wavIndex/frameRate;
-//			    		outSin = filterSin.filter(amp*Math.sin(angle));
-//			    		outCos = filterCos.filter(amp*Math.cos(angle));
-//			    	}
-//			    	
-//			    	if (k == 0) {
-//			    		int ringIndex = q % gaussSize;
-//			    		ringBuffer[ringIndex] = Math.sqrt(outSin*outSin + outCos*outCos);
-//			    		int rr = ringIndex;
-//			    		double ss = 0.0;
-//			    		for (int ii = 0; ii < gaussSize; ii++) {
-//			    			ss += expTable[ii]*ringBuffer[rr];
-//			    			rr = rr+1 == gaussSize ? 0 : rr+1;
-//			    		}
-//			    		sig[q] = ss/gaussSize;
-//			    		filterSin.reset();
-//			    		filterCos.reset();
-//			    	}
-//			    }
-//			}
-
-			if (phasePlot) {
-				final double[] cosSum = new double[nofSlices];
-				final double[] sinSum = new double[nofSlices];
-				final double[] wphi = new double[nofSlices];
-
-				for (int q = 0; true; q++) {
-
-					if (wav.length - q*framesPerSlice < framesPerSlice) {
-						break;
-					}
-
-					final double angleOffset =
-							phasePlot ? TWO_PI*fBest*timeSeconds(q, framesPerSlice, frameRate, offsetFrames) : 0.0;
-
-							double sinAcc = 0.0;
-							double cosAcc = 0.0;
-							for (int j = 0; j < framesPerSlice; j++) {
-								// j is frame index
-								final int ampRaw = wav[q*framesPerSlice + j];
-								final int amp = ampRaw < 0 ?
-										iMax(-clipLevel, ampRaw) :
-											iMin(clipLevel, ampRaw);
-
-										final double angle = angleOffset + TWO_PI*fBest*j/frameRate;
-										sinAcc += Math.sin(angle)*amp;
-										cosAcc += Math.cos(angle)*amp;
-							}
-							cosSum[q] = cosAcc;
-							sinSum[q] = sinAcc;
-				}
-
-				for (int q = 0; q < wphi.length; q++) {
-					wphi[q] = wphi(q, cosSum, sinSum, sig, level, histWidth);
-				}
-
-				PlotCollector pcPhase = new PlotCollector();
-				for (int q = 0; q < wphi.length; q++) {
-					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
-					if (plotBegin <= seconds && seconds <= plotEnd) {
-						final double phase = wphi[q];
-						if (phase != 0.0) {
-							pcPhase.ps.println(String.format("%f %f", seconds, phase));
-						}
-					}
-				}
-				pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
-			}
-
-			final PlotCollector pcSignal;
-			final SortedMap<Double, List<PlotEntryBase>> plotEntries;
+			new Info("filtering took ms: %d", System.currentTimeMillis() - tBegin);
 			
-			if (GerkeLib.getFlag(O_PLOT)) {
-				pcSignal = new PlotCollector();
-				plotEntries = new TreeMap<Double, List<PlotEntryBase>>();
-			}
-			else {
-				pcSignal = null;
-				plotEntries = null;
-			}
+			
+			
+			// ================= Determine floor and ceiling. These arrays are used for
+			// decoding and plotting as well.
+			
+			final int histWidth = (int)(NOF_TU_FOR_CEILING_HISTOGRAM*tuMillis/(1000.0*framesPerSlice/w.frameRate));
+			new Debug("histogram half-width (nof. slices): %d", histWidth);
+			
+			final double[] cei = new double[sig.length];
+			final double[] flo = new double[sig.length];
+			
+			double ceilingMax = -1.0;
+			for (int q = 0; true; q++) {
+				if (w.wav.length - q*framesPerSlice < framesPerSlice) {
+					break;
+				}
 
+				flo[q] = localFloorByHist(q, sig, histWidth);
+				cei[q] = localAmpByHist(q, sig, histWidth);
+				ceilingMax = dMax(ceilingMax, cei[q]);
+			}
+			
+			
+			
+			
+			
+			
+			
 
+			// some of this is used by the phase plot
+
+			final int dashLimit = (int) Math.round(DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
+			final int wordSpaceLimit = (int) Math.round(WORD_SPACE_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+			final int charSpaceLimit = (int) Math.round(CHAR_SPACE_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+			final int twoDashLimit = (int) Math.round(TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
+			final double level = GerkeLib.getDoubleOpt(O_LEVEL);
+			new Info("relative tone/silence threshold: %.3f", level);
+			new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
+
+			
+			final double saRaw = signalAverage(fBest, framesPerSlice, Short.MAX_VALUE, w);
+			new Debug("signal average: %f", saRaw);
+			final double sa = signalAverage(fBest, framesPerSlice, clipLevel, w);
+			new Debug("signal average clipped: %f", sa);
+			
+
+			
+			
+			
+			
+			// ================ Phase plot, optional
+			
+			if (GerkeLib.getFlag(O_PPLOT)) {
+				phasePlot(fBest, nofSlices, framesPerSlice, w, clipLevel, sig, level, flo, cei);
+			}
+			
+
+			// ============== identify transitions
+			// usage depends on decoder method
 
 			final Trans[] trans = new Trans[nofSlices];
 			int transIndex = 0;
@@ -1363,61 +1324,44 @@ new String[]{
 			double dipAcc = 0.0;
 			double spikeAcc = 0.0;
 			double thresholdMax = -1.0;
-			double ceilingMax = -1.0;
+			// double ceilingMax = -1.0; .. already done
 			new Debug("thresholdMax is: %e", thresholdMax);
 
 
 			for (int q = 0; true; q++) {
-				if (wav.length - q*framesPerSlice < framesPerSlice) {
-					// assume end of stream, drop the very final time slice
+				if (w.wav.length - q*framesPerSlice < framesPerSlice) {
 					break;
 				}
 
-				final double sigAverage = sig[q];
-	
-				final double floor = localFloorByHist(q, sig, histWidth);
-				final double ceiling = localAmpByHist(q, sig, histWidth);
-				final double threshold = floor + level*THRESHOLD*(ceiling - floor);
-		
+				final double threshold = threshold(level*THRESHOLD, flo[q], cei[q]);
 				thresholdMax = dMax(threshold, thresholdMax);
-				ceilingMax = dMax(ceiling, ceilingMax);
 				
-				// new Debug("thresholdMax is (2): %e", thresholdMax);
-				final boolean newTone = sigAverage > threshold;
-				
-				if (pcSignal != null) {
-					final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
-					if (plotBegin <= seconds && seconds <= plotEnd) {
-						final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>(2);
-						list.add(new PlotEntrySig(sigAverage, threshold, ceiling, floor));
-						plotEntries.put(new Double(seconds), list);
-					}
-				}
-				
+				final boolean newTone = sig[q] > threshold;
+
 				if (newTone && !tone) {
 					// raise
 					if (transIndex > 0 && q - trans[transIndex-1].q <= charSpaceLimit) {
-						trans[transIndex] = new Trans(q, true, dipAcc, ceiling, floor);
+						trans[transIndex] = new Trans(q, true, dipAcc, cei[q], flo[q]);
 					}
 					else {
-						trans[transIndex] = new Trans(q, true, ceiling, floor);
+						trans[transIndex] = new Trans(q, true, cei[q], flo[q]);
 					}
 					transIndex++;
 					tone = true;
-					spikeAcc = squared(threshold - sigAverage);
+					spikeAcc = squared(threshold - sig[q]);
 				}
 				else if (!newTone && tone) {
 					// fall
-					trans[transIndex] = new Trans(q, false, spikeAcc, ceiling, floor);
+					trans[transIndex] = new Trans(q, false, spikeAcc, cei[q], flo[q]);
 					transIndex++;
 					tone = false;
-					dipAcc = squared(threshold - sigAverage);
+					dipAcc = squared(threshold - sig[q]);
 				}
 				else if (!tone) {
-					dipAcc += squared(threshold - sigAverage);
+					dipAcc += squared(threshold - sig[q]);
 				}
 				else if (tone) {
-					spikeAcc += squared(threshold - sigAverage);
+					spikeAcc += squared(threshold - sig[q]);
 				}
 			}
 			
@@ -1499,7 +1443,7 @@ new String[]{
 					[HiddenOpts.BREAK_LONG_DASH.ordinal()] == 1;
 
 			if (breakLongDash) {
-				// TODO, refactor
+				// TODO, refactor .. break off the first dash, then reconsider the rest
 				for (int t = 1; t < transIndex; ) {
 					if (trans[t-1].rise && !trans[t].rise && trans[t].q - trans[t-1].q > twoDashLimit) {
 						// break up a very long dash, make room for 2 more events
@@ -1526,59 +1470,11 @@ new String[]{
 					}
 				}
 			}
-
-			if (GerkeLib.getFlag(O_PLOT)) {
-				// scan the trans[] array, create Plot entries
-				double initDigitizedSignal = -1.0;
-				for (int t = 0; t < transIndex; t++) {
-					final double sec0 = timeSeconds(trans[t].q, framesPerSlice, frameRate, offsetFrames);
-					
-					if (plotBegin <= sec0 && sec0 <= plotEnd) {
-						
-						if (initDigitizedSignal < 0) {
-							initDigitizedSignal = (trans[t].rise ? 1 : 2)*ceilingMax/20;
-						}
-						
-						final List<PlotEntryBase> list = plotEntries.get(new Double(sec0));
-						
-						if (list == null) {
-							// not expected to happen
-							final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>(2);
-							newList.add(new PlotEntryDecode(trans[t].rise ? 2 : 1));
-							plotEntries.put(new Double(sec0), newList);
-						}
-						else {
-							list.add(new PlotEntryDecode((trans[t].rise ? 2 : 1)*ceilingMax/20));
-						}
-					}
-				}
-
-				// at this point the plot stream can be created
-				double signa = 0.0;
-				double thresha = 0.0;
-				double ceiling = 0.0;
-				double floor = 0.0;
-				double digitizedSignal = initDigitizedSignal;
-				for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
-
-					for (PlotEntryBase peb : e.getValue()) {
-						if (peb instanceof PlotEntryDecode) {
-							digitizedSignal = ((PlotEntryDecode)peb).dec;
-						}
-						else if (peb instanceof PlotEntrySig) {
-							signa = ((PlotEntrySig)peb).sig;
-							thresha = ((PlotEntrySig)peb).threshold;
-							ceiling = ((PlotEntrySig)peb).ceiling;
-							floor = ((PlotEntrySig)peb).floor;
-						}
-					}
-
-					pcSignal.ps.println(String.format("%f %f %f %f %f %f",
-							e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
-				}
-			}
-
 			
+			///////////////////////
+			// transition list is ready
+			///////////////////////
+
 			if (transIndex == 0) {
 				new Death("no signal detected");
 			}
@@ -1586,149 +1482,497 @@ new String[]{
 				new Death("no code detected");
 			}
 
-			final Formatter formatter = new Formatter();
-			
-			boolean prevTone = false;
-			int qBeginSilence = 0;
-			
-			int nTuTotal = 0;
-			
-			// measure inter-character spacing, ignore inter-word spacing
-			int nTuSpace = 0;
-			int qSpace = 0;
-			
-			Node p = tree;
-			
-			final List<CharData> cdList = new ArrayList<CharData>();
-			CharData charCurrent = null;
-			
 			final int offset = GerkeLib.getIntOpt(O_OFFSET);
-			for (int t = 0; t < transIndex; t++) {
-
-				final boolean newTone = trans[t].rise;
-
-				if (!prevTone && newTone) {
-					// silent -> tone
-					if (t == 0) {
-						p = tree;
-						charCurrent = new CharData(trans[t]);
-					}
-					else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
-						if (GerkeLib.getFlag(O_TSTAMPS)) {
-							formatter.add(true,
-									p.text,
-									offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000));
-						}
-						else {
-							formatter.add(true, p.text, -1);
-						}
-						nTuTotal += p.nTus + 7;
-						p = tree;
-						cdList.add(charCurrent);
-						cdList.add(new CharData());                   // empty CharData represents word space
-						charCurrent = new CharData(trans[t]);
-					}
-					else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
-						formatter.add(false, p.text, -1);
-						nTuTotal += p.nTus + 3;
-						nTuSpace += 3;
-						qSpace += (trans[t].q - qBeginSilence);
-						p = tree;
-						cdList.add(charCurrent);
-						charCurrent = new CharData(trans[t]);
-					}
-					else {
-						charCurrent.add(trans[t]);
-					}
-				}
-				else if (prevTone && !newTone) {
-					// tone -> silent
-					qBeginSilence = trans[t].q;
-					final int dashSize = trans[t].q - trans[t-1].q;
-					if (dashSize > dashLimit) {
-						if (p.dash == null) {
-							final String newCode = p.code + "-";
-							p.dash = new Node(null, newCode);
-						}
-						p = p.dash;
-					}
-					else {
-						if (p.dot == null) {
-							final String newCode = p.code + ".";
-							p.dot = new Node(null, newCode);
-						}
-						p = p.dot;
-					}
-					charCurrent.add(trans[t]);
-				}
-				else {
-					new Death("internal error");
-				}
-				
-				prevTone = newTone;
+			final int decoder = GerkeLib.getIntOpt(O_DECODER);
+			if (decoder == 1) {
+				decodeByLevels(trans, transIndex,
+						sig,
+						level,
+						flo, cei,
+						tuMillis,
+						tsLength,
+						wordSpaceLimit,
+						charSpaceLimit,
+						dashLimit,
+						plotLimits,
+						framesPerSlice,
+						w.frameRate,
+						w.offsetFrames,
+						ceilingMax,
+						offset);
 			}
-			
-			if (p != tree) {
-				formatter.add(true, p.text, -1);
-				nTuTotal += p.nTus;
-				formatter.newLine();
+			else if (decoder == 2) {
+				decodeByPatterns(trans, transIndex,
+						sig,
+						flo, cei, ceilingMax,
+						tsLength, tuMillis,
+						GerkeLib.getDoubleOpt(O_LEVEL),
+						wordSpaceLimit,
+						charSpaceLimit,
+						framesPerSlice, w.frameRate, w.offsetFrames, plotLimits, offset);
 			}
-			else if (p == tree && formatter.getPos() > 0) {
-				formatter.flush();
-				formatter.newLine();
+			else {
+				new Death("no such decoder: '%d'", decoder);
 			}
-			
-			
-			if (!charCurrent.isEmpty()) {
-				if (charCurrent.isComplete()) {
-					cdList.add(charCurrent);
-				}
-			}
-			
-			new Info("decoded text MD5 digest: %s\n", formatter.getDigest());			
-			
-			
-			
-			decoder(cdList, sig, tsLength, offset, tuMillis);
-			
-			
-
-
-			if (pcSignal != null) {
-				pcSignal.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
-			}
-			
-			final double tuEffMillisActual =
-					(qBeginSilence - trans[0].q)*tsLength*tuMillis/nTuTotal;
-
-			new Info("effective WPM: %.1f", 1200.0/tuEffMillisActual);
-			new Info("inter-character spaces extension factor: %.3f",
-					(qSpace*tsLength/nTuSpace)*(tuMillis/tuEffMillisActual));
-
 		}
 		catch (Exception e) {
 			new Death(e);
 		}
 	}
 
-	private static void decoder(List<CharData> cdList, double[] sig, double tsLength, int offset, double tuMillis) throws Exception {
+	private static double threshold(double effectiveLevel, double floor, double ceiling) {
+		return floor + effectiveLevel*(ceiling - floor);
+	}
+
+	private static void phasePlot(int fBest, int nofSlices, int framesPerSlice, Wav w,
+			int clipLevel, double[] sig, double level,
+			double[] flo, double[] cei) throws IOException, InterruptedException {
+		final boolean phasePlot = GerkeLib.getFlag(O_PPLOT);
+		final double[] plotLimits = getPlotLimits(w);
+
+
+		final double[] cosSum = new double[nofSlices];
+		final double[] sinSum = new double[nofSlices];
+		final double[] wphi = new double[nofSlices];
+
+		for (int q = 0; true; q++) {
+
+			if (w.wav.length - q*framesPerSlice < framesPerSlice) {
+				break;
+			}
+
+			final double angleOffset =
+					phasePlot ? TWO_PI*fBest*timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames) : 0.0;
+
+					double sinAcc = 0.0;
+					double cosAcc = 0.0;
+					for (int j = 0; j < framesPerSlice; j++) {
+						// j is frame index
+						final int ampRaw = w.wav[q*framesPerSlice + j];
+						final int amp = ampRaw < 0 ?
+								iMax(-clipLevel, ampRaw) :
+									iMin(clipLevel, ampRaw);
+
+								final double angle = angleOffset + TWO_PI*fBest*j/w.frameRate;
+								sinAcc += Math.sin(angle)*amp;
+								cosAcc += Math.cos(angle)*amp;
+					}
+					cosSum[q] = cosAcc;
+					sinSum[q] = sinAcc;
+		}
+
+		for (int q = 0; q < wphi.length; q++) {
+			wphi[q] = wphi(q, cosSum, sinSum, sig, level, flo, cei);
+		}
+
+		final PlotCollector pcPhase = new PlotCollector();
+		for (int q = 0; q < wphi.length; q++) {
+			final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
+			if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+				final double phase = wphi[q];
+				if (phase != 0.0) {
+					pcPhase.ps.println(String.format("%f %f", seconds, phase));
+				}
+			}
+		}
+		pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
+	}
+
+	private static double[] getPlotLimits(Wav w) {
+
+		final double[] result = new double[2];
+
+		if (GerkeLib.getFlag(O_PLOT) || GerkeLib.getFlag(O_PPLOT)) {
+			
+			if (GerkeLib.getOptMultiLength(O_PLINT) != 2) {
+				new Death("bad plot interval: wrong number of suboptions");
+			}
+			
+			final double t1 = ((double) w.frameLength)/w.frameRate;
+			
+			final double t2 = (double) (GerkeLib.getIntOpt(O_OFFSET));
+			
+			final double t3 = 
+					w.length == -1 ? t1 :
+						dMin(t2 + w.length, t1);
+			if (w.length != -1 && t2 + w.length > t1) {
+				new Warning("offset+length exceeds %.1f seconds", t1);
+			}
+			
+			final double t4 =
+					dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
+			if (t4 >= t3) {
+				new Death("plot interval out of bounds");
+			}
+			else if (GerkeLib.getDoubleOptMulti(O_PLINT)[0] < t2) {
+				new Warning("starting plot interval at: %.1f s", t2);
+			}
+			
+			final double t5 =
+					GerkeLib.getDoubleOptMulti(O_PLINT)[1] == -1.0 ?
+							t3 :
+								dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
+			if (GerkeLib.getDoubleOptMulti(O_PLINT)[1] != -1.0 &&
+					t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1] > t3) {
+				new Warning("ending plot interval at: %.1f s", t3);
+			}
+
+			result[0] = t4;
+			result[1] = t5;
+			if (result[0] >= result[1]) {
+				new Death("bad plot interval");
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * TODO, no reason to have 'long' parameters
+	 * 
+	 * TODO, dashlimit is only used here?
+	 * 
+	 * @param trans
+	 * @param transIndex
+	 * @param tuMillis
+	 * @param tsLength
+	 * @param wordSpaceLimit
+	 * @param charSpaceLimit
+	 * @throws IOException 
+	 * @throws NoSuchAlgorithmException 
+	 * @throws InterruptedException 
+	 */
+	private static void decodeByLevels(Trans[] trans, int transIndex, double[] sig, double level,
+			
+			double[] flo, double[] cei,
+			
+			double tuMillis,
+			double tsLength,
+			int wordSpaceLimit,
+			int charSpaceLimit,
+			int dashLimit,
+			double[] plotLimits,
+			int framesPerSlice,
+			int frameRate,
+			int offsetFrames,
+			double ceilingMax,
+			int offset) throws IOException, NoSuchAlgorithmException, InterruptedException
+	{
+
+		final PlotCollector pcSignal;
+		final SortedMap<Double, List<PlotEntryBase>> plotEntries;
+
+		if (!GerkeLib.getFlag(O_PLOT)) {
+			pcSignal = null;
+			plotEntries = null;
+		}
+		else {
+			pcSignal = new PlotCollector();
+			plotEntries = new TreeMap<Double, List<PlotEntryBase>>();
+
+			for (int q = 0; q < sig.length; q++) {
+				final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+				if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+					final double threshold = threshold(level*THRESHOLD, flo[q], cei[q]);
+					final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>(2);
+					list.add(new PlotEntrySig(sig[q], threshold, cei[q], flo[q]));
+					plotEntries.put(new Double(seconds), list);
+				}
+			}
+
+			// scan the trans[] array, create Plot entries
+			double initDigitizedSignal = -1.0;
+			for (int t = 0; t < transIndex; t++) {
+				final double sec0 = timeSeconds(trans[t].q, framesPerSlice, frameRate, offsetFrames);
+				
+				if (plotLimits[0] <= sec0 && sec0 <= plotLimits[1]) {
+					if (initDigitizedSignal < 0) {
+						initDigitizedSignal = (trans[t].rise ? 1 : 2)*ceilingMax/20;
+					}
+					
+					final List<PlotEntryBase> list = plotEntries.get(new Double(sec0));
+					
+					if (list == null) {
+						// not expected to happen
+						final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>(2);
+						newList.add(new PlotEntryDecode(trans[t].rise ? 2 : 1));
+						plotEntries.put(new Double(sec0), newList);
+					}
+					else {
+						list.add(new PlotEntryDecode((trans[t].rise ? 2 : 1)*ceilingMax/20));
+					}
+				}
+			}
+
+			// at this point the plot stream can be created
+			double signa = 0.0;
+			double thresha = 0.0;
+			double ceiling = 0.0;
+			double floor = 0.0;
+			double digitizedSignal = initDigitizedSignal;
+			for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
+
+				for (PlotEntryBase peb : e.getValue()) {
+					if (peb instanceof PlotEntryDecode) {
+						digitizedSignal = ((PlotEntryDecode)peb).dec;
+					}
+					else if (peb instanceof PlotEntrySig) {
+						signa = ((PlotEntrySig)peb).sig;
+						thresha = ((PlotEntrySig)peb).threshold;
+						ceiling = ((PlotEntrySig)peb).ceiling;
+						floor = ((PlotEntrySig)peb).floor;
+					}
+				}
+
+				pcSignal.ps.println(String.format("%f %f %f %f %f %f",
+						e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
+			}
+		}
+
+		final Formatter formatter = new Formatter();
 		
+		boolean prevTone = false;
+		int qBeginSilence = 0;
+		
+		int nTuTotal = 0;
+		
+		// measure inter-character spacing, ignore inter-word spacing
+		int nTuSpace = 0;
+		int qSpace = 0;
+		
+		Node p = tree;
+		
+		final List<CharData> cdList = new ArrayList<CharData>();
+		CharData charCurrent = null;
+		
+		for (int t = 0; t < transIndex; t++) {
+
+			final boolean newTone = trans[t].rise;
+
+			if (!prevTone && newTone) {
+				// silent -> tone
+				if (t == 0) {
+					p = tree;
+					charCurrent = new CharData(trans[t]);
+				}
+				else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
+					if (GerkeLib.getFlag(O_TSTAMPS)) {
+						formatter.add(true,
+								p.text,
+								offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000));
+					}
+					else {
+						formatter.add(true, p.text, -1);
+					}
+					nTuTotal += p.nTus + 7;
+					p = tree;
+					cdList.add(charCurrent);
+					cdList.add(new CharData());                   // empty CharData represents word space
+					charCurrent = new CharData(trans[t]);
+				}
+				else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
+					formatter.add(false, p.text, -1);
+					nTuTotal += p.nTus + 3;
+					nTuSpace += 3;
+					qSpace += (trans[t].q - qBeginSilence);
+					p = tree;
+					cdList.add(charCurrent);
+					charCurrent = new CharData(trans[t]);
+				}
+				else {
+					charCurrent.add(trans[t]);
+				}
+			}
+			else if (prevTone && !newTone) {
+				// tone -> silent
+				qBeginSilence = trans[t].q;
+				final int dashSize = trans[t].q - trans[t-1].q;
+				if (dashSize > dashLimit) {
+					if (p.dash == null) {
+						final String newCode = p.code + "-";
+						p.dash = new Node(null, newCode);
+					}
+					p = p.dash;
+				}
+				else {
+					if (p.dot == null) {
+						final String newCode = p.code + ".";
+						p.dot = new Node(null, newCode);
+					}
+					p = p.dot;
+				}
+				charCurrent.add(trans[t]);
+			}
+			else {
+				new Death("internal error");
+			}
+			
+			prevTone = newTone;
+		}
+		
+		if (p != tree) {
+			formatter.add(true, p.text, -1);
+			nTuTotal += p.nTus;
+			formatter.newLine();
+		}
+		else if (p == tree && formatter.getPos() > 0) {
+			formatter.flush();
+			formatter.newLine();
+		}
+		
+		
+		if (!charCurrent.isEmpty()) {
+			if (charCurrent.isComplete()) {
+				cdList.add(charCurrent);
+			}
+		}
+		
+		new Info("decoded text MD5 digest: %s", formatter.getDigest());			
+
+		if (pcSignal != null) {
+			pcSignal.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
+		}
+		
+		final double tuEffMillisActual =
+				(qBeginSilence - trans[0].q)*tsLength*tuMillis/nTuTotal;
+
+		new Info("effective WPM: %.1f", 1200.0/tuEffMillisActual);
+		new Info("inter-character spaces extension factor: %.3f",
+				(qSpace*tsLength/nTuSpace)*(tuMillis/tuEffMillisActual));
+	}
+
+	/**
+	 * Decode and optionally plot
+	 * 
+	 * @param trans
+	 * @param transIndex
+	 * @param sig
+	 * @param tsLength
+	 * @param tuMillis
+	 * @param wordSpaceLimit
+	 * @param charSpaceLimit
+	 * @param dashLimit
+	 * @throws Exception
+	 */
+	private static void decodeByPatterns(Trans[] trans, int transIndex, double[] sig,
+			double[] flo, double[] cei, double ceilingMax,
+			double tsLength,
+			double tuMillis,
+			double level,
+			int wordSpaceLimit,
+			int charSpaceLimit,
+			int framesPerSlice,
+			int frameRate,
+			int offsetFrames,
+			double[] plotLimits,
+			int offset) throws Exception {
+
+		// PARAMETER 1.15
+		// used for optimizing the integrated pattern matching
+		// this setting was calibrated against some recordings with good signal strength
+		final double xLevel = 1.15;
+
+		final PlotCollector pcSignal;
+		final SortedMap<Double, List<PlotEntryBase>> plotEntries;
+
+		if (!GerkeLib.getFlag(O_PLOT)) {
+			pcSignal = null;
+			plotEntries = null;
+		}
+		else {
+			pcSignal = new PlotCollector();
+			plotEntries = new TreeMap<Double, List<PlotEntryBase>>();
+			
+			plotEntries.put(new Double(plotLimits[0]), makeOne(1, ceilingMax));
+
+			// collect plot data for signal amplitude, floor, ceiling and threshold
+			for (int q = 0; q < sig.length; q++) {
+				final double seconds = timeSeconds(q, framesPerSlice, frameRate, offsetFrames);
+				if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+					final double threshold = threshold(xLevel*level*THRESHOLD, flo[q], cei[q]);
+					final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>(2);
+					list.add(new PlotEntrySig(sig[q], threshold, cei[q], flo[q]));
+					plotEntries.put(new Double(seconds), list);
+				}
+			}
+		}
+
+		final List<CharData> cdList = new ArrayList<CharData>();
+		CharData charCurrent = null;
+		boolean prevTone = false;
+		for (int t = 0; t < transIndex; t++) {
+
+			final boolean newTone = trans[t].rise;
+
+			if (!prevTone && newTone) {                          // silent -> tone
+				if (t == 0) {
+					charCurrent = new CharData(trans[t]);
+				}
+				else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
+					cdList.add(charCurrent);
+					cdList.add(new CharData());                  // empty CharData represents word space
+					charCurrent = new CharData(trans[t]);
+				}
+				else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
+					cdList.add(charCurrent);
+					charCurrent = new CharData(trans[t]);
+				}
+				else {
+					charCurrent.add(trans[t]);
+				}
+			}
+			else if (prevTone && !newTone) {                     // tone -> silent
+				charCurrent.add(trans[t]);
+			}
+			else {
+				new Death("internal error");
+			}
+			
+			prevTone = newTone;
+		}
+
+		if (!charCurrent.isEmpty()) {
+			if (charCurrent.isComplete()) {
+				cdList.add(charCurrent);
+			}
+		}
+
 		final Formatter ff = new Formatter();
 
 		int ts = -1;
 		
-		for (CharData cd : cdList) {
+		int tuCount = 0;  // counters for effective WPM determination
+		int qBegin = -1;
+		int qEnd = 0;
+		
 
+
+		for (CharData cd : cdList) {
+			qBegin = qBegin == -1 ? cd.transes.get(0).q : qBegin;
 			if (cd.isEmpty()) {
 				ff.add(true, "", ts);
+				tuCount += 4;
 			}
 			else {
-				
 				ts = GerkeLib.getFlag(O_TSTAMPS) ? 
 						offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000) : -1;
-				
-				String text = decodeChar(cd, sig, tsLength, offset, tuMillis);
-				ff.add(false, text, -1);
+						final CharTemplate ct = decodeChar(cd, sig, level, xLevel, tsLength, offset, tuMillis);
+						tuCount += tuCount == 0 ? 0 : 3;
+						
+						// TODO, the 5 below represents the undecodable character; compute 
+						// a value from the cd instead
+						tuCount += ct == null ? 5 : ct.pattern.length;
+						final int transesSize = cd.transes.size();
+						qEnd = cd.transes.get(transesSize-1).q;
+						ff.add(false, ct == null ? "???" : ct.text, -1);
+
+						// if we are plotting, then collect some things here
+						if (pcSignal != null && ct != null) {
+							final double seconds = offset + timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames);
+							if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+								plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax,
+										framesPerSlice, frameRate, offsetFrames);
+							}
+						}
 			}
 		}
 		ff.flush();
@@ -1738,13 +1982,112 @@ new String[]{
 		
 		new Info("decoded text MD5 digest: %s", ff.getDigest());
 		
+		final double totalTime = (qEnd - qBegin)*tsLength*tuMillis;  // ms
+		final double effWpm = 1200.0/(totalTime/tuCount);            // 1200 / (TU in ms)
+		new Info("effective WPM: %.1f", effWpm);
+
+		if (pcSignal != null) {
+			// at this point the plot stream can be created
+			double signa = 0.0;
+			double thresha = 0.0;
+			double ceiling = 0.0;
+			double floor = 0.0;
+			double digitizedSignal = 1.0;
+			for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entrySet()) {
+
+				for (PlotEntryBase peb : e.getValue()) {
+					if (peb instanceof PlotEntryDecode) {
+						digitizedSignal = ((PlotEntryDecode)peb).dec;
+					}
+					else if (peb instanceof PlotEntrySig) {
+						signa = ((PlotEntrySig)peb).sig;
+						thresha = ((PlotEntrySig)peb).threshold;
+						ceiling = ((PlotEntrySig)peb).ceiling;
+						floor = ((PlotEntrySig)peb).floor;
+					}
+				}
+				pcSignal.ps.println(String.format("%f %f %f %f %f %f",
+						e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
+			}
+		}
+		if (pcSignal != null) {
+			pcSignal.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
+		}
 	}
 
-	private static String decodeChar(CharData cd, double[] sig, double tsLength, int offset, double tuMillis) {
+	
+	/**
+	 * Make plot entries for a decoded character
+	 * @param plotEntries
+	 * @param cd
+	 * @param ct
+	 * @param offset
+	 * @param d
+	 * @param ceilingMax
+	 */
+	private static void plotDecoded(SortedMap<Double, List<PlotEntryBase>> plotEntries,
+			CharData cd,
+			CharTemplate ct,
+			int offset, double tsSecs, double ceilingMax,
+			int framesPerSlice, int frameRate, int offsetFrames) {
+		
+		int prevValue = LO;
+		
+		final int nTranses = cd.transes.size();
+		
+		// time of 1 char
+		final double tChar = (cd.transes.get(nTranses-1).q - cd.transes.get(0).q)*tsSecs;
+
+		for (int i = 0; i < ct.pattern.length; i++) {
+			if (ct.pattern[i] == HI && prevValue == LO) {
+				// a rise
+
+				final double t1 =
+						timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
+						   i*(tChar/ct.pattern.length);
+				final double t2 = t1 + 0.1*tsSecs;
+				
+				// add to plotEntries
+
+				plotEntries.put(new Double(t1), makeOne(1, ceilingMax));
+				plotEntries.put(new Double(t2), makeOne(2, ceilingMax));
+				
+			}
+			else if (ct.pattern[i] == LO && prevValue == HI) {
+				// a fall
+				
+				// compute points in time
+				final double t1 =
+						timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
+						   i*(tChar/ct.pattern.length);
+				final double t2 = t1 + 0.1*tsSecs;
+				
+				// add to plotEntries
+
+				plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
+				plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
+			}
+			prevValue = ct.pattern[i];
+		}
+		
+		final double t1 = timeSeconds(cd.transes.get(nTranses-1).q, framesPerSlice, frameRate, offsetFrames);
+		final double t2 = t1 + 0.1*tsSecs;
+		plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
+		plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
+	}
+
+	private static List<PlotEntryBase> makeOne(int i, double ceilingMax) {
+		List<PlotEntryBase> result = new ArrayList<PlotEntryBase>(1);
+		result.add(new PlotEntryDecode(i*0.05*ceilingMax));
+		return result;
+	}
+
+	private static CharTemplate decodeChar(CharData cd, double[] sig, double level, double xLevel,
+			double tsLength, int offset, double tuMillis) {
 		final int qSize = cd.lastAdded.q - cd.transes.get(0).q;
 		final int tuClass = (int) Math.round(tsLength*qSize);
 		
-		final double level = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.PMLEVEL.ordinal()];
+
 
 		CharTemplates[] candsArray = 
 				tuClass == 0 ? new CharTemplates[] {templs.get(new Integer(tuClass+1))} :
@@ -1779,8 +2122,9 @@ new String[]{
 
 						int indx = (candSize*qq)/qSize;
 
-						// PARAMETER 0.5
-						double u = sig[q] - (floor + level*0.5*(ceiling - floor));
+						// xLevel is taken from caller
+						double u = sig[q] - threshold(xLevel*level*THRESHOLD, floor, ceiling);
+						
 						// sum += Math.signum(u)*u*u*cand.pattern[indx];
 						sum += u*cand.pattern[indx];
 					}
@@ -1795,19 +2139,17 @@ new String[]{
 			}
 		}
 
-		final String result = best == null ? "???" : best.text;
-
 		if (GerkeLib.getIntOpt(O_VERBOSE) >= 3) {
 			System.out.println(
 					String.format(
 							"character result: %s, time: %d, class: %d, size: %d",
-							result,
+							best != null ? best.text : "null",
 							offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000),
 							tuClass,
 							qSize));
 		}
 
-		return result;
+		return best;
 	}
 
 	private static double squared(double x) {
@@ -1846,7 +2188,7 @@ new String[]{
 	 * @param sig
 	 * @return
 	 */
-	private static double wphi(int k, double[] x, double[] y, double[] sig, double level, int histWidth) {
+	private static double wphi(int k, double[] x, double[] y, double[] sig, double level, double[] flo, double[] cei) {
 		
 		final int len = sig.length;
 		final int width = 7;
@@ -1864,7 +2206,7 @@ new String[]{
 		}
 		ampAve = ampAve/m;
 		
-		if (ampAve < 0.2* level*THRESHOLD*localAmpByHist(k, sig, histWidth)) {
+		if (ampAve < threshold(0.2*level*THRESHOLD, flo[k], cei[k])) {
 			return 0.0;
 		}
 		else {
@@ -1872,7 +2214,16 @@ new String[]{
 		}
 	}
 
-	private static int findFrequency(int frameRate, int framesPerSlice) throws IOException, InterruptedException {
+	/**
+	 * Estimate best frequency. Optionally produce a plot.
+	 * 
+	 * @param frameRate
+	 * @param framesPerSlice
+	 * @return
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
+	private static int findFrequency(int framesPerSlice, Wav w) throws IOException, InterruptedException {
 		
 		final int nofSubOptions = GerkeLib.getOptMultiLength(O_FRANGE);
 		if (nofSubOptions != 2) {
@@ -1890,10 +2241,9 @@ new String[]{
 		final int fStepCoarse = 10;
 		
 		int fBest = -1;
-		final short[] shorts = new short[framesPerSlice];
 		double rSquaredSumBest = -1.0;
 		for (int f = f0; f <= f1; f += fStepCoarse) {
-			final double rSquaredSum = r2Sum(f, frameRate, framesPerSlice, shorts);
+			final double rSquaredSum = r2Sum(f, framesPerSlice, w);
 			if (pairs != null) {
 				//fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
 				pairs.put(new Integer(f), rSquaredSum);
@@ -1909,7 +2259,7 @@ new String[]{
 		final int g0 = iMax(0, fBest - 18*fStepFine);
 		final int g1 = fBest + 18*fStepFine;
 		for (int f = g0; f <= g1; f += fStepFine) {
-			final double rSquaredSum = r2Sum(f, frameRate, framesPerSlice, shorts);
+			final double rSquaredSum = r2Sum(f, framesPerSlice, w);
 			if (pairs != null) {
 				// fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
 				pairs.put(new Integer(f), rSquaredSum);
@@ -2065,18 +2415,18 @@ new String[]{
 	}
 
 	
-	private static double r2Sum(int f, int frameRate, int framesPerSlice, short[] shorts) {
+	private static double r2Sum(int f, int framesPerSlice, Wav w) {
 		
 		double rSquaredSum = 0.0;
-		final TrigTable trigTable = new TrigTable(f, framesPerSlice, frameRate);
+		final TrigTable trigTable = new TrigTable(f, framesPerSlice, w.frameRate);
 		for (int q = 0; true; q++) {
-			if (wav.length - q*framesPerSlice < framesPerSlice) {
+			if (w.wav.length - q*framesPerSlice < framesPerSlice) {
 				return rSquaredSum;
 			}
 			double sinAcc = 0.0;
 			double cosAcc = 0.0;
 			for (int j = 0; j < framesPerSlice; j++) {
-				final short amp = wav[q*framesPerSlice + j];
+				final short amp = w.wav[q*framesPerSlice + j];
 				sinAcc += trigTable.sin(j)*amp;
 				cosAcc += trigTable.cos(j)*amp;
 			}
@@ -2085,7 +2435,7 @@ new String[]{
 		}
 	}
 
-	private static int getClipLevel(int f, int frameRate, int framesPerSlice) {
+	private static int getClipLevel(int f, int framesPerSlice, Wav w) {
 		
 		// hardcoded PARAMETER 0.025
 		final double clipStrength = 0.05;
@@ -2094,7 +2444,7 @@ new String[]{
 		// smaller value means more iterations required
 		final double delta = 0.005*(1.0 - clipStrength);
 		
-		final double uNoClip = signalAverage(f, frameRate, framesPerSlice, Short.MAX_VALUE);
+		final double uNoClip = signalAverage(f, framesPerSlice, Short.MAX_VALUE, w);
 		new Debug("clip level: %d, signal: %f", Short.MAX_VALUE, uNoClip);
 
 		int hi = Short.MAX_VALUE;
@@ -2107,7 +2457,7 @@ new String[]{
 				return hi;
 			}
 
-			double uNew = signalAverage(f, frameRate, framesPerSlice, midpoint);
+			double uNew = signalAverage(f, framesPerSlice, midpoint, w);
 			new Trace("clip level: %d, signal: %f", midpoint, uNew);
 			
 			if ((1 - clipStrength)*uNoClip > uNew && uNew > (1 - clipStrength - delta)*uNoClip) {
@@ -2134,14 +2484,14 @@ new String[]{
 	 * @param framesPerSlice
 	 * @return
 	 */
-	private static double signalAverage(int f, int frameRate, int framesPerSlice, int clipLevel) {
+	private static double signalAverage(int f, int framesPerSlice, int clipLevel, Wav w) {
 
-		final TrigTable trigTable = new TrigTable(f, framesPerSlice, frameRate);
+		final TrigTable trigTable = new TrigTable(f, framesPerSlice, w.frameRate);
 
 		double rSum = 0.0;
 		int divisor = 0;
 		for (int q = 0; true; q++) {
-			if (wav.length - q*framesPerSlice < framesPerSlice) {
+			if (w.wav.length - q*framesPerSlice < framesPerSlice) {
 				break;
 			}
 			
@@ -2149,7 +2499,7 @@ new String[]{
 			double cosAcc = 0.0;
 
 			for (int j = 0; j < framesPerSlice; j++) {
-				final int ampRaw = (int) wav[q*framesPerSlice + j];
+				final int ampRaw = (int) w.wav[q*framesPerSlice + j];
 				final int amp = ampRaw < 0 ? iMax(ampRaw, -clipLevel) : iMin(ampRaw, clipLevel);
 				sinAcc += trigTable.sin(j)*amp;
 				cosAcc += trigTable.cos(j)*amp;
