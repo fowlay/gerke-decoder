@@ -56,13 +56,13 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 .SILENT: test
 
 test: target/gerke_decoder-$(GERKE_DECODER_REL).jar grimeton-clip.wav
-	declare expected=af0b2785f5e663a9c7895ca597e24661 && \
-	declare md5="$$(bin/gerke-decoder -v \
+	declare expected=493b9550236cea0da6565a3886073ee8 && \
+	declare md5="$$(bin/gerke-decoder -v -o1 -l 88 \
                  grimeton-clip.wav 2>&1 1>/dev/null | \
                  sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
 	if [ $$md5 = $$expected ]; then echo test successful; \
 	else echo test failed, expected: $$expected, actual: $$md5; \
-             bin/gerke-decoder -v grimeton-clip.wav; fi
+             bin/gerke-decoder -v grimeton-clip.wav -o1 -l 88; fi
 
 grimeton-clip.wav:
 	rm -f $@

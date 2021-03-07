@@ -10,10 +10,9 @@ A decoder that translates Morse code audio to text.
 |1.4|Linux support|
 |1.5|Optional phase angle plot|
 |1.6|Spikes suppression, selectable plot interval|
-|1.7|
-ian blur, frequency plot|
+|1.7|Gaussian blur, frequency plot|
 |1.8|Dropouts and spikes removal, improved plot|
-|2.0|Integrating decoder|
+|2.0|Selectable decoders and filtering|
 
 ## Platforms
 
@@ -111,12 +110,12 @@ time-consuming frequency search is skipped.
 
 ### WPM
 
-The decoder assumes that the WPM speed is 15, which implies a dot
-length of 1200/15 = 80 ms. If the WPM speed of the .wav file is higher
-or lower than 15, the -w option must be used. For example, if the
-speed is believed to be 22 WPM, then use
+The decoder assumes by default that the WPM speed is 15, which implies
+a dot length of 1200/15 = 80 ms. If the WPM speed of the .wav file is
+higher or lower than 15, the -w option must be used. For example, if
+the speed is believed to be 22 WPM, then use
 
- -w 22
+    -w 22
 
 A too high value of the -w option will cause the decoder to interpret
 many tones as dashes. A too low value will cause tones to be
@@ -127,6 +126,13 @@ When the -v option is given the effective WPM, as calculated from the
 timing of dots and dashes in decoded characters, will be
 reported. Re-running with the -w option set to this value may result
 in somewhat improved decoding.
+
+### Expanded spaces
+
+If spaces between characters and words are expanded, this can be
+compensated for by specifying e.g:
+
+    -W 1.2
 
 ### Clipping level
 
@@ -162,10 +168,11 @@ a non-default sigma value, add
 
 ### Decoding method
 
-Two different decoding methods are provided:
+Three different decoding methods are provided:
 
 1: Tone/silence crossings based: Dots and dashes are recognized as the
-signal amplitude raises above and falls below a threshold level.
+signal amplitude raises above and falls below a threshold level. The
+level is adjustable with the -u option.
 
 2: Pattern matching: The signal is multiplied with a rectangular wave
 function representing a character. The product is integrated over the
@@ -173,10 +180,14 @@ extent of the character and the best matching character is chosen. The
 beginning and end of a character is still based on tone/silence
 crossings.
 
-The pattern matching method is enabled by default. To use the
-tone/silence crossings method, specify
+3: Dips based: The extent of a character is determined from level
+crossings, as in method 1.  Within the character a search is made for
+dips, by matching against a negative gaussian function with a width of
+about 1 TU. Dashes and dots are then identified from the positions of
+the dips.
 
-    -D 1
+The dips based method is enabled by default. Another method can be
+requested with the -D option.
 
 ### Threshold level
 

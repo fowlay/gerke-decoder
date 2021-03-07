@@ -5,7 +5,17 @@
 # assuming working directory: ~/wh/workspace/gerke-decoder
 
 # assuming this script is one directory level below Git repo root
-declare -r GitRepo=$(dirname $(dirname $0))
+
+function isCygwin {
+    [[ "$(uname -o)" == Cygwin ]]
+}
+
+declare -r GitRepo=$(
+    if isCygwin; then
+        echo $(cygpath -w $(dirname $(dirname $0)))
+    else
+        echo $(dirname $(dirname $0))
+    fi)
 
 declare -r -a ClassPathElements=(
     "$(find $GitRepo/target -type f -name 'gerke_decoder-*.jar')"
@@ -14,7 +24,7 @@ declare -r -a ClassPathElements=(
 )
 
 function join {
-    local -r sep=$(case "$(uname -o)" in Cygwin) echo ';';; *) echo ':'; esac)
+    local -r sep=$(if isCygwin; then echo ';'; else echo ':'; fi)
     local result=""
     for e in "$@"; do
         if [[ -z "$result" ]]; then

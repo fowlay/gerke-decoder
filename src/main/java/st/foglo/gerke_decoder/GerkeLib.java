@@ -30,9 +30,24 @@ import java.util.StringTokenizer;
  */
 public final class GerkeLib {
 
+	/**
+	 * Maps full parameter name to value, represented as a string.
+	 */
 	public static Map<String, String> params = new HashMap<String, String>();
+	
+	/**
+	 * Maps full parameter name to default.
+	 */
 	public static Map<String, String> defaults = new HashMap<String, String>();
+	
+	/**
+	 * Maps short parameter name to option.
+	 */
 	public static Map<String, Option> opts = new HashMap<String, Option>();
+	
+	/**
+	 * Command-line arguments.
+	 */
 	public static List<String> args = new ArrayList<String>();
 	
 	public abstract static class Option {
@@ -45,7 +60,13 @@ public final class GerkeLib {
 			this.shortName = shortName;
 			this.name = name;
 			this.defaultValue = defaultValue;
+			if (opts.get(shortName) != null) {
+				new Death("duplicate option: %s", shortName);
+			}
 			opts.put(shortName, this);
+			if (defaults.get(name) != null) {
+				new Death("duplicate parameter name: %s", name);
+			}
 			defaults.put(name, defaultValue);
 		}
 
@@ -187,6 +208,10 @@ public final class GerkeLib {
 			super("DEBUG", message, getIntOpt("verbose") >= 2);
 		}
 
+		public Debug(String format, int i, String s) {
+			this(String.format(format, i, s));
+		}
+		
 		public Debug(String format, int i, double v) {
 			this(String.format(format, i, v));
 		}
@@ -240,9 +265,17 @@ public final class GerkeLib {
 		public Info(String format, boolean value) {
 			this(String.format(format, value));
 		}
+		
+		public Info(String format, boolean value, String s) {
+			this(String.format(format, value, s));
+		}
 
 		public Info(String format, int v1, int v2) {
 			this(String.format(format, v1, v2));
+		}
+		
+		public Info(String format, int k, double v) {
+			this(String.format(format, k, v));
 		}
 		
 		public Info(String format, int v, String s) {
@@ -259,6 +292,10 @@ public final class GerkeLib {
 
 		public Info(String format, double value) {
 			this(String.format(format, value));
+		}
+		
+		public Info(String format, double x, double y) {
+			this(String.format(format, x, y));
 		}
 
 		public Info(String format, int i, int j, double v, double w) {
@@ -280,6 +317,10 @@ public final class GerkeLib {
 			super("WARNING", message, true);
 		}
 
+		public Warning(String message, int i, int j, int k) {
+			this(String.format(message, i, j, k));
+		}
+		
 		public Warning(String format, double x) {
 			this(String.format(format, x));
 		}
