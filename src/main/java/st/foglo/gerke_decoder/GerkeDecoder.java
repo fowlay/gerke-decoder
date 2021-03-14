@@ -81,7 +81,7 @@ public final class GerkeDecoder {
 	static final String O_HIDDEN = "hidden-options";
 	enum HiddenOpts {DIP, SPIKE, BREAK_LONG_DASH, FILTER, CUTOFF, ORDER, PHASELOCKED, PLWIDTH};
 	
-	static final double WORD_SPACE_LIMIT = 5.1;    // words break <---------+---------> words stick
+	static final double WORD_SPACE_LIMIT = 5.0;    // words break <---------+---------> words stick 5.1
 	static final double CHAR_SPACE_LIMIT = 1.75;   // chars break <---------+---------> chars cluster
 	static final double DASH_LIMIT = 1.7;          // 1.6
 	static final double TWO_DASH_LIMIT = 6.0;      // 6.0
@@ -150,19 +150,34 @@ public final class GerkeDecoder {
 	 * Dips of lesser strength are ignored. A too high value will cause
 	 * weak dips to be ignored, so that 'i' prints as 't' for example.
 	 */
-	static final double P_DIP_STRENGTH_MIN = 1.3;
+	static final double P_DIP_STRENGTH_MIN = 1.03; // 1.3
 	
 	/**
 	 * Consider merging dips when closer than this. Unit is TUs.
 	 */
-	static final double P_DIP_MERGE_LIM = 0.6;
+	static final double P_DIP_MERGE_LIM = 1.1;
 	
 	/**
 	 * Ideally the separation between dips is 4 halfTus for a dot
 	 * and 8 halfTus for a dash. Increasing the value will cause
 	 * dashes to be seen as dots.
 	 */
-	static final double P_DIP_DASHMIN = 5.55; // 6.1
+	static final double P_DIP_DASHMIN = 6.1;
+	
+	/**
+	 * If two dashes have joined because of a weak dip, the ideal
+	 * dip separation would be 16 halfTus. If a dash and a dip have
+	 * joined, the separation is 12 halfTus. To detect the two-dash
+	 * feature, set a limit that is well above 12.
+	 */
+	static final double P_DIP_TWODASHMIN = 14.0;
+	
+	/**
+	 * Within a multi-beep character, beep lengths are compared to
+	 * the length of the longest beep. If the relative length is
+	 * above this limit, then interpret it as a dash.
+	 */
+	static final double P_DIP_DASHQUOTIENT = 0.68;
 	
 	/**
 	 * When generating a table of exponential weights, exclude entries
@@ -175,7 +190,7 @@ public final class GerkeDecoder {
 		/**
 		 * Note: Align with the top level pom.xml
 		 */
-		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0 RC 2");
+		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0 RC 3");
 
 		new SingleValueOption("o", O_OFFSET, "0");
 		new SingleValueOption("l", O_LENGTH, "-1");
@@ -1450,6 +1465,17 @@ new String[]{
 		}
 	}
 	
+	/**
+	 * Represents a dash or a dot.
+	 */
+	static class Beep {
+		final int extent;
+		
+		public Beep(int extent) {
+			this.extent = extent;
+		}
+	}
+	
 	static class TimeCounter {
 		int chCus = 0;
 		int chTicks = 0;
@@ -2610,18 +2636,62 @@ new String[]{
 		Node p = tree;
 		count = 0;
 		int prevQ = -1;
+		
+		final List<Beep> beeps = new ArrayList<Beep>();
+		int extentMax = -1;
+		
 		for (Dip d : dipsByTime) {
 			if (count == 0) {
 				prevQ = d.q;
 			}
-			else if (d.q - prevQ > P_DIP_DASHMIN*halfTu) {
+			else  {
+				final int extent = d.q - prevQ;
+				
+				if (extent > P_DIP_TWODASHMIN*halfTu) {
+					// assume two dashes with a too weak dip in between
+					final int e1 = extent/2;
+					final int e2 = extent - e1;
+					beeps.add(new Beep(e1));
+					beeps.add(new Beep(e2));
+					extentMax = iMax(extentMax, e2);
+				}
+				else {
+				
+					beeps.add(new Beep(extent));
+					extentMax = iMax(extentMax, extent);
+				}
+			}
+			prevQ = d.q;
+			count++;
+		}
+		
+		final double extentMaxD = extentMax;
+		
+		if (beeps.size() == 1) {
+			// single beep
+			if (beeps.get(0).extent > P_DIP_DASHMIN*halfTu) {
 				p = p.newNode("-");
 			}
 			else {
 				p = p.newNode(".");
 			}
-			prevQ = d.q;
-			count++;
+		}
+		else if (extentMax <= P_DIP_DASHMIN*halfTu) {
+			// only dots, two or more of them
+			for (int m = 0; m < beeps.size(); m++) {
+				p = p.newNode(".");
+			}
+		}
+		else {
+			// at least one dash
+			for (Beep beep : beeps) {
+				if (beep.extent/extentMaxD > P_DIP_DASHQUOTIENT) {
+					p = p.newNode("-");
+				}
+				else {
+					p = p.newNode(".");
+				}
+			}
 		}
 
 		new Debug("char no: %d, decoded: %s", charNo, p.text);
