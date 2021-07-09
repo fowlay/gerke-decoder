@@ -13,6 +13,7 @@ A decoder that translates Morse code audio to text.
 |1.7|Gaussian blur, frequency plot|
 |1.8|Dropouts and spikes removal, improved plot|
 |2.0|Selectable decoders and filtering|
+|2.0.1|Corrections|
 
 ## Platforms
 

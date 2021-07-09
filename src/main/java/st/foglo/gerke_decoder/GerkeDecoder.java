@@ -190,7 +190,7 @@ public final class GerkeDecoder {
 		/**
 		 * Note: Align with the top level pom.xml
 		 */
-		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0");
+		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.1");
 
 		new SingleValueOption("o", O_OFFSET, "0");
 		new SingleValueOption("l", O_LENGTH, "-1");
@@ -1569,8 +1569,8 @@ new String[]{
 				double cutoff =
 						GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
 				// PARAMETER 2.0 dB, ripple
-				filterI = new LowPassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
-				filterQ = new LowPassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
+				filterI = new LowpassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
+				filterQ = new LowpassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
 			}
 			else if (filterCode.equals("w")) {
 				double cutoff =

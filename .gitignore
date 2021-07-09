@@ -31,11 +31,3 @@ grimeton-clip.wav
 /eclipse-bin/
 /apache-maven-*/
 /target/
-
-# 3rd party source files
-src/main/java/st/foglo/gerke_decoder/LowPassChebyshevI.java
-src/main/java/st/foglo/gerke_decoder/LowpassButterworth.java
-src/main/java/st/foglo/gerke_decoder/LowpassFilter.java
-src/main/java/st/foglo/gerke_decoder/LowpassNone.java
-src/main/java/st/foglo/gerke_decoder/LowpassTimeSliceSum.java
-src/main/java/st/foglo/gerke_decoder/LowpassWindow.java
