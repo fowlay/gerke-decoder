@@ -1,0 +1,42 @@
+#! /bin/bash
+
+# assuming Java 8 in environment
+
+# assuming working directory: ~/wh/workspace/gerke-decoder
+
+# assuming this script is one directory level below Git repo root
+
+function isCygwin {
+    [[ "$(uname -o)" == Cygwin ]]
+}
+
+declare -r GitRepo=$(
+    if isCygwin; then
+        echo $(cygpath -w $(dirname $(dirname $0)))
+    else
+        echo $(dirname $(dirname $0))
+    fi)
+
+declare -r -a ClassPathElements=(
+    "$(find $GitRepo/target -type f -name 'gerke_decoder-*.jar')"
+    "$GitRepo/m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar"
+    "$GitRepo/m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar"
+)
+
+function join {
+    local -r sep=$(if isCygwin; then echo ';'; else echo ':'; fi)
+    local result=""
+    for e in "$@"; do
+        if [[ -z "$result" ]]; then
+            result+="$e"
+        else
+            result+="${sep}$e"
+        fi
+    done
+    echo "$result"
+}
+
+exec java \
+     -classpath "$(join ${ClassPathElements[@]})" \
+     st.foglo.gerke_decoder.GerkeDecoder \
+     "$@"

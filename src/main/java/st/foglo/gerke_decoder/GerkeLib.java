@@ -30,9 +30,24 @@ import java.util.StringTokenizer;
  */
 public final class GerkeLib {
 
+	/**
+	 * Maps full parameter name to value, represented as a string.
+	 */
 	public static Map<String, String> params = new HashMap<String, String>();
+	
+	/**
+	 * Maps full parameter name to default.
+	 */
 	public static Map<String, String> defaults = new HashMap<String, String>();
+	
+	/**
+	 * Maps short parameter name to option.
+	 */
 	public static Map<String, Option> opts = new HashMap<String, Option>();
+	
+	/**
+	 * Command-line arguments.
+	 */
 	public static List<String> args = new ArrayList<String>();
 	
 	public abstract static class Option {
@@ -45,7 +60,13 @@ public final class GerkeLib {
 			this.shortName = shortName;
 			this.name = name;
 			this.defaultValue = defaultValue;
+			if (opts.get(shortName) != null) {
+				new Death("duplicate option: %s", shortName);
+			}
 			opts.put(shortName, this);
+			if (defaults.get(name) != null) {
+				new Death("duplicate parameter name: %s", name);
+			}
 			defaults.put(name, defaultValue);
 		}
 
@@ -168,14 +189,29 @@ public final class GerkeLib {
 		}
 	}
 
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
+	public static class Trace extends Message {
+		public Trace(String message) {
+			super("TRACE", message, getIntOpt("verbose") >= 3);
+		}
+		
+		public Trace(String format, int j, double x) {
+			this(String.format(format, j, x));
+		}
+		
+		public Trace(String format, int j, int k, double x, double y) {
+			this(String.format(format, j, k, x, y));
+		}
+	}
+
 	public static class Debug extends Message {
 		public Debug(String message) {
 			super("DEBUG", message, getIntOpt("verbose") >= 2);
 		}
 
+		public Debug(String format, int i, String s) {
+			this(String.format(format, i, s));
+		}
+		
 		public Debug(String format, int i, double v) {
 			this(String.format(format, i, v));
 		}
@@ -199,6 +235,10 @@ public final class GerkeLib {
 		public Debug(String format, int i, int j, double v, double w) {
 			this(String.format(format, i, j, v, w));
 		}
+		
+		public Debug(String format, int i, int j, double v, double w, double x) {
+			this(String.format(format, i, j, v, w, x));
+		}
 
 		public Debug(String format, long j, long k) {
 			this(String.format(format, j, k));
@@ -209,11 +249,6 @@ public final class GerkeLib {
 		}
 	}
 	
-	
-	
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
 	public static class Info extends Message {
 		public Info(String message) {
 			super("INFO", message, getIntOpt("verbose") >= 1);
@@ -230,9 +265,17 @@ public final class GerkeLib {
 		public Info(String format, boolean value) {
 			this(String.format(format, value));
 		}
+		
+		public Info(String format, boolean value, String s) {
+			this(String.format(format, value, s));
+		}
 
 		public Info(String format, int v1, int v2) {
 			this(String.format(format, v1, v2));
+		}
+		
+		public Info(String format, int k, double v) {
+			this(String.format(format, k, v));
 		}
 		
 		public Info(String format, int v, String s) {
@@ -250,6 +293,10 @@ public final class GerkeLib {
 		public Info(String format, double value) {
 			this(String.format(format, value));
 		}
+		
+		public Info(String format, double x, double y) {
+			this(String.format(format, x, y));
+		}
 
 		public Info(String format, int i, int j, double v, double w) {
 			this(String.format(format, i, j, v, w));
@@ -265,15 +312,15 @@ public final class GerkeLib {
 
 	}
 
-	
-	/**
-	 * Call any of the constructors to terminate unsuccessfully.
-	 */
 	public static class Warning extends Message {
 		public Warning(String message) {
 			super("WARNING", message, true);
 		}
 
+		public Warning(String message, int i, int j, int k) {
+			this(String.format(message, i, j, k));
+		}
+		
 		public Warning(String format, double x) {
 			this(String.format(format, x));
 		}
@@ -356,13 +403,28 @@ public final class GerkeLib {
 	public static int getIntOpt(String key) {
 		return Integer.parseInt(getOpt(key));
 	}
+
+	public static String[] getOptMulti(String key) {
+		final String multiValue = getOpt(key);
+		final StringTokenizer st = new StringTokenizer(multiValue, ",");
+		final String[] result = new String[st.countTokens()];
+		for (int k = 0; k < result.length; k++) {
+			result[k] = st.nextToken();
+		}
+		return result;
+	}
 	
 	public static int[] getIntOptMulti(String key) {
 		final String multiValue = getOpt(key);
 		final StringTokenizer st = new StringTokenizer(multiValue, ",");
 		final int[] result = new int[st.countTokens()];
 		for (int k = 0; k < result.length; k++) {
-			result[k] = Integer.parseInt(st.nextToken());
+			try {
+				result[k] = Integer.parseInt(st.nextToken());
+			}
+			catch (NumberFormatException e) {
+				result[k] = 0;
+			}
 		}
 		return result;
 	}
@@ -372,7 +434,12 @@ public final class GerkeLib {
 		final StringTokenizer st = new StringTokenizer(multiValue, ",");
 		final double[] result = new double[st.countTokens()];
 		for (int k = 0; k < result.length; k++) {
-			result[k] = Double.parseDouble(st.nextToken());
+			try {
+				result[k] = Double.parseDouble(st.nextToken());
+			}
+			catch (NumberFormatException e) {
+				result[k] = 0.0;
+			}
 		}
 		return result;
 	}
