@@ -14,6 +14,7 @@ A decoder that translates Morse code audio to text.
 |1.8|Dropouts and spikes removal, improved plot|
 |2.0|Selectable decoders and filtering|
 |2.0.1|Corrections|
+|2.0.2|Corrected default dips-merge limit parameter|
 
 ## Platforms
 
@@ -273,6 +274,9 @@ parameters are:
     FILTER  Low-pass filter
     CUTOFF  Low-pass filter cutoff frequency relative to 1/TU
     ORDER   Filter order
+    PL      Phase locking
+    PLWIDTH Phase locking width
+    DIPM    Dips merge limit
 
 Valid values for FILTER are:
 

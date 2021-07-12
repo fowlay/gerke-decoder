@@ -79,7 +79,16 @@ public final class GerkeDecoder {
 	static final String O_VERBOSE = "verbose";
 	
 	static final String O_HIDDEN = "hidden-options";
-	enum HiddenOpts {DIP, SPIKE, BREAK_LONG_DASH, FILTER, CUTOFF, ORDER, PHASELOCKED, PLWIDTH};
+	enum HiddenOpts {
+		DIP,
+		SPIKE,
+		BREAK_LONG_DASH,
+		FILTER,
+		CUTOFF,
+		ORDER,
+		PHASELOCKED,
+		PLWIDTH,
+		DIP_MERGE_LIM};
 	
 	static final double WORD_SPACE_LIMIT = 5.0;    // words break <---------+---------> words stick 5.1
 	static final double CHAR_SPACE_LIMIT = 1.75;   // chars break <---------+---------> chars cluster
@@ -151,12 +160,7 @@ public final class GerkeDecoder {
 	 * weak dips to be ignored, so that 'i' prints as 't' for example.
 	 */
 	static final double P_DIP_STRENGTH_MIN = 1.03; // 1.3
-	
-	/**
-	 * Consider merging dips when closer than this. Unit is TUs.
-	 */
-	static final double P_DIP_MERGE_LIM = 1.1;
-	
+
 	/**
 	 * Ideally the separation between dips is 4 halfTus for a dot
 	 * and 8 halfTus for a dash. Increasing the value will cause
@@ -190,7 +194,7 @@ public final class GerkeDecoder {
 		/**
 		 * Note: Align with the top level pom.xml
 		 */
-		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.1");
+		new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2");
 
 		new SingleValueOption("o", O_OFFSET, "0");
 		new SingleValueOption("l", O_LENGTH, "-1");
@@ -226,7 +230,8 @@ public final class GerkeDecoder {
 						",2.0"+                     // frequency, relative to 1/TU
 						",2"+                       // filter order
 						",0"+                       // phase-locked: 0=off, 1=on
-						",0.8"                      // phase averaging, relative to TU
+						",0.8"+                     // phase averaging, relative to TU
+						",0.2"                      // merge-dips limit
 				);
 
 		new HelpOption(
@@ -943,7 +948,7 @@ new String[]{
 								firstAngleDefined = true;
 								sinValue = Math.sin(angle+phaseShift);
 								index = 0;
-								sinTable.add(new Double(sinValue));
+								sinTable.add(Double.valueOf(sinValue));
 							}
 							else {
 								double laps = (angle - firstAngle)/TWO_PI;
@@ -958,7 +963,7 @@ new String[]{
 								else {
 									sinValue = Math.sin(angle+phaseShift);
 									index++;
-									sinTable.add(new Double(sinValue));
+									sinTable.add(Double.valueOf(sinValue));
 								}
 							}
 						}
@@ -1247,11 +1252,11 @@ new String[]{
 			// assumes that this always happens before decoding
 			final List<PlotEntryBase> list = new ArrayList<PlotEntryBase>();
 			list.add(new PlotEntrySig(amp, threshold, ceiling, floor));
-			entries.put(new Double(t), list);
+			entries.put(Double.valueOf(t), list);
 		}
 		
 		void addDecoded(double t, double y) {
-			final Double tBoxed = new Double(t);
+			final Double tBoxed = Double.valueOf(t);
 			final List<PlotEntryBase> list = entries.get(tBoxed);
 			if (list == null) {
 				final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>();
@@ -1360,7 +1365,7 @@ new String[]{
 				}
 			}
 			size += (count-1);
-			final Integer sizeKey = new Integer(size);
+			final Integer sizeKey = Integer.valueOf(size);
 			
 			pattern = new int[size];
 			for (int k = 0; k < pattern.length; k++) {
@@ -2586,7 +2591,8 @@ new String[]{
 		
 		final SortedSet<Dip> dips = new TreeSet<Dip>();
 		double pprev = 0.0;
-		double prev = 0.0;                   
+		double prev = 0.0;
+		final double dipMergeLim = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.DIP_MERGE_LIM.ordinal()];
 		Dip prevDip = new DipByStrength(q1-fatHalfTu, 9999.8);  // virtual dip to the left
 		for (int k = k1; k < k2; k++) {
 			final double s = strength[k-k1];
@@ -2595,7 +2601,7 @@ new String[]{
 				final Dip d = new DipByStrength(k-1, prev);
 				
 				// if we are very close to the previous dip, then merge
-				if (d.q - prevDip.q < P_DIP_MERGE_LIM*2*halfTu) {
+				if (d.q - prevDip.q < dipMergeLim*2*halfTu) {
 					prevDip = new DipByStrength((d.q + prevDip.q)/2, dMax(d.strength, prevDip.strength));
 				}
 				else {
@@ -2931,7 +2937,7 @@ new String[]{
 			final double rSquaredSum = r2Sum(f, framesPerSlice, w);
 			if (pairs != null) {
 				//fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
-				pairs.put(new Integer(f), rSquaredSum);
+				pairs.put(Integer.valueOf(f), rSquaredSum);
 			}
 			if (rSquaredSum > rSquaredSumBest) {
 				rSquaredSumBest = rSquaredSum;
@@ -2947,7 +2953,7 @@ new String[]{
 			final double rSquaredSum = r2Sum(f, framesPerSlice, w);
 			if (pairs != null) {
 				// fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
-				pairs.put(new Integer(f), rSquaredSum);
+				pairs.put(Integer.valueOf(f), rSquaredSum);
 			}
 			if (rSquaredSum > rSquaredSumBest) {
 				rSquaredSumBest = rSquaredSum;
