@@ -15,6 +15,7 @@ A decoder that translates Morse code audio to text.
 |2.0|Selectable decoders and filtering|
 |2.0.1|Corrections|
 |2.0.2|Corrected default dips-merge limit parameter|
+|2.0.2.1|Least-squares decoding, first version|
 
 ## Platforms
 
