@@ -2,9 +2,21 @@
 readily understandable.)
 
 
+TODO for 2.0.2.4
+
+Human-readable names for decoders
+Make -D4 the default?
+
+
+New in 2.0.2.3
+
+Support -t with -D4
+
+-----------------------------
+
 Local clone
 
-Currently on DEK-SE103, on ~/wh/github-test; moving to: etna
+etna:github/gerke-decoder
 
 
 

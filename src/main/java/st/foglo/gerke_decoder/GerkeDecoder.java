@@ -219,7 +219,7 @@ public final class GerkeDecoder {
         /**
          * Note: Align with the top level pom.xml
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.2");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.3");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -2091,12 +2091,16 @@ new String[]{
                             cei,
                             flo,
                             sigSize,
+                            
+                            offset,
+                            tsLength,
+                            tuMillis,
+                            
                             plotLimits,
                             framesPerSlice,
                             w.frameRate,
                             w.offsetFrames,
-                            ceilingMax,
-                            tsLength
+                            ceilingMax
                             );
             }
             else {
@@ -2922,12 +2926,16 @@ new String[]{
             double[] cei,
             double[] flo,
             int sigSize,
+            
+            int offset,
+            double tsLength,
+            double tuMillis,
+            
             double[] plotLimits,
             int framesPerSlice,
             int frameRate,
             int offsetFrames,
-            double ceilingMax,
-            double tsLength) {
+            double ceilingMax) {
 
         final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
 
@@ -3097,7 +3105,13 @@ new String[]{
 
             // TODO, the 4 is a decoder identifier
             if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > WORD_SPACE_LIMIT[4]/tsLength) {
-                formatter.add(true, p.text, -1);
+            	
+            	//formatter.add(true, p.text, -1);
+            	final int ts =
+                        GerkeLib.getFlag(O_TSTAMPS) ?
+                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
+                formatter.add(true, p.text, ts);
+
                 p = tree;
                 final ToneBase tb = dashes.get(key);
                 p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
