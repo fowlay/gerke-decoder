@@ -1,6 +1,17 @@
-Graphical display of decoded signal (blue line)
+(This file is for developer's notes; don't expect all of them to be
+readily understandable.)
 
-Needed with the -D4 option.
+
+Local clone
+
+Currently on DEK-SE103, on ~/wh/github-test; moving to: etna
+
+
+
+Graphical display of decoded signal (cyan line)
+
+Needed with the -D4 option. The 80% reduction of displayed dot size
+should be revised maybe.
 
 
 

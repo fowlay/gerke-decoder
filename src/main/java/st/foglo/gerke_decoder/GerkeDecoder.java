@@ -219,8 +219,7 @@ public final class GerkeDecoder {
         /**
          * Note: Align with the top level pom.xml
          */
-    	// 2.0.2.1 - small step, on least-squares branch, towards 2.1
-        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.1");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.2");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -2087,10 +2086,15 @@ new String[]{
             else if (decoder == 4) {
                     decodeByLeastSquares(
                             formatter,
+                            plotEntries,
                             sig,
                             cei,
                             flo,
                             sigSize,
+                            plotLimits,
+                            framesPerSlice,
+                            w.frameRate,
+                            w.offsetFrames,
                             ceilingMax,
                             tsLength
                             );
@@ -2127,8 +2131,8 @@ new String[]{
                             e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
                 }
 
-                if (decoder > 3) {
-                    pc.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN}, 4);
+                if (decoder == 4) {
+                    pc.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
                 }
                 else {
                     pc.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
@@ -2864,7 +2868,10 @@ new String[]{
         }
     }
 
-
+    /**
+     * Represents a dash, centered at index k. Indexes for the rise and drop
+     * are specified explicitly.
+     */
     public static class Dash extends ToneBase {
         final int rise;
         final int drop;
@@ -2899,6 +2906,9 @@ new String[]{
         }
     }
 
+    /**
+     * Represents a dot, centered at index k. The extent is implied.
+     */
     public static class Dot extends ToneBase {
         public Dot(int k) {
             super(k);
@@ -2907,10 +2917,15 @@ new String[]{
 
     private static void decodeByLeastSquares(
             Formatter formatter,
+            PlotEntries plotEntries,
             double[] sig,
             double[] cei,
             double[] flo,
             int sigSize,
+            double[] plotLimits,
+            int framesPerSlice,
+            int frameRate,
+            int offsetFrames,
             double ceilingMax,
             double tsLength) {
 
@@ -3084,7 +3099,9 @@ new String[]{
             if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > WORD_SPACE_LIMIT[4]/tsLength) {
                 formatter.add(true, p.text, -1);
                 p = tree;
-                p = dashes.get(key) instanceof Dash ? p.newNode("-") : p.newNode(".");
+                final ToneBase tb = dashes.get(key);
+                p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
             }
             else if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > CHAR_SPACE_LIMIT[4]/tsLength) {
                 formatter.add(false, p.text, -1);
@@ -3099,13 +3116,15 @@ new String[]{
 
                 }
 
-
                 p = tree;
-                p = dashes.get(key) instanceof Dash ? p.newNode("-") : p.newNode(".");
-
+                final ToneBase tb = dashes.get(key);
+                p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
             }
             else {
-                p = dashes.get(key) instanceof Dash ? p.newNode("-") : p.newNode(".");
+            	final ToneBase tb = dashes.get(key);
+            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
+            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
             }
             prevKey = key;
         }
@@ -3114,6 +3133,41 @@ new String[]{
             formatter.add(true, p.text, -1);
             formatter.newLine();
         }
+    }
+    
+    private static void lsqPlotHelper(PlotEntries plotEntries, double[] plotLimits, Integer key, ToneBase tb,
+    		int jDot, int framesPerSlice, int frameRate, int offsetFrames, double ceilingMax) {
+    	final int dotReduction = (int) Math.round(80.0*jDot/100);
+    	if (plotEntries != null) {
+    		if (tb instanceof Dot) {
+    			final int kRise = key - dotReduction;
+    			final int kDrop = key + dotReduction;
+    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
+    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
+    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
+    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
+    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
+    				plotEntries.addDecoded(secRise1, ceilingMax/20);
+    				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
+    				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
+    				plotEntries.addDecoded(secDrop2, ceilingMax/20);
+    			}
+    		}
+        	else if (tb instanceof Dash) {
+    			final int kRise = ((Dash) tb).rise;
+    			final int kDrop = ((Dash) tb).drop;
+    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
+    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
+    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
+    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
+    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
+    				plotEntries.addDecoded(secRise1, ceilingMax/20);
+    				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
+    				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
+    				plotEntries.addDecoded(secDrop2, ceilingMax/20);
+    			}
+        	}
+    	}
     }
 
     private static void mergeClusters(
@@ -3167,10 +3221,20 @@ new String[]{
         int reduction = 0;
 
         final int dotReduction = (int) Math.round(80.0*jDot/100);
-
-        reduction += tones.get(k1) instanceof Dot ? dotReduction : ((Dash) t1).drop - ((Dash) t1).k;
-
-        reduction += tones.get(k2) instanceof Dot ? dotReduction : ((Dash) t2).k - ((Dash) t2).rise;
+        
+        if (t1 instanceof Dot) {
+        	reduction += dotReduction;
+        }
+        else if (t1 instanceof Dash) {
+        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
+        }
+        
+        if (t2 instanceof Dot) {
+        	reduction += dotReduction;
+        }
+        else if (t2 instanceof Dash) {
+        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
+        }
 
         return k2 - k1 - reduction;
     }
