@@ -15,6 +15,11 @@ A decoder that translates Morse code audio to text.
 |2.0|Selectable decoders and filtering|
 |2.0.1|Corrections|
 |2.0.2|Corrected default dips-merge limit parameter|
+|2.0.2.1|Least-squares decoding, first version|
+|2.0.2.2|Include decoded signal in plot|
+|2.0.2.3|Support option -t with decoder -D4|
+|2.0.2.4|Candidate for 2.1.0 on master branch|
+|2.1.0|Least-squares decoding|
 
 ## Platforms
 
@@ -187,6 +192,12 @@ crossings, as in method 1.  Within the character a search is made for
 dips, by matching against a negative gaussian function with a width of
 about 1 TU. Dashes and dots are then identified from the positions of
 the dips.
+
+4: Least-squares fitted line segments: Dashes are recognized by
+least-squares fitting a straight line to dash-length time
+intervals. Dots are then recognized by trying dot-length time
+intervals that don't clash with the dashes. This decoding method is
+experimental as of now.
 
 The dips based method is enabled by default. Another method can be
 requested with the -D option.

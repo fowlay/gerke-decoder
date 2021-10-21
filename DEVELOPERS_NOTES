@@ -1,0 +1,109 @@
+(This file is for developer's notes; don't expect all of them to be
+readily understandable.)
+
+
+LATER
+
+Human-readable names for decoders
+Make -D4 the default?
+
+New in 2.1.0 (master branch)
+
+Nothing.
+
+
+New in 2.0.2.4
+
+Update README.md
+
+
+New in 2.0.2.3
+
+Support -t with -D4
+
+-----------------------------
+
+Local clone
+
+etna:github/gerke-decoder
+
+
+
+Graphical display of decoded signal (cyan line)
+
+Needed with the -D4 option. The 80% reduction of displayed dot size
+should be revised maybe.
+
+
+
+Frequency shift adaptation
+
+Consider local adaptation to frequency drift?
+
+
+
+Increased coherence time
+
+Integrating over longer time intervals might improve S/N
+ratio. Frequency shift adaptation may be a prerequisite here.
+
+
+
+Filtering
+
+Kolmogorov-Zurbenko filtering. Unclear if it is any good at
+all. If good: Make it default, or optional. Otherwise: Just don't use.
+
+
+
+Refactoring
+
+Identify truly global variables and arrays. Break up the big main
+function into procedures that operate on those. Have threading in
+mind.
+
+
+
+Performance
+
+Decode a set of noise recordings and note the detection
+shortcomings. Try to find parameter settings that produce overall
+improvement.
+
+Break superlong dashes: Do not break in half, instead break off 3+1 TU
+and reconsider the remaining dash for possibly another breakup. Also
+distribute the collected weight fairly, even though it will not be
+used.
+
+Spike removal: Still meaningful, to improve detection of character
+boundaries.
+
+Dip removal: No longer meaningful? Or depending on detection method?
+
+Does the Butterworth filter produce a better result than sliding
+window?  Test this on the Ukraine 17205 recording?
+
+Maybe make the floor detection a bit more localized.
+
+Make the post-filter smoothing action properly scaled.
+
+Consider letting the FilterRunner build a list of angle values and
+reuse trig function results when periodicity is decent. This
+introduces a small frequency error.
+
+Do not exit before gnuplot subprocesses have terminated.
+
+Quantify the performance gain obtained by digital filtering. Use the
+2019-12-24 material.
+
+DONE: Consider running the filters on separate threads. This works;
+the filtering time is down by 50%.
+
+DONE: Tests on the super-noisy synchronous RSCW sample: No success.
+
+
+
+Extension
+
+Processing of I/Q data? Multiply with a single sine wave, then filter,
+then combine the two channels by square root of amplitudes.
