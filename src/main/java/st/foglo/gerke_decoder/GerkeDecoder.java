@@ -217,9 +217,10 @@ public final class GerkeDecoder {
 
     static {
         /**
-         * Note: Align with the top level pom.xml
+         * Note: Align with the top level pom.xml. Also update the
+         * version history in README.md. Also update the DEVELOPERS_NOTES file.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.3");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 2.0.2.4");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
