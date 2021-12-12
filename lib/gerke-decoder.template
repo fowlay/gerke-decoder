@@ -18,7 +18,7 @@ declare -r GitRepo=$(
     fi)
 
 declare -r -a ClassPathElements=(
-    "$(find $GitRepo/target -type f -name 'gerke_decoder-*.jar')"
+    "$(find $GitRepo/target -type f -name 'gerke_decoder-@GERKE_DECODER_REL@.jar')"
     "$GitRepo/m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar"
     "$GitRepo/m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar"
 )

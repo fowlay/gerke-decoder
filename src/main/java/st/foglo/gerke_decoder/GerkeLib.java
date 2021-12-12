@@ -253,6 +253,10 @@ public final class GerkeLib {
         public Debug(String format, double x, int k, double y) {
             this(String.format(format, x, k, y));
         }
+        
+        public Debug(String format, String s, double x) {
+            this(String.format(format, s, x));
+        }
     }
 
     public static class Info extends Message {
@@ -266,6 +270,10 @@ public final class GerkeLib {
 
         public Info(String format, String value) {
             this(String.format(format, value));
+        }
+        
+        public Info(String format, String s, int value) {
+            this(String.format(format, s, value));
         }
 
         public Info(String format, String s, Double value) {

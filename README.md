@@ -20,6 +20,7 @@ A decoder that translates Morse code audio to text.
 |2.0.2.3|Support option -t with decoder -D4|
 |2.0.2.4|Candidate for 2.1.0 on master branch|
 |2.1.0|Least-squares decoding|
+|2.1.1|Various corrections|
 
 ## Platforms
 
@@ -30,8 +31,9 @@ A decoder that translates Morse code audio to text.
 
 ### Java
 
-Running under Oracle JDK 1.8 version 202 and OpenJDK version
-1.8.0_262. Other versions may work also.
+The current version has been tested with OpenJDK 17.0.1. Earlier
+versions were developed using Oracle JDK 1.8 version 202 and OpenJDK
+version 1.8.0_262. Other versions of Java may work as well.
 
 ### Optional: Gnuplot
 

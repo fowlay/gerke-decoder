@@ -27,7 +27,7 @@
 ## and moving all items under the top directory up one level,
 ## and the src/test directory tree.
 
-GERKE_DECODER_REL = 2.0
+GERKE_DECODER_REL = $(shell sed -e 's|^  <version>\(.*\)</version>|\1|p' -e d pom.xml)
 APACHE_REL = 3.6.3
 
 ## For alternative mirrors, see https://www.apache.org/mirrors/
@@ -38,6 +38,10 @@ APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/
 ## Make gerke-decoder and dependencies
 
 SRC = $(wildcard src/main/java/st/foglo/gerke_decoder/*.java)
+
+bin/gerke-decoder: lib/gerke-decoder.template pom.xml target/gerke_decoder-$(GERKE_DECODER_REL).jar
+	sed -e 's|@GERKE_DECODER_REL@|$(GERKE_DECODER_REL)|' $< >$@
+	chmod a+x $@
 
 target/gerke_decoder-$(GERKE_DECODER_REL).jar: apache-maven-$(APACHE_REL)/conf/settings.xml $(SRC)
 	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" mvn package
@@ -56,9 +60,9 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 .SILENT: test
 
 test: target/gerke_decoder-$(GERKE_DECODER_REL).jar grimeton-clip.wav
-	declare cmd="bin/gerke-decoder -v -o1 -l88 -w16 grimeton-clip.wav" && \
+	declare cmd="bin/gerke-decoder -D5 -v -o1 -l87 -w16 grimeton-clip.wav" && \
 	$$cmd && \
-	declare expected=493b9550236cea0da6565a3886073ee8 && \
+	declare expected=24beebbe5877a225d4ad5c0b75305da6 && \
 	declare md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
 	if [ $$md5 = $$expected ]; then \
              echo test successful; \
@@ -69,3 +73,20 @@ test: target/gerke_decoder-$(GERKE_DECODER_REL).jar grimeton-clip.wav
 grimeton-clip.wav:
 	rm -f $@
 	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
+
+
+## Make executable jar
+
+gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
+	    m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar \
+	    m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar
+	rm -rf standalone-classes
+	mkdir standalone-classes
+	cd standalone-classes && \
+	ln -s ../target/gerke_decoder-$(GERKE_DECODER_REL).jar && jar xf gerke_decoder-$(GERKE_DECODER_REL).jar && \
+	ln -s ../m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar && jar xf iirj-1.1.jar && \
+	ln -s ../m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar && jar xf commons-math3-3.6.1.jar && \
+	rm -f gerke_decoder-$(GERKE_DECODER_REL).jar iirj-1.1.jar commons-math3-3.6.1.jar && \
+	rm -rf META-INF
+	jar cfe $@ st.foglo.gerke_decoder.GerkeDecoder -C standalone-classes .
+	rm -rf standalone-classes
