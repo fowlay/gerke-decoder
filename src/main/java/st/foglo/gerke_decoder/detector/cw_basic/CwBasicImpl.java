@@ -19,7 +19,6 @@ import st.foglo.gerke_decoder.GerkeDecoder.FilterRunnerPhaseLocked;
 import st.foglo.gerke_decoder.GerkeDecoder.FilterRunnerZero;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector;
-import st.foglo.gerke_decoder.GerkeDecoder.Wav;
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
@@ -29,6 +28,8 @@ import st.foglo.gerke_decoder.GerkeLib.Warning;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
+import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.wave.Wav;
 
 public class CwBasicImpl implements CwDetector {
 	
@@ -37,6 +38,7 @@ public class CwBasicImpl implements CwDetector {
 	final double tuMillis;
 	final int framesPerSlice;
 	final double tsLength;
+	final int fBest;
 	
 
 	public CwBasicImpl(
@@ -44,37 +46,32 @@ public class CwBasicImpl implements CwDetector {
 			Wav w,
 			double tuMillis,
 			int framesPerSlice,
-			double tsLength
-			) {
+			double tsLength,
+			int fSpecified
+			) throws IOException, InterruptedException {
 		this.nofSlices = nofSlices;
 		this.w = w;
 		this.tuMillis = tuMillis;
 		this.framesPerSlice = framesPerSlice;
 		this.tsLength = tsLength;
+
+		if (fSpecified != -1) {
+			fBest = fSpecified;
+			new Info("specified frequency: %d", fBest);
+			if (GerkeLib.getFlag(GerkeDecoder.O_FPLOT)) {
+				new Warning("frequency plot skipped when -f option given");
+			}
+		}
+		else {
+			fBest = findFrequency();
+			new Info("estimated frequency: %d", fBest);
+		}
 	}
 
 
 	@Override
 	public Signal getSignal() throws Exception {
-		
-		
-        // ===================================== Estimate frequency, or use given
 
-        final int fBest;
-        if (GerkeLib.getIntOpt(GerkeDecoder.O_FREQ) != -1) {
-            fBest = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
-            new Info("specified frequency: %d", fBest);
-            if (GerkeLib.getFlag(GerkeDecoder.O_FPLOT)) {
-                new Warning("frequency plot skipped when -f option given");
-            }
-        }
-        else {
-            // no frequency specified, search for best value
-            fBest = findFrequency();
-            new Info("estimated frequency: %d", fBest);
-        }
-		
-		
         // ========================== Find clip level
         // TODO, could clipping be applied once and for all, after
         // a certain point has been passed?
@@ -183,7 +180,7 @@ public class CwBasicImpl implements CwDetector {
         final double sigma = GerkeLib.getDoubleOpt(GerkeDecoder.O_SIGMA);
         final double eps = 0.01; // PARAMETER eps
 
-        final int gaussSize = GerkeDecoder.roundToOdd((sigma/tsLength)*Math.sqrt(-2*Math.log(eps)));
+        final int gaussSize = Compute.roundToOdd((sigma/tsLength)*Math.sqrt(-2*Math.log(eps)));
         new Debug("nof. gaussian terms: %d", gaussSize);
 
         final double[] ringBuffer = new double[gaussSize];
@@ -205,8 +202,6 @@ public class CwBasicImpl implements CwDetector {
         }
         
         final double[] sig = new double[sigSize];
-        
-
 
         for (int q = 0; true; q++) {      //  q is sig[] index
 
@@ -277,7 +272,7 @@ public class CwBasicImpl implements CwDetector {
 
         // refine, steps of 1 Hz, PARAMETER
         final int fStepFine = 1;
-        final int g0 = GerkeDecoder.iMax(0, fBest - 18*fStepFine);
+        final int g0 = Compute.iMax(0, fBest - 18*fStepFine);
         final int g1 = fBest + 18*fStepFine;
         for (int f = g0; f <= g1; f += fStepFine) {
             final double rSquaredSum = r2Sum(f);
@@ -364,7 +359,7 @@ public class CwBasicImpl implements CwDetector {
 
             for (int j = 0; j < framesPerSlice; j++) {
                 final int ampRaw = (int) w.wav[q*framesPerSlice + j];
-                final int amp = ampRaw < 0 ? GerkeDecoder.iMax(ampRaw, -clipLevel) : GerkeDecoder.iMin(ampRaw, clipLevel);
+                final int amp = ampRaw < 0 ? Compute.iMax(ampRaw, -clipLevel) : Compute.iMin(ampRaw, clipLevel);
                 sinAcc += trigTable.sin(j)*amp;
                 cosAcc += trigTable.cos(j)*amp;
             }

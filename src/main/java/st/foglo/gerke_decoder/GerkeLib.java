@@ -365,7 +365,7 @@ public final class GerkeLib {
      * Call any of the constructors to terminate unsuccessfully.
      */
     public static class Death extends Message {
-        Death(String message) {
+        public Death(String message) {
             super("FATAL", message, true);
             System.exit(1);
         }

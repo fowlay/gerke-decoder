@@ -38,16 +38,13 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CountDownLatch;
 
-import javax.sound.sampled.AudioFormat;
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.cw_basic.CwBasicImpl;
+import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
 
@@ -74,8 +71,8 @@ public final class GerkeDecoder {
             Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.677)};
 
     static final String O_VERSION = "version";
-    static final String O_OFFSET = "offset";
-    static final String O_LENGTH = "length";
+    public static final String O_OFFSET = "offset";
+    public static final String O_LENGTH = "length";
     public static final String O_FRANGE = "freq-range";
     public static final String O_FREQ = "freq";
     static final String O_WPM = "wpm";
@@ -362,140 +359,6 @@ new String[]{
             this.dashLimit = dashLimit;
             this.plotBegin = plotBegin;
             this.plotEnd = plotEnd;
-        }
-    }
-
-    /**
-     * Read a WAV file into a short[] array.
-     */
-    public static class Wav {
-
-        final String file;   // file path
-
-        final AudioInputStream ais;
-        final AudioFormat af;
-        final long frameLength;
-
-        public final int frameRate; // frames/s
-        final int offset;    // offset (s)
-        final int offsetFrames;   // offset as nof. frames
-        final int length;    // length (s)
-        public final short[] wav;   // signal values
-
-        final int nofFrames;
-
-        public Wav() throws IOException, UnsupportedAudioFileException {
-
-            if (GerkeLib.nofArguments() != 1) {
-                new Death("expecting one filename argument, try -h for help");
-            }
-            file = GerkeLib.getArgument(0);
-
-            ais = AudioSystem.getAudioInputStream(new File(file));
-            af = ais.getFormat();
-            new Info("audio format: %s", af.toString());
-
-            frameRate = Math.round(af.getFrameRate());
-            new Info("frame rate: %d", frameRate);
-
-            final int nch = af.getChannels();  // needed in reading, localize?
-            new Info("nof. channels: %d", nch);
-            final int bpf = af.getFrameSize();
-            if (bpf == AudioSystem.NOT_SPECIFIED) {
-                new Death("bytes per frame is NOT SPECIFIED");
-            }
-            else {
-                new Info("bytes per frame: %d", bpf);
-            }
-            if (af.isBigEndian()) {
-                new Death("cannot handle big-endian WAV file");
-            }
-
-
-            frameLength = ais.getFrameLength();
-            new Info(".wav file length: %.1f s", (double)frameLength/frameRate);
-            new Info("nof. frames: %d", frameLength);
-
-            // find out nof frames to go in array
-
-            offset = GerkeLib.getIntOpt(O_OFFSET);
-            length = GerkeLib.getIntOpt(O_LENGTH);
-
-            if (offset < 0) {
-                new Death("offset cannot be negative");
-            }
-
-            offsetFrames = offset*frameRate;
-
-            final int offsetFrames = GerkeLib.getIntOpt(O_OFFSET)*frameRate;
-            nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
-
-            if (nofFrames < 0) {
-                new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);
-            }
-
-
-            wav = new short[nofFrames];
-
-            int frameCount = 0;
-
-            if (bpf == 1 && nch == 1) {
-                final int blockSize = frameRate;
-                for (int k = 0; true; k += blockSize) {
-                    final byte[] b = new byte[blockSize];
-                    final int nRead = ais.read(b, 0, blockSize);
-                    if (k >= offsetFrames) {
-                        if (nRead == -1 || frameCount == nofFrames) {
-                            break;
-                        }
-                        for (int j = 0; j < nRead && frameCount < nofFrames; j++) {
-                            wav[k - offsetFrames + j] = (short) (100*b[j]);
-                            frameCount++;
-                        }
-                    }
-                }
-            }
-            else if (bpf == 2 && nch == 1) {
-                final int blockSize = bpf*frameRate;
-                for (int k = 0; true; k += blockSize) {
-                    final byte[] b = new byte[blockSize];
-                    final int nRead = ais.read(b, 0, blockSize);
-                    if (k >= offsetFrames*bpf) {
-                        if (nRead == -1 || frameCount == nofFrames) {
-                            break;
-                        }
-                        for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
-                            wav[k/bpf - offsetFrames + j] =
-                                    (short) (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
-                            frameCount++;
-                        }
-                    }
-                }
-            }
-            else if (bpf == 4 && nch == 2) {
-                final int blockSize = bpf*frameRate;
-                for (int k = 0; true; k += blockSize) {
-                    final byte[] b = new byte[blockSize];
-                    final int nRead = ais.read(b, 0, blockSize);
-                    if (k >= offsetFrames*bpf) {
-                        if (nRead == -1 || frameCount == nofFrames) {
-                            break;
-                        }
-                        for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
-                            final int left = (256*b[bpf*j+1] + (b[bpf*j] < 0 ? (b[bpf*j] + 256) : b[bpf*j]));
-                            final int right = (256*b[bpf*j+3] + (b[bpf*j+2] < 0 ? (b[bpf*j+2] + 256) : b[bpf*j+2]));
-                            wav[k/bpf - offsetFrames + j] =
-                                    (short) ((left + right)/2);
-                            frameCount++;
-                        }
-                    }
-                }
-            }
-            else {
-                ais.close();
-                new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);
-            }
-            ais.close();
         }
     }
 
@@ -863,7 +726,7 @@ new String[]{
                     phaseShift,
                     cdl,
                     tsLength);
-            nPhaseAvg = roundToOdd(GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.PLWIDTH.ordinal()]*(1/tsLength));
+            nPhaseAvg = Compute.roundToOdd(GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.PLWIDTH.ordinal()]*(1/tsLength));
             new Info("nPhaseAvg: %d", nPhaseAvg);
         }
 
@@ -886,7 +749,7 @@ new String[]{
 
                     if (wavIndex >= 0) {
                         int ampRaw = wav[wavIndex];   // k is non-positive!
-                        final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
+                        final int amp = ampRaw < 0 ? Compute.iMax(-clipLevel, ampRaw) : Compute.iMin(clipLevel, ampRaw);
                         final double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
                         sum += Math.sin(angle - phase)*amp;
                     }
@@ -925,7 +788,7 @@ new String[]{
 
                         if (wavIndex >= 0 && wavIndex < wav.length) {
                             int ampRaw = wav[wavIndex];   // k is non-positive!
-                            final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
+                            final int amp = ampRaw < 0 ? Compute.iMax(-clipLevel, ampRaw) : Compute.iMin(clipLevel, ampRaw);
 
                             final double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
 
@@ -988,7 +851,7 @@ new String[]{
                     double outSignal = 0.0;
                     if (wavIndex >= 0) {
                         int ampRaw = wav[wavIndex];   // k is non-positive!
-                        final int amp = ampRaw < 0 ? iMax(-clipLevel, ampRaw) : iMin(clipLevel, ampRaw);
+                        final int amp = ampRaw < 0 ? Compute.iMax(-clipLevel, ampRaw) : Compute.iMin(clipLevel, ampRaw);
                         final double sinValue;
                         if (!useTable) {
                             double angle = ((freq*wavIndex)*TWO_PI)/frameRate;
@@ -1613,32 +1476,21 @@ new String[]{
             new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
 
 
-
-
-
-
-
-
-
-
-
-
             // ============  Multiply by sine and cosine functions, apply filtering
 
             final int nofSlices = w.nofFrames/framesPerSlice;
-            
-            
+
+            final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
             
             final CwDetector detector = new CwBasicImpl(
             		nofSlices,
             		w,
             		tuMillis,
             		framesPerSlice,
-            		tsLength
+            		tsLength,
+            		fSpecified
             		);
-            
-            
-            
+
             final Signal signal = detector.getSignal();
             final double[] sig = signal.sig;
             final int sigSize = signal.sig.length;
@@ -1659,10 +1511,10 @@ new String[]{
             // decoding and plotting as well.
 
             //
-            final int estBaseCeil = ensureEven((int)(P_CEIL_HIST_WIDTH*(tuMillis/1000.0)*w.frameRate/framesPerSlice));
+            final int estBaseCeil = Compute.ensureEven((int)(P_CEIL_HIST_WIDTH*(tuMillis/1000.0)*w.frameRate/framesPerSlice));
             new Debug("ceiling estimation based on slices: %d", estBaseCeil);
 
-            final int estBaseFloor = ensureEven((int)(P_FLOOR_HIST_WIDTH*(tuMillis/1000.0)*w.frameRate/framesPerSlice));
+            final int estBaseFloor = Compute.ensureEven((int)(P_FLOOR_HIST_WIDTH*(tuMillis/1000.0)*w.frameRate/framesPerSlice));
             new Debug("floor estimation based on slices: %d", estBaseFloor);
 
             final double[] cei = new double[sig.length];
@@ -1676,7 +1528,7 @@ new String[]{
 
                 flo[q] = localFloorByHist(q, sig, estBaseFloor);
                 cei[q] = localCeilByHist(q, sig, estBaseCeil);
-                ceilingMax = dMax(ceilingMax, cei[q]);
+                ceilingMax = Compute.dMax(ceilingMax, cei[q]);
             }
 
             // some of this is used by the phase plot
@@ -1693,13 +1545,6 @@ new String[]{
             new Info("relative tone/silence threshold: %.3f", level);
             new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
 
-
-
-
-
-
-
-
             // ================ Phase plot, optional
             
             // TODO .. not supported by all detectors
@@ -1708,7 +1553,6 @@ new String[]{
                 phasePlot(fBest, nofSlices, framesPerSlice, w, clipLevel,
                         sig, level, levelLog, flo, cei, decoder, ampMap);
             }
-
 
             // ============== identify transitions
             // usage depends on decoder method
@@ -1730,7 +1574,7 @@ new String[]{
                 }
 
                 final double threshold = threshold(decoder, ampMap, level, levelLog, flo[q], cei[q]);
-                thresholdMax = dMax(threshold, thresholdMax);
+                thresholdMax = Compute.dMax(threshold, thresholdMax);
 
                 final boolean newTone = sig[q] > threshold;
 
@@ -2037,7 +1881,7 @@ new String[]{
             new Info("apply logarithmic mapping");
             double sigMax = 0.0;
             for (int k = 0; k < size; k++) {
-                sigMax = dMax(sigMax, sig[k]);
+                sigMax = Compute.dMax(sigMax, sig[k]);
             }
             if (!(sigMax > 0.0)) {
                 new Death("no data, cannot apply logarithmic mapping");
@@ -2045,7 +1889,7 @@ new String[]{
             double sigMin = Double.MAX_VALUE;
             for (int k = 0; k < size; k++) {
                 sig[k] = Math.log(sig[k] + sigMax/100);
-                sigMin = dMin(sigMin, sig[k]);
+                sigMin = Compute.dMin(sigMin, sig[k]);
             }
             for (int k = 0; k < size; k++) {
                 sig[k] = sig[k] - sigMin;
@@ -2611,7 +2455,7 @@ new String[]{
         final int countMax = (int) Math.round(((q2 - q1)*tau + 3)/2);
 
         int strengthSize = k2 - k1;
-        final double[] strength = new double[iMax(strengthSize, 0)];
+        final double[] strength = new double[Compute.iMax(strengthSize, 0)];
 
         // this makes normalized strengths fairly independent of sigma
         final double z = (cei[k1] - flo[k1] + cei[k2] - flo[k2])*(1/(2*tau))*P_DIP_SIGMA;
@@ -2641,7 +2485,7 @@ new String[]{
 
                 // if we are very close to the previous dip, then merge
                 if (d.q - prevDip.q < dipMergeLim*2*halfTu) {
-                    prevDip = new DipByStrength((d.q + prevDip.q)/2, dMax(d.strength, prevDip.strength));
+                    prevDip = new DipByStrength((d.q + prevDip.q)/2, Compute.dMax(d.strength, prevDip.strength));
                 }
                 else {
                     dips.add(prevDip);
@@ -2698,12 +2542,12 @@ new String[]{
                     final int e2 = extent - e1;
                     beeps.add(new Beep(e1));
                     beeps.add(new Beep(e2));
-                    extentMax = iMax(extentMax, e2);
+                    extentMax = Compute.iMax(extentMax, e2);
                 }
                 else {
 
                     beeps.add(new Beep(extent));
-                    extentMax = iMax(extentMax, extent);
+                    extentMax = Compute.iMax(extentMax, extent);
                 }
             }
             prevQ = d.q;
@@ -3374,8 +3218,8 @@ new String[]{
                 	}
                 	else {
                 		final Dash dash = ((Dash) tone);
-                		minRise += iMin(minRise, dash.rise);
-                		maxDrop += iMax(maxDrop, dash.drop);
+                		minRise += Compute.iMin(minRise, dash.rise);
+                		maxDrop += Compute.iMax(maxDrop, dash.drop);
                 		sumCeiling += dash.ceiling;
                 	}
 
@@ -3575,8 +3419,8 @@ new String[]{
                         // j is frame index
                         final int ampRaw = w.wav[q*framesPerSlice + j];
                         final int amp = ampRaw < 0 ?
-                                iMax(-clipLevel, ampRaw) :
-                                    iMin(clipLevel, ampRaw);
+                                Compute.iMax(-clipLevel, ampRaw) :
+                                    Compute.iMin(clipLevel, ampRaw);
 
                                 final double angle = angleOffset + TWO_PI*fBest*j/w.frameRate;
                                 sinAcc += Math.sin(angle)*amp;
@@ -3619,13 +3463,13 @@ new String[]{
 
             final double t3 =
                     w.length == -1 ? t1 :
-                        dMin(t2 + w.length, t1);
+                        Compute.dMin(t2 + w.length, t1);
             if (w.length != -1 && t2 + w.length > t1) {
                 new Warning("offset+length exceeds %.1f seconds", t1);
             }
 
             final double t4 =
-                    dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
+                    Compute.dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
             if (t4 >= t3) {
                 new Death("plot interval out of bounds");
             }
@@ -3636,7 +3480,7 @@ new String[]{
             final double t5 =
                     GerkeLib.getDoubleOptMulti(O_PLINT)[1] == -1.0 ?
                             t3 :
-                                dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
+                                Compute.dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
             if (GerkeLib.getDoubleOptMulti(O_PLINT)[1] != -1.0 &&
                     t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1] > t3) {
                 new Warning("ending plot interval at: %.1f s", t3);
@@ -3706,7 +3550,7 @@ new String[]{
         double sumy = 0.0;
         double ampAve = 0.0;
         int m = 0;
-        for (int j = iMax(0, k-width); j <= iMin(len-1, k+width); j++) {
+        for (int j = Compute.iMax(0, k-width); j <= Compute.iMin(len-1, k+width); j++) {
             final double amp = sig[j];
             ampAve += amp;
             m++;
@@ -3755,13 +3599,13 @@ new String[]{
 
     private static double localCeilByHist(int q, double[] sig, int width) {
 
-        int q1 = iMax(q-width/2, 0);
-        int q2 = iMin(q+width/2, sig.length);
+        int q1 = Compute.iMax(q-width/2, 0);
+        int q2 = Compute.iMin(q+width/2, sig.length);
 
         // find the maximal sig value
         double sigMax = -1.0;
         for (int j = q1; j < q2; j++) {
-            sigMax = dMax(sig[j], sigMax);
+            sigMax = Compute.dMax(sig[j], sigMax);
         }
 
         // produce a histogram with HIST_SIZE_CEILING slots
@@ -3778,7 +3622,7 @@ new String[]{
         int count = (int) Math.round(P_CEIL_FRAC*sumPoints);
         int kCleared = -1;
         for (int k = 0; k < P_CEIL_HIST; k++) {
-            final int decr = iMin(hist[k], count);
+            final int decr = Compute.iMin(hist[k], count);
             hist[k] -= decr;
             count -= decr;
             if (hist[k] == 0)  {
@@ -3810,13 +3654,13 @@ new String[]{
      */
     private static double localFloorByHist(int q, double[] sig, int width) {
 
-        int q1 = iMax(q-width/2, 0);
-        int q2 = iMin(q+width/2, sig.length);
+        int q1 = Compute.iMax(q-width/2, 0);
+        int q2 = Compute.iMin(q+width/2, sig.length);
 
         // find the maximum amplitude
         double sigMax = -1.0;
         for (int j = q1; j < q2; j++) {
-            sigMax = dMax(sig[j], sigMax);
+            sigMax = Compute.dMax(sig[j], sigMax);
         }
 
         // produce a histogram with P_FLOOR_HIST slots
@@ -3833,7 +3677,7 @@ new String[]{
         int kCleared = P_FLOOR_HIST;
         int count = (int) Math.round(P_FLOOR_FRAC*sumPoints);
         for (int k = P_FLOOR_HIST-1; k >= 0; k--) {
-            final int decr = iMin(hist[k], count);
+            final int decr = Compute.iMin(hist[k], count);
             hist[k] -= decr;
             if (hist[k] == 0) {
                 kCleared = k;
@@ -3854,34 +3698,5 @@ new String[]{
         }
 
         return sumAmp/sumCount;
-    }
-
-
-
-
-
-    private static double dMax(double a, double b) {
-        return a > b ? a : b;
-    }
-
-    private static double dMin(double a, double b) {
-        return a < b ? a : b;
-    }
-
-    public static int iMax(int a, int b) {
-        return a > b ? a : b;
-    }
-
-    public static int iMin(int a, int b) {
-        return a < b ? a : b;
-    }
-
-    public static int roundToOdd(double x) {
-        final int k = (int) Math.round(x);
-        return k % 2 == 0 ? k+1 : k;
-    }
-
-    private static int ensureEven(int k) {
-        return k % 2 == 1 ? k+1 : k;
     }
 }
