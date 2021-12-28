@@ -14,12 +14,7 @@ import st.foglo.gerke_decoder.LowpassNone;
 import st.foglo.gerke_decoder.LowpassTimeSliceSum;
 import st.foglo.gerke_decoder.LowpassWindow;
 import st.foglo.gerke_decoder.GerkeDecoder;
-import st.foglo.gerke_decoder.GerkeDecoder.FilterRunner;
-import st.foglo.gerke_decoder.GerkeDecoder.FilterRunnerPhaseLocked;
-import st.foglo.gerke_decoder.GerkeDecoder.FilterRunnerZero;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
-import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector;
-import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
@@ -29,6 +24,8 @@ import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.PlotCollector;
+import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public class CwBasicImpl implements CwDetector {
