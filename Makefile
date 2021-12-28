@@ -37,7 +37,7 @@ APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/
 
 ## Make gerke-decoder and dependencies
 
-SRC = $(wildcard src/main/java/st/foglo/gerke_decoder/*.java)
+SRC = $(shell find src/main/java/st/foglo/gerke_decoder -name '*.java')
 
 bin/gerke-decoder: lib/gerke-decoder.template pom.xml target/gerke_decoder-$(GERKE_DECODER_REL).jar
 	sed -e 's|@GERKE_DECODER_REL@|$(GERKE_DECODER_REL)|' $< >$@

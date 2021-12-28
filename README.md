@@ -21,6 +21,7 @@ A decoder that translates Morse code audio to text.
 |2.0.2.4|Candidate for 2.1.0 on master branch|
 |2.1.0|Least-squares decoding|
 |2.1.1|Various corrections|
+|2.1.1.1|Refactoring|
 
 ## Platforms
 

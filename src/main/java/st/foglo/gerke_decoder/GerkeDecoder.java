@@ -45,13 +45,16 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 import st.foglo.gerke_decoder.GerkeDecoder.PlotCollector.Mode;
 import st.foglo.gerke_decoder.GerkeLib.*;
+import st.foglo.gerke_decoder.detector.CwDetector;
+import st.foglo.gerke_decoder.detector.Signal;
+import st.foglo.gerke_decoder.detector.cw_basic.CwBasicImpl;
 
 public final class GerkeDecoder {
 
     static final int HI = 10;
     static final int LO = -35;
 
-    static final double TWO_PI = 2*Math.PI;
+    public static final double TWO_PI = 2*Math.PI;
 
     static final double IGNORE = 0.0;
 
@@ -73,25 +76,25 @@ public final class GerkeDecoder {
     static final String O_VERSION = "version";
     static final String O_OFFSET = "offset";
     static final String O_LENGTH = "length";
-    static final String O_FRANGE = "freq-range";
-    static final String O_FREQ = "freq";
+    public static final String O_FRANGE = "freq-range";
+    public static final String O_FREQ = "freq";
     static final String O_WPM = "wpm";
     static final String O_SPACE_EXP = "space-expansion";
-    static final String O_CLIPPING = "clip";
+    public static final String O_CLIPPING = "clip";
     static final String O_STIME = "sample-time";
-    static final String O_SIGMA = "sigma";
+    public static final String O_SIGMA = "sigma";
     static final String O_DECODER = "decoder";
     static final String O_AMP_MAPPING = "amp-mapping";
     static final String O_LEVEL = "level";
     static final String O_TSTAMPS = "timestamps";
-    static final String O_FPLOT = "frequency-plot";
+    public static final String O_FPLOT = "frequency-plot";
     static final String O_PLINT = "plot-interval";
     static final String O_PLOT = "plot";
     static final String O_PPLOT = "phase-plot";
     static final String O_VERBOSE = "verbose";
 
-    static final String O_HIDDEN = "hidden-options";
-    enum HiddenOpts {
+    public static final String O_HIDDEN = "hidden-options";
+    public enum HiddenOpts {
         DIP,
         SPIKE,
         BREAK_LONG_DASH,
@@ -153,14 +156,14 @@ public final class GerkeDecoder {
      * Default level of clipping: Clipping is made at a level that reduces
      * the total signal content by this fraction.
      */
-    static final double P_CLIP_STRENGTH = 0.05;
+    public static final double P_CLIP_STRENGTH = 0.05;
 
     /**
      * Iterative search for a cliplevel is terminated when P_CLIP_STRENGTH
      * is reached to an accuracy given by this parameter. To observe
      * iterations, run with -v -v -v.
      */
-    static final double P_CLIP_PREC = 0.005;
+    public static final double P_CLIP_PREC = 0.005;
 
 
     static final int P_CEIL_HIST = 100;
@@ -234,7 +237,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md. Also update the DEVELOPERS_NOTES file.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 2.1.1");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 2.1.1.1");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -365,7 +368,7 @@ new String[]{
     /**
      * Read a WAV file into a short[] array.
      */
-    static class Wav {
+    public static class Wav {
 
         final String file;   // file path
 
@@ -373,11 +376,11 @@ new String[]{
         final AudioFormat af;
         final long frameLength;
 
-        final int frameRate; // frames/s
+        public final int frameRate; // frames/s
         final int offset;    // offset (s)
         final int offsetFrames;   // offset as nof. frames
         final int length;    // length (s)
-        final short[] wav;   // signal values
+        public final short[] wav;   // signal values
 
         final int nofFrames;
 
@@ -804,7 +807,7 @@ new String[]{
     }
 
 
-    static class FilterRunnerZero extends FilterRunnerBase {
+    public static class FilterRunnerZero extends FilterRunnerBase {
 
         public FilterRunnerZero(LowpassFilter f, short[] wav, double[] out,
                 int framesPerSlice,
@@ -840,7 +843,7 @@ new String[]{
         }
     }
 
-    static class FilterRunnerPhaseLocked extends FilterRunnerBase {
+    public static class FilterRunnerPhaseLocked extends FilterRunnerBase {
 
         final int nPhaseAvg;
 
@@ -942,7 +945,7 @@ new String[]{
 
 
 
-    static class FilterRunner extends FilterRunnerBase {
+    public static class FilterRunner extends FilterRunnerBase {
 
         public FilterRunner(LowpassFilter f, short[] wav, double[] out,
                 int framesPerSlice,
@@ -1032,28 +1035,7 @@ new String[]{
         }
     }
 
-    static class TrigTable {
-        final double[] sines;
-        final double[] coses;
 
-        TrigTable(int f, int nFrames, int frameRate) {
-            this.sines = new double[nFrames];
-            this.coses = new double[nFrames];
-            for (int j = 0; j < nFrames; j++) {
-                final double angle = TWO_PI*f*j/frameRate;
-                sines[j] = Math.sin(angle);
-                coses[j] = Math.cos(angle);
-            }
-        }
-
-        double sin(int j) {
-            return sines[j];
-        }
-
-        double cos(int j) {
-            return coses[j];
-        }
-    }
 
     static class Formatter {
         StringBuilder sb = new StringBuilder();
@@ -1137,9 +1119,9 @@ new String[]{
      * ps          - a print stream for line-by-line data
      * plot()      - create the diagram
      */
-    static class PlotCollector {
+    public static class PlotCollector {
 
-        enum Mode {
+        public enum Mode {
             LINES_PURPLE("lines ls 1"),
             LINES_GREEN("lines ls 2"),
             LINES_CYAN("lines ls 3"),
@@ -1159,9 +1141,9 @@ new String[]{
 
         private String fileName;
         private String fileNameWin;
-        final PrintStream ps;
+        public final PrintStream ps;
 
-        PlotCollector() throws IOException {
+        public PlotCollector() throws IOException {
 
             this.fileName = makeTempFile();
             this.fileNameWin = isWindows() ? toWindows(fileName) : null;
@@ -1169,7 +1151,7 @@ new String[]{
                     new File(fileNameWin != null ? fileNameWin : fileName));
         }
 
-        void plot(Mode mode[], int nofCurves) throws IOException, InterruptedException {
+        public void plot(Mode mode[], int nofCurves) throws IOException, InterruptedException {
             ps.close();
             doGnuplot(fileName, nofCurves, mode);
             Files.delete(
@@ -1631,33 +1613,11 @@ new String[]{
             new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
 
 
-            // ===================================== Estimate frequency, or use given
-
-            final int fBest;
-            if (GerkeLib.getIntOpt(O_FREQ) != -1) {
-                fBest = GerkeLib.getIntOpt(O_FREQ);
-                new Info("specified frequency: %d", fBest);
-                if (GerkeLib.getFlag(O_FPLOT)) {
-                    new Warning("frequency plot skipped when -f option given");
-                }
-            }
-            else {
-                // no frequency specified, search for best value
-                fBest = findFrequency(framesPerSlice, w);
-                new Info("estimated frequency: %d", fBest);
-            }
 
 
 
-            // ========================== Find clip level
-            // TODO, could clipping be applied once and for all, after
-            // a certain point has been passed?
 
-            final int clipLevelOverride = GerkeLib.getIntOpt(O_CLIPPING);
 
-            final int clipLevel =
-                    clipLevelOverride != -1 ? clipLevelOverride : getClipLevel(fBest, framesPerSlice, w);
-            new Info("clipping level: %d", clipLevel);
 
 
 
@@ -1666,136 +1626,26 @@ new String[]{
             // ============  Multiply by sine and cosine functions, apply filtering
 
             final int nofSlices = w.nofFrames/framesPerSlice;
-            final double[] sig = new double[nofSlices];
-
-            final LowpassFilter filterI;
-            final LowpassFilter filterQ;
-            final String filterCode = GerkeLib.getOptMulti(O_HIDDEN)[HiddenOpts.FILTER.ordinal()];
-            if (filterCode.equals("b")) {
-                final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
-                double cutoff =
-                        GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
-                filterI = new LowpassButterworth(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 0.0);
-                filterQ = new LowpassButterworth(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 0.0);
-            }
-            else if (filterCode.equals("cI")) {
-                final int order = GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.ORDER.ordinal()];
-                double cutoff =
-                        GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
-                // PARAMETER 2.0 dB, ripple
-                filterI = new LowpassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
-                filterQ = new LowpassChebyshevI(order, (double)w.frameRate, cutoff* 1000.0/tuMillis, 1.5);
-            }
-            else if (filterCode.equals("w")) {
-                double cutoff =
-                        GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.CUTOFF.ordinal()];
-                filterI = new LowpassWindow(w.frameRate, cutoff* 1000.0/tuMillis);
-                filterQ = new LowpassWindow(w.frameRate, cutoff* 1000.0/tuMillis);
-            }
-            else if (filterCode.equals("t")) {
-                filterI = new LowpassTimeSliceSum(framesPerSlice);
-                filterQ = new LowpassTimeSliceSum(framesPerSlice);
-            }
-            else if (filterCode.equals("n")) {
-                filterI = new LowpassNone();
-                filterQ = new LowpassNone();
-            }
-            else {
-                new Death("no such filter supported: '%s'", filterCode);
-                throw new Exception();
-            }
-
-            final double[] outSin = new double[nofSlices];
-            final double[] outCos = new double[nofSlices];
-
-            final long tBegin = System.currentTimeMillis();
-            final CountDownLatch cdl = new CountDownLatch(2);
-            if (GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.PHASELOCKED.ordinal()] == 1) {
-                (new Thread(
-                        new FilterRunnerPhaseLocked(
-                                filterI,
-                                w.wav,
-                                outSin,
-                                framesPerSlice,
-                                clipLevel, fBest,
-                                w.frameRate,
-                                0.0,
-                                cdl,
-                                tsLength))).start();
-            }
-            else {
-                (new Thread(
-                        new FilterRunner(
-                                filterI,
-                                w.wav,
-                                outSin,
-                                framesPerSlice,
-                                clipLevel, fBest,
-                                w.frameRate,
-                                0.0,
-                                cdl))).start();
-            }
-
-            if (GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.PHASELOCKED.ordinal()] == 1) {
-                (new Thread(
-                        new FilterRunnerZero(
-                                filterQ,
-                                w.wav,
-                                outCos,
-                                framesPerSlice,
-                                clipLevel, fBest,
-                                w.frameRate,
-                                Math.PI/2,
-                                cdl))).start();
-            }
-            else {
-                (new Thread(
-                        new FilterRunner(
-                                filterQ,
-                                w.wav,
-                                outCos,
-                                framesPerSlice,
-                                clipLevel, fBest,
-                                w.frameRate,
-                                Math.PI/2,
-                                cdl))).start();
-            }
-
-            cdl.await();
-
-            final double sigma = GerkeLib.getDoubleOpt(O_SIGMA);
-            final double eps = 0.01; // PARAMETER eps
-
-            final int gaussSize = roundToOdd((sigma/tsLength)*Math.sqrt(-2*Math.log(eps)));
-            new Debug("nof. gaussian terms: %d", gaussSize);
-
-            final double[] ringBuffer = new double[gaussSize];
-            final double[] expTable = new double[gaussSize];
-
-            for (int j = 0; j < gaussSize; j++) {
-                int m = (gaussSize-1)/2;
-                expTable[j] = Math.exp(-squared((j-m)*tsLength/sigma)/2);
-            }
-
-            int sigSize = 0;
-            for (int q = 0; true; q++) {      //  q is sig[] index
-
-                if (w.wav.length - q*framesPerSlice < framesPerSlice) {
-                    break;
-                }
-
-        		int ringIndex = q % gaussSize;
-        		ringBuffer[ringIndex] = Math.sqrt(outSin[q]*outSin[q] + outCos[q]*outCos[q]);
-        		int rr = ringIndex;
-        		double ss = 0.0;
-        		for (int ii = 0; ii < gaussSize; ii++) {
-        			ss += expTable[ii]*ringBuffer[rr];
-        			rr = rr+1 == gaussSize ? 0 : rr+1;
-        		}
-        		sig[q] = ss/gaussSize;
-        		sigSize = q+1;
-            }
-            new Info("filtering took ms: %d", System.currentTimeMillis() - tBegin);
+            
+            
+            
+            final CwDetector detector = new CwBasicImpl(
+            		nofSlices,
+            		w,
+            		tuMillis,
+            		framesPerSlice,
+            		tsLength
+            		);
+            
+            
+            
+            final Signal signal = detector.getSignal();
+            final double[] sig = signal.sig;
+            final int sigSize = signal.sig.length;
+            
+            final int fBest = signal.fBest;
+            final int clipLevel = signal.clipLevel;
+            
 
             final int ampMap = GerkeLib.getIntOpt(O_AMP_MAPPING);
             applyAmplitudeMapping(sig, sigSize, ampMap);
@@ -1844,10 +1694,6 @@ new String[]{
             new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
 
 
-            final double saRaw = signalAverage(fBest, framesPerSlice, Short.MAX_VALUE, w);
-            new Debug("signal average: %f", saRaw);
-            final double sa = signalAverage(fBest, framesPerSlice, clipLevel, w);
-            new Debug("signal average clipped: %f", sa);
 
 
 
@@ -1855,6 +1701,8 @@ new String[]{
 
 
             // ================ Phase plot, optional
+            
+            // TODO .. not supported by all detectors
 
             if (GerkeLib.getFlag(O_PPLOT)) {
                 phasePlot(fBest, nofSlices, framesPerSlice, w, clipLevel,
@@ -3803,7 +3651,7 @@ new String[]{
         return result;
     }
 
-    private static double squared(double x) {
+    public static double squared(double x) {
         return x*x;
     }
 
@@ -3876,76 +3724,6 @@ new String[]{
         }
     }
 
-    /**
-     * Estimate best frequency. Optionally produce a plot.
-     *
-     * @param frameRate
-     * @param framesPerSlice
-     * @return
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    private static int findFrequency(int framesPerSlice, Wav w) throws IOException, InterruptedException {
-
-        final int nofSubOptions = GerkeLib.getOptMultiLength(O_FRANGE);
-        if (nofSubOptions != 2) {
-            new Death("expecting 2 suboptions, got: %d", nofSubOptions);
-
-        }
-        final int f0 = GerkeLib.getIntOptMulti(O_FRANGE)[0];
-        final int f1 = GerkeLib.getIntOptMulti(O_FRANGE)[1];
-        new Debug("search for frequency in range: %d to %d", f0, f1);
-
-        final SortedMap<Integer, Double> pairs =
-                GerkeLib.getFlag(O_FPLOT) ? new TreeMap<Integer, Double>() : null;
-
-        // search in steps of 10 Hz, PARAMETER
-        final int fStepCoarse = 10;
-
-        int fBest = -1;
-        double rSquaredSumBest = -1.0;
-        for (int f = f0; f <= f1; f += fStepCoarse) {
-            final double rSquaredSum = r2Sum(f, framesPerSlice, w);
-            if (pairs != null) {
-                //fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
-                pairs.put(Integer.valueOf(f), rSquaredSum);
-            }
-            if (rSquaredSum > rSquaredSumBest) {
-                rSquaredSumBest = rSquaredSum;
-                fBest = f;
-            }
-        }
-
-        // refine, steps of 1 Hz, PARAMETER
-        final int fStepFine = 1;
-        final int g0 = iMax(0, fBest - 18*fStepFine);
-        final int g1 = fBest + 18*fStepFine;
-        for (int f = g0; f <= g1; f += fStepFine) {
-            final double rSquaredSum = r2Sum(f, framesPerSlice, w);
-            if (pairs != null) {
-                // fPlot.ps.println(String.format("%d %f", f, rSquaredSum));
-                pairs.put(Integer.valueOf(f), rSquaredSum);
-            }
-            if (rSquaredSum > rSquaredSumBest) {
-                rSquaredSumBest = rSquaredSum;
-                fBest = f;
-            }
-        }
-
-        if (fBest == g0 || fBest == g1) {
-            new Warning("frequency may not be optimal, try a wider range");
-        }
-
-        if (pairs != null) {
-            final PlotCollector fPlot = new PlotCollector();
-            for(Entry<Integer, Double> e : pairs.entrySet()) {
-                fPlot.ps.println(String.format("%d %f", e.getKey().intValue(), e.getValue()));
-            }
-            fPlot.plot(new Mode[] {Mode.POINTS}, 1);
-        }
-
-        return fBest;
-    }
 
     private static void showClData() {
         if (GerkeLib.getIntOpt(O_VERBOSE) >= 2) {
@@ -4079,108 +3857,8 @@ new String[]{
     }
 
 
-    private static double r2Sum(int f, int framesPerSlice, Wav w) {
 
-        double rSquaredSum = 0.0;
-        final TrigTable trigTable = new TrigTable(f, framesPerSlice, w.frameRate);
-        for (int q = 0; true; q++) {
-            if (w.wav.length - q*framesPerSlice < framesPerSlice) {
-                return rSquaredSum;
-            }
-            double sinAcc = 0.0;
-            double cosAcc = 0.0;
-            for (int j = 0; j < framesPerSlice; j++) {
-                final short amp = w.wav[q*framesPerSlice + j];
-                sinAcc += trigTable.sin(j)*amp;
-                cosAcc += trigTable.cos(j)*amp;
-            }
-            final double rSquared = sinAcc*sinAcc + cosAcc*cosAcc;
-            rSquaredSum += rSquared;
-        }
-    }
 
-    /**
-     * Iteratively determine a clipping level.
-     *
-     * @param f
-     * @param framesPerSlice
-     * @param w
-     * @return
-     */
-    private static int getClipLevel(int f, int framesPerSlice, Wav w) {
-
-        final double delta = P_CLIP_PREC*(1.0 - P_CLIP_STRENGTH);
-
-        final double uNoClip = signalAverage(f, framesPerSlice, Short.MAX_VALUE, w);
-        new Debug("clip level: %d, signal: %f", Short.MAX_VALUE, uNoClip);
-
-        int hi = Short.MAX_VALUE;
-        int lo = 0;
-        for (; true;) {
-
-            final int midpoint = (hi + lo)/2;
-            if (midpoint == lo) {
-                // cannot improve more
-                return hi;
-            }
-
-            double uNew = signalAverage(f, framesPerSlice, midpoint, w);
-            new Trace("clip level: %d, signal: %f", midpoint, uNew);
-
-            if ((1 - P_CLIP_STRENGTH)*uNoClip > uNew && uNew > (1 - P_CLIP_STRENGTH - delta)*uNoClip) {
-                new Debug("using clip level: %d", midpoint);
-                return midpoint;
-            }
-            else if (uNew >= (1 - P_CLIP_STRENGTH)*uNoClip) {
-                // need to clip more
-                hi = midpoint;
-            }
-            else {
-                // need to clip less
-                lo = midpoint;
-            }
-        }
-    }
-
-    /**
-     * Average signal over entire capture, at frequency f. The time slice
-     * length is (framesPerSlice/frameRate)*1000 (ms). Clipping is applied.
-     *
-     * @param f
-     * @param frameRate
-     * @param framesPerSlice
-     * @return
-     */
-    private static double signalAverage(int f, int framesPerSlice, int clipLevel, Wav w) {
-
-        final TrigTable trigTable = new TrigTable(f, framesPerSlice, w.frameRate);
-
-        double rSum = 0.0;
-        int divisor = 0;
-        for (int q = 0; true; q++) {
-            if (w.wav.length - q*framesPerSlice < framesPerSlice) {
-                break;
-            }
-
-            double sinAcc = 0.0;
-            double cosAcc = 0.0;
-
-            for (int j = 0; j < framesPerSlice; j++) {
-                final int ampRaw = (int) w.wav[q*framesPerSlice + j];
-                final int amp = ampRaw < 0 ? iMax(ampRaw, -clipLevel) : iMin(ampRaw, clipLevel);
-                sinAcc += trigTable.sin(j)*amp;
-                cosAcc += trigTable.cos(j)*amp;
-            }
-
-            // this quantity is proportional to signal amplitude in time slice
-            final double r = Math.sqrt(sinAcc*sinAcc + cosAcc*cosAcc)/framesPerSlice;
-
-            rSum += framesPerSlice*r;
-            divisor += framesPerSlice;
-        }
-
-        return rSum/divisor;
-    }
 
     private static double dMax(double a, double b) {
         return a > b ? a : b;
@@ -4190,15 +3868,15 @@ new String[]{
         return a < b ? a : b;
     }
 
-    private static int iMax(int a, int b) {
+    public static int iMax(int a, int b) {
         return a > b ? a : b;
     }
 
-    private static int iMin(int a, int b) {
+    public static int iMin(int a, int b) {
         return a < b ? a : b;
     }
 
-    private static int roundToOdd(double x) {
+    public static int roundToOdd(double x) {
         final int k = (int) Math.round(x);
         return k % 2 == 0 ? k+1 : k;
     }
