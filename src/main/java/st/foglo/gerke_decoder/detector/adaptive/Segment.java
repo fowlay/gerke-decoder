@@ -7,6 +7,8 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class Segment {
 	
+	final CwAdaptiveImpl parent;
+	
 	final Wav w;
 	
 	final int base;
@@ -22,7 +24,10 @@ public final class Segment {
 	
 	final double strength;
 
-	public Segment(Wav w, int base, int framesPerSlice, int cohFactor, int segFactor) {
+	public Segment(CwAdaptiveImpl parent,
+			Wav w, int base, int framesPerSlice, int cohFactor, int segFactor) {
+		this.parent = parent;
+		
 		this.w = w;
 		this.base = base;
 		
@@ -34,16 +39,14 @@ public final class Segment {
 		this.midpoint = base + (size % 2 == 1 ? size/2 : size/2 - 1);
 		
 		final double[] f = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_FRANGE);
+		
+		// TODO, parameters: what is a reasonable setting?
 		this.bestFrequency = bestFrequency(f[0], f[1], 8, 5);
 		
-		this.strength = getStrength(bestFrequency);
+		this.strength = sumOverSegment(bestFrequency);
 		
 		new GerkeLib.Info("seg no: %d, f: %f, strength: %f", base/size, bestFrequency, strength);
 	}
-	
-	
-
-
 
 	/**
 	 * Best frequency in this segment
@@ -103,7 +106,6 @@ public final class Segment {
 		return uFinal;
 	}
 
-
 	/**
 	 * Sum signal over entire segment, trying frequency u
 	 * @param u
@@ -119,21 +121,16 @@ public final class Segment {
 			double sumSinInChunk = 0.0;
 			
 			// TODO, consider a trig table pool since frequencies will be reused
-			final TrigTable trigTable = new TrigTable(u, chunkSize, w.frameRate);
+			final TrigTable trigTable = //new TrigTable(u, chunkSize, w.frameRate);
+					parent.getTrigTable(u);
 			for (int k = 0; k < chunkSize; k++) {     // sum in chunk
 				final int wIndex = base + i*chunkSize + k;
 				sumSinInChunk += trigTable.sin(k)*w.wav[wIndex];
 			    sumCosInChunk += trigTable.cos(k)*w.wav[wIndex];
 			}
-			sumSinInChunk = sumSinInChunk/chunkSize;
-			sumCosInChunk = sumCosInChunk/chunkSize;
-			result += Math.sqrt(sumSinInChunk*sumSinInChunk + sumCosInChunk*sumCosInChunk);
+			result += Math.sqrt(sumSinInChunk*sumSinInChunk + sumCosInChunk*sumCosInChunk)/chunkSize;
 			
 		}
-		return result;
-	}
-	
-	private double getStrength(double u) {
-		return sumOverSegment(u);
+		return result/(size/chunkSize);
 	}
 }

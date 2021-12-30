@@ -914,15 +914,20 @@ new String[]{
             
             if (GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.DETECTOR.ordinal()] == 2) {
             	
-            	// warn if specified frequency .. not expected
+            	// warn if specified frequency .. not expected by this detector
             	
             	detector = new CwAdaptiveImpl(
             			nofSlices,
             			w,
             			tuMillis,
             			framesPerSlice,
-            			4,                         // TODO, parameter
-            			100,                       // TODO, parameter
+            			
+            			// TODO, parameter, 4 or 5 seems a reasonable value
+            			5,   
+            			
+            			// TODO, parameter, unclear if it is very critical
+            			100,
+            			
             			tsLength
             			);
             }
