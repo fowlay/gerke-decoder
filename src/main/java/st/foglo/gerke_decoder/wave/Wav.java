@@ -18,19 +18,18 @@ import st.foglo.gerke_decoder.GerkeLib.Info;
  */
 public final class Wav {
 
-    final String file;   // file path
+    final String file;                   // file path
 
     final AudioInputStream ais;
     final AudioFormat af;
     public final long frameLength;
 
-    public final int frameRate; // frames/s
-    final int offset;    // offset (s)
-    public final int offsetFrames;   // offset as nof. frames
-    public final int length;    // length (s)
-    public final short[] wav;   // signal values
-
-    public final int nofFrames;
+    public final int frameRate;          // frames/s
+    private final int offset;            // offset (s)
+    public final int offsetFrames;       // offset as nof. frames
+    public final int length;             // length (s)
+    public final short[] wav;            // signal values
+    public final int nofFrames;          // nof. frames == length of wav
 
     public Wav() throws IOException, UnsupportedAudioFileException {
 

@@ -6,7 +6,7 @@ public final class TrigTable {
     final double[] sines;
     final double[] coses;
 
-    public TrigTable(int f, int nFrames, int frameRate) {
+    public TrigTable(double f, int nFrames, int frameRate) {
         this.sines = new double[nFrames];
         this.coses = new double[nFrames];
         for (int j = 0; j < nFrames; j++) {

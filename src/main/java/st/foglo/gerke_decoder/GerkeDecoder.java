@@ -18,8 +18,6 @@ package st.foglo.gerke_decoder;
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import java.io.IOException;
-import java.nio.charset.Charset;
-import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +33,9 @@ import java.util.TreeSet;
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
+import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
 import st.foglo.gerke_decoder.detector.cw_basic.CwBasicImpl;
+import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotCollector;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
@@ -100,7 +100,8 @@ public final class GerkeDecoder {
         PHASELOCKED,
         PLWIDTH,
         DIP_MERGE_LIM,
-        DIP_STRENGTH_MIN
+        DIP_STRENGTH_MIN,
+        DETECTOR
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -274,7 +275,8 @@ public final class GerkeDecoder {
                         ",0"+                       // phase-locked: 0=off, 1=on
                         ",0.8"+                     // phase averaging, relative to TU
                         ",0.75"+                    // merge-dips limit
-                        ",0.7"                      // dip strength min
+                        ",0.7"+                     // dip strength min
+                        ",1"                        // detector, 1: basic, 2: adaptive                         
                 );
 
         new HelpOption(
@@ -625,86 +627,6 @@ new String[]{
     }
 
 
-    static class Formatter {
-        StringBuilder sb = new StringBuilder();
-        int pos = 0;
-        final MessageDigest md;
-        final byte[] sp = new byte[]{' '};
-
-        Formatter() throws NoSuchAlgorithmException {
-            md = MessageDigest.getInstance("MD5");
-        }
-
-        private static final int lineLength = 72;
-
-        /**
-         * @param wordBreak
-         * @param text
-         * @param timestamp        -1 for no timestamp
-         */
-        void add(boolean wordBreak, String text, int timestamp) {
-
-            //new Info("word break: %b, text: '%s'", wordBreak, text);
-
-            sb.append(text);
-
-            if (wordBreak) {
-                md.update(sp);
-                md.update(sb.toString().getBytes(Charset.forName("UTF-8")));
-            }
-
-            if (timestamp != -1) {
-                sb.append(String.format(" /%d/", timestamp));
-            }
-
-            if (wordBreak) {
-                if (pos + 1 + sb.length() > lineLength) {
-                    newLine();
-                    System.out.print(sb.toString());
-                    pos = sb.length();
-                }
-                else if (pos > 0) {
-                    System.out.print(" ");
-                    System.out.print(sb.toString());
-                    pos += 1 + sb.length();
-                }
-                else {
-                    System.out.print(sb.toString());
-                    pos = sb.length();
-                }
-                sb = new StringBuilder();
-            }
-        }
-
-        int getPos() {
-            return pos;
-        }
-
-        void newLine() {
-            System.out.println();
-            pos = 0;
-        }
-
-        String getDigest() {
-            final byte[] by = md.digest();
-            final StringBuilder b = new StringBuilder();
-            for (int i = 0; i < by.length; i++) {
-                b.append(String.format("%02x", by[i] < 0 ? by[i]+256 : by[i]));
-            }
-            return b.toString();
-        }
-
-        void flush() {
-            if (sb.length() > 0) {
-                add(true, "", -1);
-            }
-        }
-    }
-
-
-
-
-
     static class Trans {
         final int q;
         final boolean rise;
@@ -988,21 +910,38 @@ new String[]{
 
             final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
             
-            final CwDetector detector = new CwBasicImpl(
-            		nofSlices,
-            		w,
-            		tuMillis,
-            		framesPerSlice,
-            		tsLength,
-            		fSpecified
-            		);
+            final CwDetector detector;
+            
+            if (GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.DETECTOR.ordinal()] == 2) {
+            	
+            	// warn if specified frequency .. not expected
+            	
+            	detector = new CwAdaptiveImpl(
+            			nofSlices,
+            			w,
+            			tuMillis,
+            			framesPerSlice,
+            			4,                         // TODO, parameter
+            			100,                       // TODO, parameter
+            			tsLength
+            			);
+            }
+            else {
+            	detector = new CwBasicImpl(
+            			nofSlices,
+            			w,
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			fSpecified
+            			);
+            }
 
             final Signal signal = detector.getSignal();
             final double[] sig = signal.sig;
             final int sigSize = signal.sig.length;
             
-            final int fBest = signal.fBest;
-            final int clipLevel = signal.clipLevel;
+
             
 
             final int ampMap = GerkeLib.getIntOpt(O_AMP_MAPPING);
@@ -1052,12 +991,18 @@ new String[]{
             new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
 
             // ================ Phase plot, optional
-            
-            // TODO .. not supported by all detectors
+            // not supported by all detectors
 
             if (GerkeLib.getFlag(O_PPLOT)) {
-                phasePlot(fBest, nofSlices, framesPerSlice, w, clipLevel,
-                        sig, level, levelLog, flo, cei, decoder, ampMap);
+            	if (signal.fBest == 0) {
+            		new Warning("phase plot not supported by this decoder");
+            	}
+            	else {
+            		phasePlot(signal.fBest, nofSlices, framesPerSlice,
+            				w, signal.clipLevel,
+            				sig, level, levelLog,
+            				flo, cei, decoder, ampMap);
+            	}
             }
 
             // ============== identify transitions
