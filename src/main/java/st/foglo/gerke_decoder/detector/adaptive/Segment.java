@@ -23,6 +23,8 @@ public final class Segment {
 	final double bestFrequency;
 	
 	final double strength;
+	
+	final int clipLevel;
 
 	public Segment(CwAdaptiveImpl parent,
 			Wav w, int base, int framesPerSlice, int cohFactor, int segFactor) {
@@ -46,6 +48,8 @@ public final class Segment {
 		this.strength = sumOverSegment(bestFrequency);
 		
 		new GerkeLib.Info("seg no: %d, f: %f, strength: %f", base/size, bestFrequency, strength);
+		
+		this.clipLevel = clipLevelInSegment();
 	}
 
 	/**
@@ -132,5 +136,58 @@ public final class Segment {
 			
 		}
 		return result/(size/chunkSize);
+	}
+	
+	private int clipLevelInSegment() {
+		final int segIndex = base/(segFactor*framesPerSlice*cohFactor);
+		
+		// Heuristic parameter 50
+		double clipLevelHigh = 50*strength;
+		
+		// Reduce cliplevel until some clipping starts to occur
+		
+		//final double acceptableLoss = 0.02;   // heuristic parameter, TODO
+		final double acceptableLoss = 0.01;   // heuristic parameter, TODO
+		
+		for (double x = clipLevelHigh; true; x *= 0.7) {
+			final double clipAmount = signalLossAmount(x);
+			if (clipAmount > acceptableLoss) {
+				for (double y = 1.05*x; true; y *= 1.05) {
+					final double clipAmountInner = signalLossAmount(y);
+					if (clipAmountInner <= acceptableLoss) {
+						new GerkeLib.Debug("[%d] accepted clip level: % f, amount: %f", segIndex, y, clipAmountInner);
+						return (int) Math.round(y);
+					}
+					new GerkeLib.Debug("[%d] incr clip level: % f, amount: %f", segIndex, y, clipAmountInner);
+				}
+			}
+			new GerkeLib.Debug("[%d] decr clip level: % f, amount: %f", segIndex, x, clipAmount);
+		}
+	}
+	
+	private double signalLossAmount(double x) {
+		final int chunkSize = framesPerSlice * cohFactor;
+		final int clipLevel = (int) Math.round(x);
+		double sumClipped = 0.0;
+		double sum = 0.0;
+		final TrigTable trigTable = parent.getTrigTable(bestFrequency);
+		for (int k = 0; k < segFactor; k++) { // iterate over chunks
+			double sumSin = 0.0;
+			double sumCos = 0.0;
+			double sumSinClipped = 0.0;
+			double sumCosClipped = 0.0;
+			for (int i = 0; i < chunkSize; i++) {
+				final int wIndex = base + k * chunkSize + i;
+				final int wRaw = w.wav[wIndex];
+				final int wClipped = wRaw > clipLevel ? clipLevel : wRaw < -clipLevel ? -clipLevel : wRaw;
+				sumSin += trigTable.sin(i) * wRaw;
+				sumCos += trigTable.cos(i) * wRaw;
+				sumSinClipped += trigTable.sin(i) * wClipped;
+				sumCosClipped += trigTable.cos(i) * wClipped;
+			}
+			sum += Math.sqrt(sumSin * sumSin + sumCos * sumCos);
+			sumClipped += Math.sqrt(sumSinClipped * sumSinClipped + sumCosClipped * sumCosClipped);
+		}
+		return 1.0 - sumClipped / sum;
 	}
 }

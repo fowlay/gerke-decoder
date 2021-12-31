@@ -80,12 +80,18 @@ public final class CwAdaptiveImpl implements CwDetector {
 		final int sigSize = nofSlices;
 		
 		final double[] sig = new double[sigSize];
-		final int clipLevel = computeClipLevel(strengths);
-		new GerkeLib.Info("+++ using clip level: %d", clipLevel);
+		//final int clipLevel = computeClipLevel(strengths);
+		//new GerkeLib.Info("+++ using clip level: %d", clipLevel);
 		
+
+
 		for (int q = 0; q < sigSize; q++) {
 			final double u = getFreq(q);
-			sig[q] = getStrength(q, u, clipLevel);
+			
+			final int segIndex = q/(framesPerSlice*cohFactor*segFactor);
+			final Segment seg = segments.get(segIndex);
+			
+			sig[q] = getStrength(q, u, seg.clipLevel);
 			
 			if (q % 1000 == 999) {
 				new GerkeLib.Info("sig: %f", sig[q]);
@@ -184,11 +190,12 @@ public final class CwAdaptiveImpl implements CwDetector {
 	}
 	
 	/**
+	 * Maybe not neeedeed
 	 * Heuristic; unsafe because of zero divide etc
 	 * @param strengths
 	 * @return
 	 */
-	private int computeClipLevel(NavigableSet<Double> strengths) {
+	 int computeClipLevel(NavigableSet<Double> strengths) {
 		final int size = strengths.size();
 		final int c1 = (int) Math.round(0.92*size);
 		final int c2 = (int) Math.round(0.97*size);
@@ -205,6 +212,79 @@ public final class CwAdaptiveImpl implements CwDetector {
 				nofStrength++;
 			}
 		}
-		return (int) Math.round(3.2*sum/nofStrength);
+		// Heuristic parameter 50
+		double clipLevelHigh = 50*sum/nofStrength;
+		
+		// Reduce cliplevel until some clipping starts to occur
+		
+		//final double acceptableLoss = 0.02;   // heuristic parameter, TODO
+		final double acceptableLoss = 0.01;   // heuristic parameter, TODO
+		
+		for (double x = clipLevelHigh; true; x *= 0.7) {
+			final double clipAmount = signalLossAmount(x);
+			if (clipAmount > acceptableLoss) {
+				for (double y = 1.05*x; true; y *= 1.05) {
+					final double clipAmountInner = signalLossAmount(y);
+					if (clipAmountInner <= acceptableLoss) {
+						new GerkeLib.Debug("accepted clip level: % f, amount: %f", y, clipAmountInner);
+						return (int) Math.round(y);
+					}
+					new GerkeLib.Debug("incr clip level: % f, amount: %f", y, clipAmountInner);
+				}
+			}
+			new GerkeLib.Debug("decr clip level: % f, amount: %f", x, clipAmount);
+		}
+	}
+
+	// TODO, maybe not needed
+	double clipAmount(double x) {
+		int clipLevel = (int) Math.round(x);
+		double sumSqClipped = 0.0;
+		double sumSq = 0.0;
+		
+		for (int i = 0; i < w.wav.length; i++) {
+			final int s = w.wav[i];
+			final int sc = s > clipLevel ? clipLevel : s < -clipLevel ? -clipLevel : s; 
+			sumSq += ((double) s)*s;
+			sumSqClipped += ((double) sc)*sc;
+		}
+		return 1.0 - sumSqClipped/sumSq;
+	}
+	
+	private double signalLossAmount(double x) {
+		final int chunkSize = framesPerSlice*cohFactor;
+		final int clipLevel = (int) Math.round(x);
+		
+		double sumClipped = 0.0;
+		double sum = 0.0;
+		
+		for (Segment seg : segments) {
+			
+			final double u = seg.bestFrequency;
+			final TrigTable trigTable = getTrigTable(u);
+			
+			for (int k = 0; k < segFactor; k++) {   // iterate over chunks
+				
+				double sumSin = 0.0;
+				double sumCos = 0.0;
+				double sumSinClipped = 0.0;
+				double sumCosClipped = 0.0;
+
+				for (int i = 0; i < chunkSize; i++) {
+					final int wIndex = seg.base + k*chunkSize + i;
+					final int wRaw = w.wav[wIndex];
+					final int wClipped = wRaw > clipLevel ? clipLevel :
+						wRaw < -clipLevel ? -clipLevel :
+							wRaw;
+					sumSin += trigTable.sin(i)*wRaw;
+					sumCos += trigTable.cos(i)*wRaw;
+					sumSinClipped += trigTable.sin(i)*wClipped;
+					sumCosClipped += trigTable.cos(i)*wClipped;
+				}
+				sum += Math.sqrt(sumSin*sumSin + sumCos*sumCos);
+				sumClipped += Math.sqrt(sumSinClipped*sumSinClipped + sumCosClipped*sumCosClipped);
+			}
+		}
+		return 1.0 - sumClipped/sum;
 	}
 }
