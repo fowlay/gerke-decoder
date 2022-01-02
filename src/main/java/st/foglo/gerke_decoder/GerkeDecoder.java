@@ -30,6 +30,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeLib.*;
+import st.foglo.gerke_decoder.decoder.Decoder;
 import st.foglo.gerke_decoder.decoder.Node;
 import st.foglo.gerke_decoder.decoder.Trans;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
@@ -43,6 +44,7 @@ import st.foglo.gerke_decoder.decoder.pattern_match.CharData;
 import st.foglo.gerke_decoder.decoder.pattern_match.CharTemplate;
 import st.foglo.gerke_decoder.decoder.sliding_line.Dash;
 import st.foglo.gerke_decoder.decoder.sliding_line.Dot;
+import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLineDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.ToneBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDash;
@@ -73,7 +75,7 @@ public final class GerkeDecoder {
      * Tone/silence threshold per decoder. Values were determined by
      * decoding some recordings with good signal strength.
      */
-    static final double[] THRESHOLD = {IGNORE,
+    public static final double[] THRESHOLD = {IGNORE,
             0.524, 0.64791, 0.524, 0.524};
 
     /**
@@ -81,7 +83,7 @@ public final class GerkeDecoder {
      * value is the logarithm of the threshold value, expressed as
      * a fraction of the ceiling level.
      */
-    static final double[] THRESHOLD_BY_LOG = {IGNORE,
+    public static final double[] THRESHOLD_BY_LOG = {IGNORE,
             Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.677)};
 
     static final String O_VERSION = "version";
@@ -97,7 +99,7 @@ public final class GerkeDecoder {
     static final String O_DECODER = "decoder";
     static final String O_AMP_MAPPING = "amp-mapping";
     static final String O_LEVEL = "level";
-    static final String O_TSTAMPS = "timestamps";
+    public static final String O_TSTAMPS = "timestamps";
     public static final String O_FPLOT = "frequency-plot";
     static final String O_PLINT = "plot-interval";
     static final String O_PLOT = "plot";
@@ -126,7 +128,7 @@ public final class GerkeDecoder {
     		"least squares",
     		"lsq2"};
     
-    enum decoderIndex {
+    public enum decoderIndex {
     	ZERO,
         TONE_SILENCE,
         PATTERN_MATCHING,
@@ -140,21 +142,21 @@ public final class GerkeDecoder {
      * Model value: sqrt(3*7) = 4.58
      * words break <---------+---------> words stick
      */
-    static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.5, 5.6};
+    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.5, 5.6};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 2.2};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 2.2};  // 2.3??
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.7};
+    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.7};
 
     /**
      * Tones longer than this are interpreted as two dashes
@@ -739,7 +741,11 @@ new String[]{
                         levelLog,
                         wordSpaceLimit,
                         charSpaceLimit,
-                        framesPerSlice, w.frameRate, w.offsetFrames, plotLimits, offset);
+                        framesPerSlice,
+                        w.frameRate,
+                        w.offsetFrames,
+                        plotLimits,
+                        offset);
             }
             else if (decoder == decoderIndex.DIPS_FINDING.ordinal()) {
                 decodeByGaps(
@@ -780,28 +786,50 @@ new String[]{
                             );
             }
             else if (decoder == decoderIndex.LSQ2.ordinal()) {
-                decodeLsq2(
-                        formatter,
-                        plotEntries,
-                        sig,
-                        cei,
-                        flo,
-                        sigSize,
-                        
-                        offset,
-                        tsLength,
-                        tuMillis,
-                        
-                        plotLimits,
-                        framesPerSlice,
-                        w.frameRate,
-                        w.offsetFrames,
-                        ceilingMax,
-                        
-                        ampMap,
-                        level, levelLog
-                        );
-        }
+            	final Decoder dec = new SlidingLineDecoder(
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            		    plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			sigSize,
+            			ampMap,
+            			cei,
+            			flo,
+            			level,
+            		    ceilingMax
+            			
+            			);
+            	dec.execute();
+            }
+//            else if (decoder == decoderIndex.LSQ2.ordinal()) {
+//                decodeLsq2(
+//                        formatter,
+//                        plotEntries,
+//                        sig,
+//                        cei,
+//                        flo,
+//                        sigSize,
+//                        
+//                        offset,
+//                        tsLength,
+//                        tuMillis,
+//                        
+//                        plotLimits,
+//                        framesPerSlice,
+//                        w.frameRate,
+//                        w.offsetFrames,
+//                        ceilingMax,
+//                        
+//                        ampMap,
+//                        level, levelLog
+//                        );
+//			}
             else {
                 new Death("no such decoder: '%d'", decoder);
             }
@@ -1558,172 +1586,172 @@ new String[]{
         tc.chCus += p.nTus;
     }
 
-    private static void decodeLsq2(
-            Formatter formatter,
-            PlotEntries plotEntries,
-            double[] sig,
-            double[] cei,
-            double[] flo,
-            int sigSize,
-            
-            int offset,
-            double tsLength,
-            double tuMillis,
-            
-            double[] plotLimits,
-            int framesPerSlice,
-            int frameRate,
-            int offsetFrames,
-            double ceilingMax,
-            
-    		int ampMap,
-    		double level,
-    		double levelLog) {
+//    private static void decodeLsq2(
+//            Formatter formatter,
+//            PlotEntries plotEntries,
+//            double[] sig,
+//            double[] cei,
+//            double[] flo,
+//            int sigSize,
+//            
+//            int offset,
+//            double tsLength,
+//            double tuMillis,
+//            
+//            double[] plotLimits,
+//            int framesPerSlice,
+//            int frameRate,
+//            int offsetFrames,
+//            double ceilingMax,
+//            
+//    		int ampMap,
+//    		double level,
+//    		double levelLog) {
+//
+//    	final int decoder = decoderIndex.LSQ2.ordinal();
+//
+//        int chCus = 0;
+//        int chTicks = 0;
+//        int spCusW = 0;
+//        int spTicksW = 0;
+//        int spCusC = 0;
+//        int spTicksC = 0;
+//
+//        final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
+//
+//        // in theory, 0.50 .. 0.40 works better
+//        final int jDotSmall = (int) Math.round(0.40/tsLength);
+//        final int jDot = jDotSmall;
+//
+//        final int jDash = (int) Math.round(1.5/tsLength);
+//
+//        final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
+//
+//        int highBegin = -999;
+//        boolean isHigh = false;
+//        double acc = 0.0;
+//        double accMax = 0.0;
+//        for (int k = 0 + jDash; k < sigSize - jDash; k++) {
+//        	
+//        	final double thr = threshold(decoder, ampMap, level, levelLog, flo[k], cei[k]);
+//        	
+//        	final TwoDoubles r = lsq(sig, k, jDot, wDot);
+//
+//        	final boolean high = testAndUpdate(r.a, thr);
+//
+//        	if (!isHigh && !high) {
+//        		continue;
+//        	}
+//        	else if (!isHigh && high) {
+//        		highBegin = k;
+//        		acc = r.a - thr;
+//        		accMax = cei[k] - thr;
+//        		isHigh = true;
+//        	}
+//        	else if (isHigh && high) {
+//        		acc += r.a - thr;
+//        		accMax += cei[k] - thr;
+//        	}
+//        	else if (isHigh && !high && ((k - highBegin)*tsLength < 0.15 || acc < 0.04*accMax)) {  // PARA PARA
+//        		// ignore very thin dot
+//        		isHigh = false;
+//        		highBegin = k;
+//        		acc = 0.0; accMax = 0.0;
+//        	}
+//        	else if (isHigh && !high &&
+//        			(k - highBegin)*tsLength < DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
+//        		// create Dot
+//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
+//        		dashes.put(Integer.valueOf(kMiddle),
+//        				new Dot(kMiddle, highBegin, k));
+//
+//        		isHigh = false;
+//        		acc = 0.0; accMax = 0.0;
+//        	}
+//        	else if (isHigh && !high) {
+//        		// create Dash
+//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
+//        		dashes.put(Integer.valueOf(kMiddle),
+//        				new Dash(kMiddle, highBegin, k, r.a));
+//        		// TODO r.a above maybe not used
+//
+//        		isHigh = false;
+//        		acc = 0.0; accMax = 0.0;
+//        	}
+//        }
+//
+//        Node p = Node.tree;
+//        int qCharBegin = -999999;
+//        Integer prevKey = null;
+//        for (Integer key : dashes.navigableKeySet()) {
+//
+//        	if (prevKey == null) {
+//        		qCharBegin = lsqToneBegin(key, dashes, jDot);
+//        	}
+//            if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) >
+//            WORD_SPACE_LIMIT[decoder]/tsLength) {
+//            	
+//            	//formatter.add(true, p.text, -1);
+//            	final int ts =
+//                        GerkeLib.getFlag(O_TSTAMPS) ?
+//                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
+//                formatter.add(true, p.text, ts);
+//                chCus += p.nTus;
+//                spCusW += 7;
+//                spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+//                
+//                p = Node.tree;
+//                final ToneBase tb = dashes.get(key);
+//                if (tb instanceof Dash) {
+//                	p = p.newNode("-");
+//                }
+//                else {
+//                	p = p.newNode(".");
+//                }
+//                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+//                qCharBegin = lsqToneBegin(key, dashes, jDot);
+//                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
+//            }
+//            else if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) > CHAR_SPACE_LIMIT[decoder]/tsLength) {
+//                formatter.add(false, p.text, -1);
+//                chCus += p.nTus;
+//                spCusC += 3;
+//                
+//                spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+//
+//                p = Node.tree;
+//                final ToneBase tb = dashes.get(key);
+//                if (tb instanceof Dash) {
+//                	p = p.newNode("-");
+//                }
+//                else {
+//                	p = p.newNode(".");
+//                }
+//                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+//                qCharBegin = lsqToneBegin(key, dashes, jDot);
+//                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
+//            }
+//            else {
+//            	final ToneBase tb = dashes.get(key);
+//            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
+//            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
+//            }
+//            prevKey = key;
+//        }
+//
+//        if (p != Node.tree) {
+//            formatter.add(true, p.text, -1);
+//            formatter.newLine();
+//            chCus += p.nTus;
+//            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+//        }
+//
+//        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
+//    }
 
-    	final int decoder = decoderIndex.LSQ2.ordinal();
-
-        int chCus = 0;
-        int chTicks = 0;
-        int spCusW = 0;
-        int spTicksW = 0;
-        int spCusC = 0;
-        int spTicksC = 0;
-
-        final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
-
-        // in theory, 0.50 .. 0.40 works better
-        final int jDotSmall = (int) Math.round(0.40/tsLength);
-        final int jDot = jDotSmall;
-
-        final int jDash = (int) Math.round(1.5/tsLength);
-
-        final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
-
-        int highBegin = -999;
-        boolean isHigh = false;
-        double acc = 0.0;
-        double accMax = 0.0;
-        for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-        	
-        	final double thr = threshold(decoder, ampMap, level, levelLog, flo[k], cei[k]);
-        	
-        	final TwoDoubles r = lsq(sig, k, jDot, wDot);
-
-        	final boolean high = testAndUpdate(r.a, thr);
-
-        	if (!isHigh && !high) {
-        		continue;
-        	}
-        	else if (!isHigh && high) {
-        		highBegin = k;
-        		acc = r.a - thr;
-        		accMax = cei[k] - thr;
-        		isHigh = true;
-        	}
-        	else if (isHigh && high) {
-        		acc += r.a - thr;
-        		accMax += cei[k] - thr;
-        	}
-        	else if (isHigh && !high && ((k - highBegin)*tsLength < 0.15 || acc < 0.04*accMax)) {  // PARA PARA
-        		// ignore very thin dot
-        		isHigh = false;
-        		highBegin = k;
-        		acc = 0.0; accMax = 0.0;
-        	}
-        	else if (isHigh && !high &&
-        			(k - highBegin)*tsLength < DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
-        		// create Dot
-        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-        		dashes.put(Integer.valueOf(kMiddle),
-        				new Dot(kMiddle, highBegin, k));
-
-        		isHigh = false;
-        		acc = 0.0; accMax = 0.0;
-        	}
-        	else if (isHigh && !high) {
-        		// create Dash
-        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-        		dashes.put(Integer.valueOf(kMiddle),
-        				new Dash(kMiddle, highBegin, k, r.a));
-        		// TODO r.a above maybe not used
-
-        		isHigh = false;
-        		acc = 0.0; accMax = 0.0;
-        	}
-        }
-
-        Node p = Node.tree;
-        int qCharBegin = -999999;
-        Integer prevKey = null;
-        for (Integer key : dashes.navigableKeySet()) {
-
-        	if (prevKey == null) {
-        		qCharBegin = lsqToneBegin(key, dashes, jDot);
-        	}
-            if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) >
-            WORD_SPACE_LIMIT[decoder]/tsLength) {
-            	
-            	//formatter.add(true, p.text, -1);
-            	final int ts =
-                        GerkeLib.getFlag(O_TSTAMPS) ?
-                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
-                formatter.add(true, p.text, ts);
-                chCus += p.nTus;
-                spCusW += 7;
-                spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-                
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
-                }
-                else {
-                	p = p.newNode(".");
-                }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            else if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) > CHAR_SPACE_LIMIT[decoder]/tsLength) {
-                formatter.add(false, p.text, -1);
-                chCus += p.nTus;
-                spCusC += 3;
-                
-                spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
-                }
-                else {
-                	p = p.newNode(".");
-                }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            else {
-            	final ToneBase tb = dashes.get(key);
-            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            prevKey = key;
-        }
-
-        if (p != Node.tree) {
-            formatter.add(true, p.text, -1);
-            formatter.newLine();
-            chCus += p.nTus;
-            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-        }
-
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
-    }
-
-    private static boolean testAndUpdate(double value, double thr) {
-		return value > thr;
-    }
+//    private static boolean testAndUpdate(double value, double thr) {
+//		return value > thr;
+//    }
     
     private static void decodeByLeastSquares(
             Formatter formatter,
@@ -2145,36 +2173,36 @@ new String[]{
         return k2 - k1 - reduction;
     }
     
-    private static int toneDist2(
-            Integer k1,
-            Integer k2,
-            NavigableMap<Integer, ToneBase> tones,
-            int jDash,
-            int jDot) {
-
-        final ToneBase t1 = tones.get(k1);
-        final ToneBase t2 = tones.get(k2);
-
-        
-        int reduction = 0;
-        
-        if (t1 instanceof Dot) {
-        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
-        }
-        else if (t1 instanceof Dash) {
-        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
-        }
-        
-        
-        if (t2 instanceof Dot) {
-        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
-        }
-        else if (t2 instanceof Dash) {
-        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
-        }
-
-        return k2 - k1 - reduction;
-    }
+//    private static int toneDist2(
+//            Integer k1,
+//            Integer k2,
+//            NavigableMap<Integer, ToneBase> tones,
+//            int jDash,
+//            int jDot) {
+//
+//        final ToneBase t1 = tones.get(k1);
+//        final ToneBase t2 = tones.get(k2);
+//
+//        
+//        int reduction = 0;
+//        
+//        if (t1 instanceof Dot) {
+//        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
+//        }
+//        else if (t1 instanceof Dash) {
+//        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
+//        }
+//        
+//        
+//        if (t2 instanceof Dot) {
+//        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
+//        }
+//        else if (t2 instanceof Dash) {
+//        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
+//        }
+//
+//        return k2 - k1 - reduction;
+//    }
 
     private static TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
 
