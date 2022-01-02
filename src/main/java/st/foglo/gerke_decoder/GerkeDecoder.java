@@ -2,7 +2,7 @@ package st.foglo.gerke_decoder;
 
 // gerke-decoder - translates Morse code audio to text
 //
-// Copyright (C) 2020-2021 Rabbe Fogelholm
+// Copyright (C) 2020-2022 Rabbe Fogelholm
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
 import java.util.Set;
@@ -31,6 +30,10 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeLib.*;
+import st.foglo.gerke_decoder.decoder.Node;
+import st.foglo.gerke_decoder.decoder.Trans;
+import st.foglo.gerke_decoder.decoder.pattern_match.CharData;
+import st.foglo.gerke_decoder.decoder.pattern_match.CharTemplate;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
@@ -47,8 +50,7 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
 
-    static final int HI = 10;
-    static final int LO = -35;
+
 
     public static final double TWO_PI = 2*Math.PI;
 
@@ -363,392 +365,6 @@ new String[]{
         }
     }
 
-
-    static class Node {
-        final String code;
-        final String text;
-        Node dash = null;
-        Node dot = null;
-        final int nTus;
-
-        Node(String text, String code) {
-            this.code = code;
-            Node x = tree;
-            int tuCount = 0;
-            for (int j = 0; j < code.length() - 1; j++) {
-
-                if (code.charAt(j) == '.') {
-                    x = x.dot;
-                    tuCount += 2;
-                }
-                else if (code.charAt(j) == '-') {
-                    tuCount += 4;
-                    x = x.dash;
-                }
-            }
-            if (code.length() > 0) {
-                if (code.charAt(code.length() - 1) == '.') {
-                    if (x.dot != null) {
-                        throw new RuntimeException(
-                                String.format("duplicate node: %s", code));
-                    }
-                    x.dot = this;
-                    tuCount += 1;
-                }
-                else if (code.charAt(code.length() - 1) == '-') {
-                    if (x.dash != null) {
-                        throw new RuntimeException(
-                                String.format("duplicate node: %s", code));
-                    }
-                    x.dash = this;
-                    tuCount += 3;
-                }
-            }
-            this.text = text == null ? "["+code+"]" : text;
-            this.nTus = tuCount;
-        }
-
-        synchronized Node newNode(String code) {
-            if (code.equals("-")) {
-                if (this.dash == null) {
-                    final String newCode = this.code + code;
-                    this.dash = new Node("[" + newCode + "]", newCode);
-                    return this.dash;
-                }
-                else {
-                    return this.dash;
-                }
-            }
-            else if (code.equals(".")) {
-                if (this.dot == null) {
-                    final String newCode = this.code + code;
-                    this.dot = new Node("[" + newCode + "]", newCode);
-                    return this.dot;
-                }
-                else {
-                    return this.dot;
-                }
-            }
-            else {
-                throw new IllegalArgumentException();
-            }
-        }
-    }
-
-    static final Node tree = new Node("", "");
-
-
-    static {
-        new Node("e", ".");
-        new Node("t", "-");
-
-        new Node("i", "..");
-        new Node("a", ".-");
-        new Node("n", "-.");
-        new Node("m", "--");
-
-        new Node("s", "...");
-        new Node("u", "..-");
-        new Node("r", ".-.");
-        new Node("w", ".--");
-        new Node("d", "-..");
-        new Node("k", "-.-");
-        new Node("g", "--.");
-        new Node("o", "---");
-
-        new Node("h", "....");
-        new Node("v", "...-");
-        new Node("f", "..-.");
-        new Node(encodeLetter(252), "..--");
-        new Node("l", ".-..");
-        new Node(encodeLetter(228), ".-.-");
-        new Node("p", ".--.");
-        new Node("j", ".---");
-        new Node("b", "-...");
-        new Node("x", "-..-");
-        new Node("c", "-.-.");
-        new Node("y", "-.--");
-        new Node("z", "--..");
-        new Node("q", "--.-");
-        new Node(encodeLetter(246), "---.");
-        new Node("ch", "----");
-
-        new Node(encodeLetter(233), "..-..");
-        new Node(encodeLetter(229), ".--.-");
-
-        new Node("0", "-----");
-        new Node("1", ".----");
-        new Node("2", "..---");
-        new Node("3", "...--");
-        new Node("4", "....-");
-        new Node("5", ".....");
-        new Node("6", "-....");
-        new Node("7", "--...");
-        new Node("8", "---..");
-        new Node("9", "----.");
-
-        new Node("/", "-..-.");
-
-        new Node("+", ".-.-.");
-
-        new Node(".", ".-.-.-");
-
-        new Node(null, "--..-");
-        new Node(",", "--..--");
-
-        new Node("=", "-...-");
-
-        new Node("-", "-....-");
-
-        new Node(":", "---...");
-        new Node(null, "-.-.-");
-        new Node(";", "-.-.-.");
-
-        new Node("(", "-.--.");
-        new Node(")", "-.--.-");
-
-        new Node("'", ".----.");
-
-        new Node(null, "..--.");
-        new Node("?", "..--..");
-
-        new Node(null, ".-..-");
-        new Node("\"", ".-..-.");
-
-        new Node("<AS>", ".-...");
-
-        new Node(null, "-...-.");
-        new Node("<BK>", "-...-.-");
-
-        new Node(null, "...-.");
-        new Node("<SK>", "...-.-");
-        new Node(null, "...-..");
-        new Node("$", "...-..-");
-
-        new Node(null, "-.-..");
-        new Node(null, "-.-..-");
-        new Node(null, "-.-..-.");
-        new Node("<CL>", "-.-..-..");
-
-        new Node(null, "...---");
-        new Node(null, "...---.");
-        new Node(null, "...---..");
-        new Node("<SOS>", "...---...");
-    }
-
-
-    static Map<Integer, CharTemplates> templs = new TreeMap<Integer, CharTemplates>();
-
-    static {
-        new CharTemplate("a", ".-");
-        new CharTemplate("b", "-...");
-        new CharTemplate("c", "-.-.");
-        new CharTemplate("d", "-..");
-        new CharTemplate("e", ".");
-        new CharTemplate("f", "..-.");
-        new CharTemplate("g", "--.");
-        new CharTemplate("h", "....");
-        new CharTemplate("i", "..");
-        new CharTemplate("j", ".---");
-        new CharTemplate("k", "-.-");
-        new CharTemplate("l", ".-..");
-        new CharTemplate("m", "--");
-        new CharTemplate("n", "-.");
-        new CharTemplate("o", "---");
-        new CharTemplate("p", ".--.");
-        new CharTemplate("q", "--.-");
-        new CharTemplate("r", ".-.");
-        new CharTemplate("s", "...");
-        new CharTemplate("t", "-");
-        new CharTemplate("u", "..-");
-        new CharTemplate("v", "...-");
-        new CharTemplate("w", ".--");
-        new CharTemplate("x", "-..-");
-        new CharTemplate("y", "-.--");
-        new CharTemplate("z", "--..");
-
-        new CharTemplate("1", ".----");
-        new CharTemplate("2", "..---");
-        new CharTemplate("3", "...--");
-        new CharTemplate("4", "....-");
-        new CharTemplate("5", ".....");
-        new CharTemplate("6", "-....");
-        new CharTemplate("7", "--...");
-        new CharTemplate("8", "---..");
-        new CharTemplate("9", "----.");
-        new CharTemplate("0", "-----");
-
-        new CharTemplate(encodeLetter(252), "..--");
-        new CharTemplate(encodeLetter(228), ".-.-");
-        new CharTemplate(encodeLetter(246), "---.");
-        new CharTemplate("ch", "----");
-        new CharTemplate(encodeLetter(233), "..-..");
-
-        new CharTemplate(encodeLetter(229), ".--.-");
-
-        new CharTemplate("/", "-..-.");
-        new CharTemplate("+", ".-.-.");
-        new CharTemplate(".", ".-.-.-");
-        new CharTemplate(null, "--..-");
-        new CharTemplate(",", "--..--");
-        new CharTemplate("=", "-...-");
-        new CharTemplate("-", "-....-");
-        new CharTemplate(null, ".-....-");
-        new CharTemplate(":", "---...");
-        new CharTemplate(null, "-.-.-");
-        new CharTemplate(";", "-.-.-.");
-        new CharTemplate("(", "-.--.");
-        new CharTemplate(")", "-.--.-");
-        new CharTemplate("'", ".----.");
-        new CharTemplate(null, "..--.");
-        new CharTemplate("?", "..--..");
-        new CharTemplate(null, ".-..-");
-        new CharTemplate("\"", ".-..-.");
-        new CharTemplate("<AS>", ".-...");
-        new CharTemplate(null, "-...-.");
-        new CharTemplate("<BK>", "-...-.-");
-        new CharTemplate(null, "...-.");
-        new CharTemplate("<SK>", "...-.-");
-        new CharTemplate(null, "...-..");
-        new CharTemplate("$", "...-..-");
-        new CharTemplate(null, "-.-..");
-        new CharTemplate(null, "-.-..-");
-        new CharTemplate(null, "-.-..-.");
-        new CharTemplate("<CL>", "-.-..-..");
-        new CharTemplate(null, "...---");
-        new CharTemplate(null, "...---.");
-        new CharTemplate(null, "...---..");
-        new CharTemplate("<SOS>", "...---...");
-    }
-
-
-    private static String encodeLetter(int i) {
-        return new String(new int[]{i}, 0, 1);
-    }
-
-
-    static class Trans {
-        final int q;
-        final boolean rise;
-        final double dipAcc;
-        final double spikeAcc;
-        final double ceiling;
-        final double floor;
-
-        Trans(int q, boolean rise, double ceiling, double floor) {
-            this(q, rise, -1.0, ceiling, floor);
-        }
-
-        Trans(int q, boolean rise, double sigAcc, double ceiling, double floor) {
-            this.q = q;
-            this.rise = rise;
-            this.ceiling = ceiling;
-            this.floor = floor;
-            if (rise) {
-                this.dipAcc = sigAcc;
-                this.spikeAcc = -1.0;
-            }
-            else {
-                this.spikeAcc = sigAcc;
-                this.dipAcc = -1.0;
-            }
-        }
-    }
-
-    static class CharTemplates {
-        final List<CharTemplate> list;
-
-        public CharTemplates(List<CharTemplate> list) {
-            this.list = list;
-        }
-    }
-
-
-    static class CharTemplate {
-        final int[] pattern;
-        final String text;
-
-        public CharTemplate(String text, String code) {
-
-            this.text = text == null ? "["+code+"]" : text;
-
-            int size = 0;
-            int count = 0;
-            for (char x : code.toCharArray()) {
-                count++;
-                if (x == '.') {
-                    size++;
-                }
-                else if (x == '-') {
-                    size += 3;
-                }
-            }
-            size += (count-1);
-            final Integer sizeKey = Integer.valueOf(size);
-
-            pattern = new int[size];
-            for (int k = 0; k < pattern.length; k++) {
-                pattern[k] = LO;
-            }
-
-            int index = 0;
-            for (char x : code.toCharArray()) {
-                if (x == '.') {
-                    pattern[index] = HI;
-                    index += 2;
-                }
-                else if (x == '-') {
-                    pattern[index] = HI;
-                    pattern[index+1] = HI;
-                    pattern[index+2] = HI;
-                    index += 4;
-                }
-            }
-
-            for (int i = 0; i < pattern.length; i++) {
-                if (pattern[i] != LO && pattern[i] != HI) {
-                    new Death("bad CharTemplate");  // impossible
-                }
-            }
-
-            final CharTemplates existing = templs.get(sizeKey);
-            if (existing == null) {
-                final List<CharTemplate> list = new ArrayList<CharTemplate>();
-                list.add(this);
-                templs.put(sizeKey, new CharTemplates(list));
-            }
-            else {
-                existing.list.add(this);
-            }
-        }
-    }
-
-    static class CharData {
-        List<Trans> transes;
-        Trans lastAdded = null;
-
-        public CharData() {
-            this.transes = new ArrayList<Trans>();
-        }
-
-        public CharData(Trans trans) {
-            this.transes = new ArrayList<Trans>();
-            add(trans);
-        }
-
-        void add(Trans trans) {
-            transes.add(trans);
-            lastAdded = trans;
-        }
-
-        boolean isComplete() {
-            return lastAdded.rise == false;
-        }
-
-        boolean isEmpty() {
-            return transes.isEmpty();
-        }
-    }
 
     static abstract class Dip implements Comparable<Dip> {
 
@@ -1404,7 +1020,7 @@ new String[]{
 
         boolean prevTone = false;
 
-        Node p = tree;
+        Node p = Node.tree;
 
         int spTicksW = 0;   // inter-word spaces: time-slice ticks
         int spCusW = 0;     // inter-word spaces: code units
@@ -1422,7 +1038,7 @@ new String[]{
             if (!prevTone && newTone) {
                 // silent -> tone
                 if (t == 0) {
-                    p = tree;
+                    p = Node.tree;
                     qCharBegin = trans[t].q;
                 }
                 else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
@@ -1441,7 +1057,7 @@ new String[]{
                     chCus += p.nTus;
                     qCharBegin = trans[t].q;
 
-                    p = tree;
+                    p = Node.tree;
                 }
                 else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
                     formatter.add(false, p.text, -1);
@@ -1452,7 +1068,7 @@ new String[]{
                     chCus += p.nTus;
                     qCharBegin = trans[t].q;
 
-                    p = tree;
+                    p = Node.tree;
                 }
             }
             else if (prevTone && !newTone) {
@@ -1472,14 +1088,14 @@ new String[]{
             prevTone = newTone;
         }
 
-        if (p != tree) {
+        if (p != Node.tree) {
             formatter.add(true, p.text, -1);
             formatter.newLine();
 
             chTicks += trans[transIndex-1].q - qCharBegin;
             chCus += p.nTus;
         }
-        else if (p == tree && formatter.getPos() > 0) {
+        else if (p == Node.tree && formatter.getPos() > 0) {
             formatter.flush();
             formatter.newLine();
         }
@@ -1522,6 +1138,8 @@ new String[]{
             int offsetFrames,
             double[] plotLimits,
             int offset) throws Exception {
+    	
+    	//CharTemplate.init();
 
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
@@ -1627,35 +1245,35 @@ new String[]{
             double[] sig, double level, double levelLog,
             double tsLength, int offset, double tuMillis) {
 
-        final int qSize = cd.lastAdded.q - cd.transes.get(0).q;
+        final int qSize = cd.getLastAdded().q - cd.transes.get(0).q;
         final int tuClass = (int) Math.round(tsLength*qSize);
 
         // PARAMETER 1.00, skew the char class a little, heuristic
         final double tuClassD = 1.00*tsLength*qSize;
 
-        final Set<Entry<Integer, CharTemplates>> candsAll = templs.entrySet();
+        final Set<Entry<Integer, List<CharTemplate>>> candsAll = CharTemplate.templs.entrySet();
 
         final double zigma = 0.7; // PARAMETER
         CharTemplate best = null;
         double bestSum = -999999.0;
-        for (Entry<Integer, CharTemplates> eict : candsAll) {
+        for (Entry<Integer, List<CharTemplate>> eict : candsAll) {
 
             final int j = eict.getKey().intValue();
 
             final double weight = Math.exp(-squared((tuClassD - j)/zigma)/2);
 
 
-            for (CharTemplate cand : eict.getValue().list) {
+            for (CharTemplate cand : eict.getValue()) {
 
                 int candSize = cand.pattern.length;
                 double sum = 0.0;
 
-                double deltaCeiling = cd.lastAdded.ceiling - cd.transes.get(0).ceiling;
-                double deltaFloor = cd.lastAdded.floor - cd.transes.get(0).floor;
+                double deltaCeiling = cd.getLastAdded().ceiling - cd.transes.get(0).ceiling;
+                double deltaFloor = cd.getLastAdded().floor - cd.transes.get(0).floor;
 
                 double slopeCeiling = deltaCeiling/qSize;
                 double slopeFloor = deltaFloor/qSize;
-                for (int q = cd.transes.get(0).q; q < cd.lastAdded.q; q++) {
+                for (int q = cd.transes.get(0).q; q < cd.getLastAdded().q; q++) {
 
                     int qq = q - cd.transes.get(0).q;
 
@@ -1710,7 +1328,7 @@ new String[]{
             int offset, double tsSecs, double ceilingMax,
             int framesPerSlice, int frameRate, int offsetFrames) {
 
-        int prevValue = LO;
+        int prevValue = CharTemplate.LO;
 
         final int nTranses = cd.transes.size();
 
@@ -1718,7 +1336,7 @@ new String[]{
         final double tChar = (cd.transes.get(nTranses-1).q - cd.transes.get(0).q)*tsSecs;
 
         for (int i = 0; i < ct.pattern.length; i++) {
-            if (ct.pattern[i] == HI && prevValue == LO) {
+            if (ct.pattern[i] == CharTemplate.HI && prevValue == CharTemplate.LO) {
                 // a rise
 
                 final double t1 =
@@ -1734,7 +1352,7 @@ new String[]{
                 plotEntries.addDecoded(t2, 2*PlotEntryDecode.height*ceilingMax);
 
             }
-            else if (ct.pattern[i] == LO && prevValue == HI) {
+            else if (ct.pattern[i] == CharTemplate.LO && prevValue == CharTemplate.HI) {
                 // a fall
 
                 // compute points in time
@@ -1978,7 +1596,7 @@ new String[]{
         }
 
         // interpretation follows!
-        Node p = tree;
+        Node p = Node.tree;
         count = 0;
         int prevQ = -1;
 
@@ -2133,15 +1751,15 @@ new String[]{
         }
     }
     
-    public static class HighValue {
-    	final Integer k;
-    	final double value;
-    	
-		public HighValue(Integer k, double value) {
-			this.k = k;
-			this.value = value;
-		}
-    }
+//    public static class HighValue {
+//    	final Integer k;
+//    	final double value;
+//    	
+//		public HighValue(Integer k, double value) {
+//			this.k = k;
+//			this.value = value;
+//		}
+//    }
 
     private static void decodeLsq2(
             Formatter formatter,
@@ -2237,7 +1855,7 @@ new String[]{
         	}
         }
 
-        Node p = tree;
+        Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
         for (Integer key : dashes.navigableKeySet()) {
@@ -2257,7 +1875,7 @@ new String[]{
                 spCusW += 7;
                 spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
                 
-                p = tree;
+                p = Node.tree;
                 final ToneBase tb = dashes.get(key);
                 if (tb instanceof Dash) {
                 	p = p.newNode("-");
@@ -2276,7 +1894,7 @@ new String[]{
                 
                 spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
 
-                p = tree;
+                p = Node.tree;
                 final ToneBase tb = dashes.get(key);
                 if (tb instanceof Dash) {
                 	p = p.newNode("-");
@@ -2296,7 +1914,7 @@ new String[]{
             prevKey = key;
         }
 
-        if (p != tree) {
+        if (p != Node.tree) {
             formatter.add(true, p.text, -1);
             formatter.newLine();
             chCus += p.nTus;
@@ -2490,7 +2108,7 @@ new String[]{
         }
 
 
-        Node p = tree;
+        Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
         for (Integer key : dashes.navigableKeySet()) {
@@ -2511,7 +2129,7 @@ new String[]{
                 spCusW += 7;
                 spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
                 
-                p = tree;
+                p = Node.tree;
                 final ToneBase tb = dashes.get(key);
                 if (tb instanceof Dash) {
                 	p = p.newNode("-");
@@ -2539,7 +2157,7 @@ new String[]{
 //                    new Info("dist: %d, %d, %f", uu.k, vv.k, (vv.k-uu.k - jDash -jDot)*tsLength);
 //                }
 
-                p = tree;
+                p = Node.tree;
                 final ToneBase tb = dashes.get(key);
                 if (tb instanceof Dash) {
                 	p = p.newNode("-");
@@ -2559,7 +2177,7 @@ new String[]{
             prevKey = key;
         }
 
-        if (p != tree) {
+        if (p != Node.tree) {
             formatter.add(true, p.text, -1);
             formatter.newLine();
             chCus += p.nTus;

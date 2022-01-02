@@ -190,7 +190,7 @@ public final class CwAdaptiveImpl implements CwDetector {
 	}
 	
 	/**
-	 * Maybe not neeedeed
+	 * Maybe not needed
 	 * Heuristic; unsafe because of zero divide etc
 	 * @param strengths
 	 * @return

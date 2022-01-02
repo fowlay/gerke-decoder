@@ -29,4 +29,8 @@ public final class Compute {
     public static int ensureEven(int k) {
         return k % 2 == 1 ? k+1 : k;
     }
+    
+    public static String encodeLetter(int i) {
+        return new String(new int[]{i}, 0, 1);
+    }
 }
