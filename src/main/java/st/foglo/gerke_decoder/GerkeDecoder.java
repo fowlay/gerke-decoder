@@ -32,8 +32,21 @@ import java.util.TreeSet;
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.decoder.Node;
 import st.foglo.gerke_decoder.decoder.Trans;
+import st.foglo.gerke_decoder.decoder.TwoDoubles;
+import st.foglo.gerke_decoder.decoder.dips_find.Beep;
+import st.foglo.gerke_decoder.decoder.dips_find.Dip;
+import st.foglo.gerke_decoder.decoder.dips_find.DipByStrength;
+import st.foglo.gerke_decoder.decoder.dips_find.DipByTime;
+import st.foglo.gerke_decoder.decoder.dips_find.TimeCounter;
+import st.foglo.gerke_decoder.decoder.least_squares.Cluster;
 import st.foglo.gerke_decoder.decoder.pattern_match.CharData;
 import st.foglo.gerke_decoder.decoder.pattern_match.CharTemplate;
+import st.foglo.gerke_decoder.decoder.sliding_line.Dash;
+import st.foglo.gerke_decoder.decoder.sliding_line.Dot;
+import st.foglo.gerke_decoder.decoder.sliding_line.ToneBase;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightDash;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
@@ -334,154 +347,37 @@ new String[]{
                 });
     }
 
-    static class Parameters {
+//    static class Parameters {
+//
+//        final int frameRate;
+//        final int offsetFrames;
+//
+//        final double tuMillis;
+//        final double tsLength;
+//        final int framesPerSlice;
+//
+//        final long wordSpaceLimit;
+//        final long charSpaceLimit;
+//        final long dashLimit;
+//
+//        final double plotBegin;
+//        final double plotEnd;
+//
+//        public Parameters(int frameRate, int offsetFrames, double tuMillis, double tsLength, int framesPerSlice,
+//                long wordSpaceLimit, long charSpaceLimit, long dashLimit, double plotBegin, double plotEnd) {
+//            this.frameRate = frameRate;
+//            this.offsetFrames = offsetFrames;
+//            this.tuMillis = tuMillis;
+//            this.tsLength = tsLength;
+//            this.framesPerSlice = framesPerSlice;
+//            this.wordSpaceLimit = wordSpaceLimit;
+//            this.charSpaceLimit = charSpaceLimit;
+//            this.dashLimit = dashLimit;
+//            this.plotBegin = plotBegin;
+//            this.plotEnd = plotEnd;
+//        }
+//    }
 
-        final int frameRate;
-        final int offsetFrames;
-
-        final double tuMillis;
-        final double tsLength;
-        final int framesPerSlice;
-
-        final long wordSpaceLimit;
-        final long charSpaceLimit;
-        final long dashLimit;
-
-        final double plotBegin;
-        final double plotEnd;
-
-        public Parameters(int frameRate, int offsetFrames, double tuMillis, double tsLength, int framesPerSlice,
-                long wordSpaceLimit, long charSpaceLimit, long dashLimit, double plotBegin, double plotEnd) {
-            this.frameRate = frameRate;
-            this.offsetFrames = offsetFrames;
-            this.tuMillis = tuMillis;
-            this.tsLength = tsLength;
-            this.framesPerSlice = framesPerSlice;
-            this.wordSpaceLimit = wordSpaceLimit;
-            this.charSpaceLimit = charSpaceLimit;
-            this.dashLimit = dashLimit;
-            this.plotBegin = plotBegin;
-            this.plotEnd = plotEnd;
-        }
-    }
-
-
-    static abstract class Dip implements Comparable<Dip> {
-
-        final int q;
-        final double strength;
-
-        public Dip(int q, double strength) {
-            this.q = q;
-            this.strength = strength;
-        }
-    }
-
-    static class DipByStrength extends Dip {
-        public DipByStrength(int q, double strength) {
-            super(q, strength);
-        }
-
-        @Override
-        public int compareTo(Dip o) {
-            // strongest elements at beginning of set
-            return this.strength < o.strength ? 1 : this.strength == o.strength ? 0 : -1;
-        }
-    }
-
-    static class DipByTime extends Dip {
-        public DipByTime(int q, double strength) {
-            super(q, strength);
-        }
-
-        @Override
-        public int compareTo(Dip o) {
-            // chronological order
-            return this.q < o.q ? -1 : this.q == o.q ? 0 : 1;
-        }
-    }
-
-    /**
-     * Represents a dash or a dot.
-     */
-    static class Beep {
-        final int extent;
-
-        public Beep(int extent) {
-            this.extent = extent;
-        }
-    }
-
-    static class TimeCounter {
-        int chCus = 0;
-        int chTicks = 0;
-    }
-
-    static abstract class WeightBase {
-        // returns weight for j in [-jMax, ..., 0, ..., jMax]
-        final int jMax;
-        public WeightBase(int jMax) {
-            this.jMax = jMax;
-        }
-        abstract double w(int j);
-    }
-
-    static class WeightDash extends WeightBase {
-
-        public WeightDash(int jMax) {
-            super(jMax);
-        }
-
-        double w(int j) {
-            return 1.0;
-        }
-    }
-
-    static class WeightTwoDots extends WeightBase {
-
-        public WeightTwoDots(int jMax) {
-            super(jMax);
-        }
-
-        double w(int j) {
-            final int j3 = jMax/3;
-            return j > j3 || j < -j3 ? 1.0 : 0.0;
-        }
-
-    }
-
-    static class WeightDot extends WeightBase {
-        public WeightDot(int jMax) {
-            super(jMax);
-        }
-
-        double w(int j) {
-            return 1.0;
-        }
-    }
-
-    static class TwoDoubles {
-        final double a;
-        final double b;
-        public TwoDoubles(double a, double b) {
-            this.a = a;
-            this.b = b;
-        }
-    }
-
-    static class Cluster {
-        final Integer lowestKey;
-        final List<Integer> members = new ArrayList<Integer>();
-
-        public Cluster(Integer a) {
-            lowestKey = a;
-            members.add(a);
-        }
-
-        void add(Integer b) {
-            members.add(b);
-        }
-    }
 
     public static void main(String[] clArgs) {
 
@@ -1661,105 +1557,6 @@ new String[]{
         formatter.add(false, p.text, -1);
         tc.chCus += p.nTus;
     }
-
-
-    public static class ToneBase {
-        final int k;
-        final int rise;
-        final int drop;
-        public ToneBase(int k, int rise, int drop) {
-            this.k = k;
-            this.rise = rise;
-            this.drop = drop;
-        }
-    }
-
-    /**
-     * Represents a dash, centered at index k. Indexes for the rise and drop
-     * are specified explicitly.
-     */
-    public static class Dash extends ToneBase {
-
-        final double ceiling;
-        
-        public Dash(int k, int rise, int drop, double ceiling) {
-            super(k, rise, drop);
-            this.ceiling = ceiling;
-        }
-
-
-        public Dash(int k, int jDot, int jDash, double sig[], double ceiling, boolean improve) {
-        	super(k, dashRise(k, sig, jDot, jDash, ceiling, improve), dashDrop(k, sig, jDot, jDash, ceiling, improve));
-        	this.ceiling = ceiling;
-        }
-
-
-        private static int dashRise(int k, double[] sig, int jDot, int jDash, double ceiling, boolean improve) {
-
-        	if (!improve) {
-        		return k - jDash;
-        	} 
-        	else {
-        		int bestRise;
-        		try {
-        			final double q = 0.5;
-        			final WeightBase w = new WeightDot(jDot);
-        			final TwoDoubles x = lsq(sig, k - jDash, jDot, w);
-        			final int jx = (int) Math.round((ceiling - q - x.a)/x.b);
-        			// new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
-        			final int jxAbs = jx < 0 ? -jx : jx;
-        			bestRise = jxAbs > 2*jDot ? k - jDash : k - jDash + jx;
-        		}
-        		catch (Exception e) {
-        			bestRise = k - jDash;
-        		}
-
-        		return bestRise;
-        	}
-        }
-			
-
-        private static int dashDrop(int k, double[] sig, int jDot, int jDash, double ceiling, boolean improve) {
-        	if (!improve) {
-        		return k + jDash;
-        	} 
-        	else {
-        		int bestDrop;
-        		try {
-        			final double q = 0.5;
-        			final WeightBase w = new WeightDot(jDot);
-        			TwoDoubles y = lsq(sig, k + jDash, jDot, w);
-        			final int jy = (int) Math.round((ceiling - q - y.a)/y.b);
-        			// new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
-        			final int jyAbs = jy < 0 ? -jy : jy;
-        			bestDrop = jyAbs > 2*jDot ? k + jDash : k + jDash + jy;
-        		}
-        		catch (Exception e) {
-        			bestDrop = k + jDash;
-        		}
-        		return bestDrop;
-        	}
-        }
-    }
-
-    /**
-     * Represents a dot, centered at index k. The extent is implied.
-     */
-    public static class Dot extends ToneBase {
-        public Dot(int k, int rise, int drop) {
-            super(k, rise, drop);
-        }
-    }
-    
-//    public static class HighValue {
-//    	final Integer k;
-//    	final double value;
-//    	
-//		public HighValue(Integer k, double value) {
-//			this.k = k;
-//			this.value = value;
-//		}
-//    }
 
     private static void decodeLsq2(
             Formatter formatter,
