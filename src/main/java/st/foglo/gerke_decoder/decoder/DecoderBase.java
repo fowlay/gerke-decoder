@@ -182,7 +182,7 @@ public abstract class DecoderBase implements Decoder {
     	}
     }
     
-    private static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
+    protected static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }
     

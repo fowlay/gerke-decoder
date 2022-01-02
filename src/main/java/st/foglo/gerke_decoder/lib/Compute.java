@@ -33,4 +33,8 @@ public final class Compute {
     public static String encodeLetter(int i) {
         return new String(new int[]{i}, 0, 1);
     }
+    
+    public static double squared(double x) {
+        return x*x;
+    }
 }

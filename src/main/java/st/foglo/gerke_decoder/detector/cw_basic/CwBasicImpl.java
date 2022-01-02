@@ -185,7 +185,7 @@ public class CwBasicImpl implements CwDetector {
 
         for (int j = 0; j < gaussSize; j++) {
             int m = (gaussSize-1)/2;
-            expTable[j] = Math.exp(-GerkeDecoder.squared((j-m)*tsLength/sigma)/2);
+            expTable[j] = Math.exp(-Compute.squared((j-m)*tsLength/sigma)/2);
         }
         
         // determine array size

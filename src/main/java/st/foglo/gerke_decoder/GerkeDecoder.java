@@ -18,37 +18,18 @@ package st.foglo.gerke_decoder;
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
-import java.util.NavigableMap;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.decoder.Decoder;
-import st.foglo.gerke_decoder.decoder.Node;
 import st.foglo.gerke_decoder.decoder.Trans;
-import st.foglo.gerke_decoder.decoder.TwoDoubles;
-import st.foglo.gerke_decoder.decoder.dips_find.Beep;
-import st.foglo.gerke_decoder.decoder.dips_find.Dip;
-import st.foglo.gerke_decoder.decoder.dips_find.DipByStrength;
-import st.foglo.gerke_decoder.decoder.dips_find.DipByTime;
-import st.foglo.gerke_decoder.decoder.dips_find.TimeCounter;
-import st.foglo.gerke_decoder.decoder.least_squares.Cluster;
-import st.foglo.gerke_decoder.decoder.pattern_match.CharData;
-import st.foglo.gerke_decoder.decoder.pattern_match.CharTemplate;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dash;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dot;
+import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
+import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
+import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLineDecoder;
-import st.foglo.gerke_decoder.decoder.sliding_line.ToneBase;
-import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
-import st.foglo.gerke_decoder.decoder.sliding_line.WeightDash;
-import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
+import st.foglo.gerke_decoder.decoder.tone_silence.ToneSilenceDecoder;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
@@ -92,7 +73,7 @@ public final class GerkeDecoder {
     public static final String O_FRANGE = "freq-range";
     public static final String O_FREQ = "freq";
     static final String O_WPM = "wpm";
-    static final String O_SPACE_EXP = "space-expansion";
+    public static final String O_SPACE_EXP = "space-expansion";
     public static final String O_CLIPPING = "clip";
     static final String O_STIME = "sample-time";
     public static final String O_SIGMA = "sigma";
@@ -104,7 +85,7 @@ public final class GerkeDecoder {
     static final String O_PLINT = "plot-interval";
     static final String O_PLOT = "plot";
     static final String O_PPLOT = "phase-plot";
-    static final String O_VERBOSE = "verbose";
+    public static final String O_VERBOSE = "verbose";
 
     public static final String O_HIDDEN = "hidden-options";
     public enum HiddenOpts {
@@ -215,14 +196,14 @@ public final class GerkeDecoder {
     /**
      * Gaussian sigma for identifying dips. Unit is TUs.
      */
-    static final double P_DIP_SIGMA = 0.15;
+    public static final double P_DIP_SIGMA = 0.15;
 
     /**
      * Ideally the separation between dips is 4 halfTus for a dot
      * and 8 halfTus for a dash. Increasing the value will cause
      * dashes to be seen as dots.
      */
-    static final double P_DIP_DASHMIN = 6.1;
+    public static final double P_DIP_DASHMIN = 6.1;
 
     /**
      * If two dashes have joined because of a weak dip, the ideal
@@ -230,20 +211,20 @@ public final class GerkeDecoder {
      * joined, the separation is 12 halfTus. To detect the two-dash
      * feature, set a limit that is well above 12.
      */
-    static final double P_DIP_TWODASHMIN = 14.0;
+    public static final double P_DIP_TWODASHMIN = 14.0;
 
     /**
      * Within a multi-beep character, beep lengths are compared to
      * the length of the longest beep. If the relative length is
      * above this limit, then interpret it as a dash.
      */
-    static final double P_DIP_DASHQUOTIENT = 0.68;
+    public static final double P_DIP_DASHQUOTIENT = 0.68;
 
     /**
      * When generating a table of exponential weights, exclude entries
      * lower than this limit.
      */
-    static final double P_DIP_EXPTABLE_LIM = 0.01;
+    public static final double P_DIP_EXPTABLE_LIM = 0.01;
 
 
     static {
@@ -558,20 +539,20 @@ new String[]{
                     }
                     transIndex++;
                     tone = true;
-                    spikeAcc = squared(threshold - sig[q]);
+                    spikeAcc = Compute.squared(threshold - sig[q]);
                 }
                 else if (!newTone && tone) {
                     // fall
                     trans[transIndex] = new Trans(q, false, spikeAcc, cei[q], flo[q]);
                     transIndex++;
                     tone = false;
-                    dipAcc = squared(threshold - sig[q]);
+                    dipAcc = Compute.squared(threshold - sig[q]);
                 }
                 else if (!tone) {
-                    dipAcc += squared(threshold - sig[q]);
+                    dipAcc += Compute.squared(threshold - sig[q]);
                 }
                 else if (tone) {
-                    spikeAcc += squared(threshold - sig[q]);
+                    spikeAcc += Compute.squared(threshold - sig[q]);
                 }
             }
 
@@ -708,85 +689,90 @@ new String[]{
             }
 
             new Info("decoder: %s (%d)", DECODER_NAME[decoder], decoder);
+            final Decoder dec;
             if (decoder == decoderIndex.TONE_SILENCE.ordinal()) {
-                decodeByLevels(
-                        formatter,
-                        plotEntries,
-                        trans,
-                        transIndex,
-                        tuMillis,
-                        tsLength,
-                        wordSpaceLimit,
-                        charSpaceLimit,
-                        dashLimit,
-                        plotLimits,
-                        framesPerSlice,
-                        w.frameRate,
-                        w.offsetFrames,
-                        ceilingMax,
-                        offset);
+            	dec = new ToneSilenceDecoder(
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            			plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			trans,
+            			transIndex,
+            			ceilingMax);
+            	dec.execute();
+            	
             }
+
             else if (decoder == decoderIndex.PATTERN_MATCHING.ordinal()) {
-                decodeByPatterns(
-                        decoder,
-                        ampMap,
-                        formatter,
-                        plotEntries,
-                        trans,
-                        transIndex,
-                        sig,
-                        ceilingMax,
-                        tsLength, tuMillis,
-                        level,
-                        levelLog,
-                        wordSpaceLimit,
-                        charSpaceLimit,
-                        framesPerSlice,
-                        w.frameRate,
-                        w.offsetFrames,
-                        plotLimits,
-                        offset);
+            	dec = new PatternMatchDecoder(
+            			
+        				tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            		    plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			ceilingMax,
+            			trans,
+            			transIndex,
+            			ampMap,
+            			level);
+            	dec.execute();
             }
+
             else if (decoder == decoderIndex.DIPS_FINDING.ordinal()) {
-                decodeByGaps(
-                        formatter,
-                        plotEntries,
-                        trans,
-                        transIndex,
-                        sig,
-                        cei,
-                        flo,
-                        wordSpaceLimit,
-                        charSpaceLimit,
-                        offset,
-                        tsLength,
-                        tuMillis,
-                        plotLimits,
-                        ceilingMax,
-                        framesPerSlice, w.frameRate, w.offsetFrames);
+            	dec = new DipsFindingDecoder(
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            			plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			ceilingMax,
+            			trans,
+            			transIndex,
+            			cei,
+            			flo
+            			);
+            	dec.execute();
             }
+
             else if (decoder == decoderIndex.LEAST_SQUARES.ordinal()) {
-                    decodeByLeastSquares(
-                            formatter,
-                            plotEntries,
-                            sig,
-                            cei,
-                            flo,
-                            sigSize,
-                            
-                            offset,
-                            tsLength,
-                            tuMillis,
-                            
-                            plotLimits,
-                            framesPerSlice,
-                            w.frameRate,
-                            w.offsetFrames,
-                            ceilingMax
-                            );
+            	dec = new LeastSquaresDecoder(
+            			
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            			plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			sigSize,
+            			cei,
+            			ceilingMax
+            			
+            			);
+            	dec.execute();
             }
             else if (decoder == decoderIndex.LSQ2.ordinal()) {
-            	final Decoder dec = new SlidingLineDecoder(
+            	dec = new SlidingLineDecoder(
             			tuMillis,
             			framesPerSlice,
             			tsLength,
@@ -807,30 +793,8 @@ new String[]{
             			);
             	dec.execute();
             }
-//            else if (decoder == decoderIndex.LSQ2.ordinal()) {
-//                decodeLsq2(
-//                        formatter,
-//                        plotEntries,
-//                        sig,
-//                        cei,
-//                        flo,
-//                        sigSize,
-//                        
-//                        offset,
-//                        tsLength,
-//                        tuMillis,
-//                        
-//                        plotLimits,
-//                        framesPerSlice,
-//                        w.frameRate,
-//                        w.offsetFrames,
-//                        ceilingMax,
-//                        
-//                        ampMap,
-//                        level, levelLog
-//                        );
-//			}
             else {
+            	dec = null;
                 new Death("no such decoder: '%d'", decoder);
             }
 
@@ -905,1366 +869,6 @@ new String[]{
         }
     }
 
-    private static void decodeByLevels(
-            Formatter formatter,
-            PlotEntries plotEntries,
-            Trans[] trans, int transIndex,
-            double tuMillis,
-            double tsLength,
-            int wordSpaceLimit,
-            int charSpaceLimit,
-            int dashLimit,
-            double[] plotLimits,
-            int framesPerSlice,
-            int frameRate,
-            int offsetFrames,
-            double ceilingMax,
-            int offset) throws IOException, NoSuchAlgorithmException, InterruptedException
-    {
-
-
-        if (plotEntries != null) {
-
-            boolean firstLap = true;
-            for (int t = 0; t < transIndex; t++) {
-
-                final double sec = timeSeconds(trans[t].q, framesPerSlice, frameRate, offsetFrames);
-
-                if (plotLimits[0] <= sec && sec <= plotLimits[1]) {
-                    plotEntries.addDecoded(sec, (trans[t].rise ? 2 : 1)*ceilingMax/20);
-                }
-
-                // initial point on the decoded curve
-                if (firstLap) {
-                    plotEntries.addDecoded(plotLimits[0], (trans[t].rise ? 1 : 2)*ceilingMax/20);
-                    firstLap = false;
-                }
-            }
-        }
-
-        boolean prevTone = false;
-
-        Node p = Node.tree;
-
-        int spTicksW = 0;   // inter-word spaces: time-slice ticks
-        int spCusW = 0;     // inter-word spaces: code units
-        int spTicksC = 0;   // inter-char spaces: time-slice ticks
-        int spCusC = 0;     // inter-char spaces: code units
-        int chTicks = 0;    // characters: time-slice ticks
-        int chCus = 0;      // spaces: character units
-
-        int qCharBegin = -1;
-
-        for (int t = 0; t < transIndex; t++) {
-
-            final boolean newTone = trans[t].rise;
-
-            if (!prevTone && newTone) {
-                // silent -> tone
-                if (t == 0) {
-                    p = Node.tree;
-                    qCharBegin = trans[t].q;
-                }
-                else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
-                    if (GerkeLib.getFlag(O_TSTAMPS)) {
-                        formatter.add(true,
-                                p.text,
-                                offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000));
-                    }
-                    else {
-                        formatter.add(true, p.text, -1);
-                    }
-
-                    spTicksW += trans[t].q - trans[t-1].q;
-                    spCusW += 7;
-                    chTicks += trans[t-1].q - qCharBegin;
-                    chCus += p.nTus;
-                    qCharBegin = trans[t].q;
-
-                    p = Node.tree;
-                }
-                else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
-                    formatter.add(false, p.text, -1);
-
-                    spTicksC += trans[t].q - trans[t-1].q;
-                    spCusC += 3;
-                    chTicks += trans[t-1].q - qCharBegin;
-                    chCus += p.nTus;
-                    qCharBegin = trans[t].q;
-
-                    p = Node.tree;
-                }
-            }
-            else if (prevTone && !newTone) {
-                // tone -> silent
-                final int dashSize = trans[t].q - trans[t-1].q;
-                if (dashSize > dashLimit) {
-                    p = p.newNode("-");
-                }
-                else {
-                    p = p.newNode(".");
-                }
-            }
-            else {
-                new Death("internal error");
-            }
-
-            prevTone = newTone;
-        }
-
-        if (p != Node.tree) {
-            formatter.add(true, p.text, -1);
-            formatter.newLine();
-
-            chTicks += trans[transIndex-1].q - qCharBegin;
-            chCus += p.nTus;
-        }
-        else if (p == Node.tree && formatter.getPos() > 0) {
-            formatter.flush();
-            formatter.newLine();
-        }
-
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
-    }
-
-
-
-
-
-    /**
-     * Decode and optionally plot
-     *
-     * @param trans
-     * @param transIndex
-     * @param sig
-     * @param tsLength
-     * @param tuMillis
-     * @param wordSpaceLimit
-     * @param charSpaceLimit
-     * @param dashLimit
-     * @throws Exception
-     */
-    private static void decodeByPatterns(
-            int decoder,
-            int ampMap,
-            Formatter formatter,
-            PlotEntries plotEntries,
-            Trans[] trans, int transIndex, double[] sig,
-            double ceilingMax,
-            double tsLength,
-            double tuMillis,
-            double level,
-            double levelLog,
-            int wordSpaceLimit,
-            int charSpaceLimit,
-            int framesPerSlice,
-            int frameRate,
-            int offsetFrames,
-            double[] plotLimits,
-            int offset) throws Exception {
-    	
-    	//CharTemplate.init();
-
-        if (plotEntries != null) {
-            // make one "decode" entry at left edge of plot
-            plotEntries.addDecoded(plotLimits[0], PlotEntryDecode.height*ceilingMax);
-        }
-
-        final List<CharData> cdList = new ArrayList<CharData>();
-        CharData charCurrent = null;
-        boolean prevTone = false;
-        for (int t = 0; t < transIndex; t++) {
-
-            final boolean newTone = trans[t].rise;
-
-            if (!prevTone && newTone) {                          // silent -> tone
-                if (t == 0) {
-                    charCurrent = new CharData(trans[t]);
-                }
-                else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
-                    cdList.add(charCurrent);
-                    cdList.add(new CharData());                  // empty CharData represents word space
-                    charCurrent = new CharData(trans[t]);
-                }
-                else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
-                    cdList.add(charCurrent);
-                    charCurrent = new CharData(trans[t]);
-                }
-                else {
-                    charCurrent.add(trans[t]);
-                }
-            }
-            else if (prevTone && !newTone) {                     // tone -> silent
-                charCurrent.add(trans[t]);
-            }
-            else {
-                new Death("internal error");
-            }
-
-            prevTone = newTone;
-        }
-
-        if (!charCurrent.isEmpty()) {
-            if (charCurrent.isComplete()) {
-                cdList.add(charCurrent);
-            }
-        }
-
-
-
-        int ts = -1;
-
-        int tuCount = 0;  // counters for effective WPM determination
-        int qBegin = -1;
-        int qEnd = 0;
-
-
-
-        for (CharData cd : cdList) {
-            qBegin = qBegin == -1 ? cd.transes.get(0).q : qBegin;
-            if (cd.isEmpty()) {
-                formatter.add(true, "", ts);
-                tuCount += 4;
-            }
-            else {
-                ts = GerkeLib.getFlag(O_TSTAMPS) ?
-                        offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000) : -1;
-                        final CharTemplate ct = decodeCharByPattern(decoder, ampMap, cd, sig, level, levelLog, tsLength, offset, tuMillis);
-                        tuCount += tuCount == 0 ? 0 : 3;
-
-                        // TODO, the 5 below represents the undecodable character; compute
-                        // a value from the cd instead
-                        tuCount += ct == null ? 5 : ct.pattern.length;
-                        final int transesSize = cd.transes.size();
-                        qEnd = cd.transes.get(transesSize-1).q;
-                        formatter.add(false, ct == null ? "???" : ct.text, -1);
-
-                        // if we are plotting, then collect some things here
-                        if (plotEntries != null && ct != null) {
-                            final double seconds = offset + timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames);
-                            if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
-                                plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax,
-                                        framesPerSlice, frameRate, offsetFrames);
-                            }
-                        }
-            }
-        }
-        formatter.flush();
-        if (formatter.getPos() > 0) {
-            formatter.newLine();
-        }
-
-        final double totalTime = (qEnd - qBegin)*tsLength*tuMillis;  // ms
-        final double effWpm = 1200.0/(totalTime/tuCount);            // 1200 / (TU in ms)
-        new Info("effective WPM: %.1f", effWpm);
-
-    }
-
-
-
-    private static CharTemplate decodeCharByPattern(
-            int decoder,
-            int ampMap,
-            CharData cd,
-            double[] sig, double level, double levelLog,
-            double tsLength, int offset, double tuMillis) {
-
-        final int qSize = cd.getLastAdded().q - cd.transes.get(0).q;
-        final int tuClass = (int) Math.round(tsLength*qSize);
-
-        // PARAMETER 1.00, skew the char class a little, heuristic
-        final double tuClassD = 1.00*tsLength*qSize;
-
-        final Set<Entry<Integer, List<CharTemplate>>> candsAll = CharTemplate.templs.entrySet();
-
-        final double zigma = 0.7; // PARAMETER
-        CharTemplate best = null;
-        double bestSum = -999999.0;
-        for (Entry<Integer, List<CharTemplate>> eict : candsAll) {
-
-            final int j = eict.getKey().intValue();
-
-            final double weight = Math.exp(-squared((tuClassD - j)/zigma)/2);
-
-
-            for (CharTemplate cand : eict.getValue()) {
-
-                int candSize = cand.pattern.length;
-                double sum = 0.0;
-
-                double deltaCeiling = cd.getLastAdded().ceiling - cd.transes.get(0).ceiling;
-                double deltaFloor = cd.getLastAdded().floor - cd.transes.get(0).floor;
-
-                double slopeCeiling = deltaCeiling/qSize;
-                double slopeFloor = deltaFloor/qSize;
-                for (int q = cd.transes.get(0).q; q < cd.getLastAdded().q; q++) {
-
-                    int qq = q - cd.transes.get(0).q;
-
-                    double ceiling = cd.transes.get(0).ceiling + slopeCeiling*qq;
-
-                    double floor = cd.transes.get(0).floor + slopeFloor*qq;
-
-                    int indx = (candSize*qq)/qSize;
-
-                    double u = sig[q] - threshold(decoder, ampMap, level, levelLog, floor, ceiling);
-
-
-                    // sum += Math.signum(u)*u*u*cand.pattern[indx];
-                    sum += u*cand.pattern[indx];
-                }
-
-                if (weight*sum > bestSum) {
-                    bestSum = weight*sum;
-                    best = cand;
-                }
-            }
-        }
-
-        if (GerkeLib.getIntOpt(O_VERBOSE) >= 3) {
-            System.out.println(
-                    String.format(
-                            "character result: %s, time: %d, class: %d, size: %d",
-                            best != null ? best.text : "null",
-                            offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000),
-                            tuClass,
-                            qSize));
-        }
-
-        return best;
-    }
-
-
-
-    /**
-     * Make plot entries for a decoded character
-     * @param plotEntries
-     * @param cd
-     * @param ct
-     * @param offset
-     * @param d
-     * @param ceilingMax
-     */
-    private static void plotDecoded(
-            PlotEntries plotEntries,
-            CharData cd,
-            CharTemplate ct,
-            int offset, double tsSecs, double ceilingMax,
-            int framesPerSlice, int frameRate, int offsetFrames) {
-
-        int prevValue = CharTemplate.LO;
-
-        final int nTranses = cd.transes.size();
-
-        // time of 1 char
-        final double tChar = (cd.transes.get(nTranses-1).q - cd.transes.get(0).q)*tsSecs;
-
-        for (int i = 0; i < ct.pattern.length; i++) {
-            if (ct.pattern[i] == CharTemplate.HI && prevValue == CharTemplate.LO) {
-                // a rise
-
-                final double t1 =
-                        timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
-                           i*(tChar/ct.pattern.length);
-                final double t2 = t1 + 0.1*tsSecs;
-
-                // add to plotEntries
-
-//				plotEntries.put(new Double(t1), makeOne(1, ceilingMax));
-//				plotEntries.put(new Double(t2), makeOne(2, ceilingMax));
-                plotEntries.addDecoded(t1, PlotEntryDecode.height*ceilingMax);
-                plotEntries.addDecoded(t2, 2*PlotEntryDecode.height*ceilingMax);
-
-            }
-            else if (ct.pattern[i] == CharTemplate.LO && prevValue == CharTemplate.HI) {
-                // a fall
-
-                // compute points in time
-                final double t1 =
-                        timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
-                           i*(tChar/ct.pattern.length);
-                final double t2 = t1 + 0.1*tsSecs;
-
-                // add to plotEntries
-
-//				plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
-//				plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
-                plotEntries.addDecoded(t1, 2*PlotEntryDecode.height*ceilingMax);
-                plotEntries.addDecoded(t2, PlotEntryDecode.height*ceilingMax);
-            }
-            prevValue = ct.pattern[i];
-        }
-
-        final double t1 = timeSeconds(cd.transes.get(nTranses-1).q, framesPerSlice, frameRate, offsetFrames);
-        final double t2 = t1 + 0.1*tsSecs;
-//		plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
-//		plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
-
-        plotEntries.addDecoded(t1, 2*PlotEntryDecode.height*ceilingMax);
-        plotEntries.addDecoded(t2, PlotEntryDecode.height*ceilingMax);
-    }
-
-    private static void decodeByGaps(
-            Formatter formatter,
-            PlotEntries plotEntries,
-            Trans[] trans,
-            int transIndex,
-            double[] sig,
-            double[] cei,
-            double[] flo,
-            int wordSpaceLimit,
-            int charSpaceLimit,
-            int offset,
-            double tsLength,
-            double tuMillis,
-            double[] plotLimits,
-            double ceilingMax,
-            int framesPerSlice, int frameRate, int offsetFrames) throws IOException, InterruptedException, NoSuchAlgorithmException {
-
-        /**
--        * Merge dips when closer than this distance. Unit is TUs.
--        */
-        final double dipMergeLim = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.DIP_MERGE_LIM.ordinal()];
-
-        /**
-         * Dips of lesser strength are ignored. A too high value will cause
-         * weak dips to be ignored, so that 'i' prints as 't' for example.
-         */
-        final double dipStrengthMin = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.DIP_STRENGTH_MIN.ordinal()];
-
-        if (plotEntries != null) {
-            // make one "decode" entry at left edge of plot
-            plotEntries.addDecoded(plotLimits[0], PlotEntryDecode.height*ceilingMax);
-        }
-
-        int charNo = 0;
-
-        // find characters
-        // this is similar to what the level decoder does
-        boolean prevTone = false;
-        int beginChar = -1;
-
-        int spTicksC = 0;    // inter-char spaces: time-slice ticks
-        int spCusC = 0;      // inter-char spaces: code units
-
-        int spTicksW = 0;    // inter-word spaces: time-slice ticks
-        int spCusW = 0;      // inter-word spaces: code units
-
-        final TimeCounter tc = new TimeCounter();
-
-        for (int t = 0; t < transIndex; t++) {
-            final boolean newTone = trans[t].rise;
-            final double spExp = GerkeLib.getDoubleOpt(O_SPACE_EXP);
-            if (t == 0 && !(trans[t].rise)) {
-                new Death("assertion failure, first transition is not a rise");
-            }
-
-            if (!prevTone && newTone) {
-                // silent -> tone
-                if (t == 0) {
-                    beginChar = trans[t].q;
-                }
-                else if (trans[t].q - trans[t-1].q > spExp*wordSpaceLimit) {
-                    decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
-                            dipMergeLim, dipStrengthMin,
-                            charNo++,
-                            formatter, plotEntries, ceilingMax, framesPerSlice, frameRate, offsetFrames,
-                            plotLimits,
-                            tc);
-                    final int ts =
-                            GerkeLib.getFlag(O_TSTAMPS) ?
-                            offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000) : -1;
-                    formatter.add(true, "", ts);
-                    beginChar = trans[t].q;
-                    spCusW += 7;
-                    spTicksW += trans[t].q - trans[t-1].q;
-                }
-                else if (trans[t].q - trans[t-1].q > spExp*charSpaceLimit) {
-                    decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
-                            dipMergeLim, dipStrengthMin,
-                            charNo++,
-                            formatter, plotEntries, ceilingMax, framesPerSlice, frameRate, offsetFrames,
-                            plotLimits,
-                            tc);
-                    beginChar = trans[t].q;
-                    spCusC += 3;
-                    spTicksC += trans[t].q - trans[t-1].q;
-                }
-            }
-
-            prevTone = newTone;
-        }
-        // prevTone is presumably a fall; if so, use it for the very last character
-        // else the last char is incomplete; lose it
-        if (trans[transIndex-1].rise == false) {
-            decodeGapChar(beginChar, trans[transIndex-1].q, sig, cei, flo, tsLength,
-                    dipMergeLim, dipStrengthMin,
-                    charNo++,
-                    formatter, plotEntries, ceilingMax, framesPerSlice, frameRate, offsetFrames,
-                    plotLimits,
-                    tc);
-        }
-
-        formatter.flush();
-        formatter.newLine();
-
-        wpmReport(tc.chCus, tc.chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
-    }
-
-    private static void decodeGapChar(
-            int q1,
-            int q2,
-            double[] sig,
-            double[] cei,
-            double[] flo,
-            double tau,
-            double dipMergeLim,
-            double dipStrengthMin,
-            int charNo,
-            Formatter formatter,
-            PlotEntries plotEntries,
-            double ceilingMax,
-            int framesPerSlice, int frameRate, int offsetFrames,
-            double[] plotLimits,
-            TimeCounter tc) throws IOException, InterruptedException {
-
-        tc.chTicks += q2 - q1;
-
-        final boolean inView = plotEntries != null &&
-                timeSeconds(q1, framesPerSlice,frameRate, offsetFrames) >= plotLimits[0] &&
-                timeSeconds(q2, framesPerSlice,frameRate, offsetFrames) <= plotLimits[1];
-
-        final double decodeLo = ceilingMax*PlotEntryDecode.height;
-        final double decodeHi = ceilingMax*2*PlotEntryDecode.height;
-
-        if (inView) {
-            plotEntries.addDecoded(timeSeconds(q1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-            plotEntries.addDecoded(timeSeconds(q1+1, framesPerSlice, frameRate, offsetFrames), decodeHi);
-            plotEntries.addDecoded(timeSeconds(q2-1, framesPerSlice, frameRate, offsetFrames), decodeHi);
-            plotEntries.addDecoded(timeSeconds(q2, framesPerSlice, frameRate, offsetFrames), decodeLo);
-        }
-
-        final int halfTu = (int) Math.round(1.0/(2*tau));
-        final int fatHalfTu = (int) Math.round(1.0/(2*tau));  // no need to stretch??
-        final int k1 = q1 + halfTu;
-        final int k2 = q2 - halfTu;
-
-        // Maximum number of dips, stop collecting if exceeded
-        final int countMax = (int) Math.round(((q2 - q1)*tau + 3)/2);
-
-        int strengthSize = k2 - k1;
-        final double[] strength = new double[Compute.iMax(strengthSize, 0)];
-
-        // this makes normalized strengths fairly independent of sigma
-        final double z = (cei[k1] - flo[k1] + cei[k2] - flo[k2])*(1/(2*tau))*P_DIP_SIGMA;
-
-        for (int k = k1; k < k2; k++) {
-            // compute a weighted sum
-            double acc = (cei[k] - sig[k]);
-            for (int d = 1; true; d++) {
-                double w = Math.exp(-squared(d*tau/P_DIP_SIGMA)/2);
-                if (w < P_DIP_EXPTABLE_LIM || k-d < 0 || k+d >= sig.length) {
-                    break;
-                }
-                acc += w*((cei[k] - sig[k+d]) + (cei[k] - sig[k-d]));
-            }
-            strength[k-k1] = acc/z;   // normalized strength
-        }
-
-        final SortedSet<Dip> dips = new TreeSet<Dip>();
-        double pprev = 0.0;
-        double prev = 0.0;
-        Dip prevDip = new DipByStrength(q1-fatHalfTu, 9999.8);  // virtual dip to the left
-        for (int k = k1; k < k2; k++) {
-            final double s = strength[k-k1];
-            if (s < prev && prev > pprev) {   // cannot succeed at k == k1
-                // a summit at prev
-                final Dip d = new DipByStrength(k-1, prev);
-
-                // if we are very close to the previous dip, then merge
-                if (d.q - prevDip.q < dipMergeLim*2*halfTu) {
-                    prevDip = new DipByStrength((d.q + prevDip.q)/2, Compute.dMax(d.strength, prevDip.strength));
-                }
-                else {
-                    dips.add(prevDip);
-                    prevDip = d;
-                }
-            }
-            pprev = prev;
-            prev = s;
-        }
-
-        dips.add(prevDip);
-        dips.add(new DipByStrength(q2+fatHalfTu, 9999.9)); // virtual dip to the right
-
-        // build collection of significant dips
-        final SortedSet<Dip> dipsByTime = new TreeSet<Dip>();
-        int count = 0;
-        for (Dip d : dips) {
-            if (count >= countMax+1) {
-                new Debug("char: %d, count: %d, max: %d", charNo, count, countMax);
-                break;
-            }
-            else if (d.strength < dipStrengthMin) {
-                break;
-            }
-            dipsByTime.add(new DipByTime(d.q, d.strength));
-            count++;
-
-            if (inView && d.strength < 9999.8) {
-                plotEntries.addDecoded(timeSeconds(d.q - halfTu, framesPerSlice, frameRate, offsetFrames), decodeHi);
-                plotEntries.addDecoded(timeSeconds(d.q - halfTu + 1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-                plotEntries.addDecoded(timeSeconds(d.q + halfTu - 1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-                plotEntries.addDecoded(timeSeconds(d.q + halfTu, framesPerSlice, frameRate, offsetFrames), decodeHi);
-            }
-        }
-
-        // interpretation follows!
-        Node p = Node.tree;
-        count = 0;
-        int prevQ = -1;
-
-        final List<Beep> beeps = new ArrayList<Beep>();
-        int extentMax = -1;
-
-        for (Dip d : dipsByTime) {
-            if (count == 0) {
-                prevQ = d.q;
-            }
-            else  {
-                final int extent = d.q - prevQ;
-
-                if (extent > P_DIP_TWODASHMIN*halfTu) {
-                    // assume two dashes with a too weak dip in between
-                    final int e1 = extent/2;
-                    final int e2 = extent - e1;
-                    beeps.add(new Beep(e1));
-                    beeps.add(new Beep(e2));
-                    extentMax = Compute.iMax(extentMax, e2);
-                }
-                else {
-
-                    beeps.add(new Beep(extent));
-                    extentMax = Compute.iMax(extentMax, extent);
-                }
-            }
-            prevQ = d.q;
-            count++;
-        }
-
-        final double extentMaxD = extentMax;
-
-        if (beeps.size() == 1) {
-            // single beep
-            if (beeps.get(0).extent > P_DIP_DASHMIN*halfTu) {
-                p = p.newNode("-");
-            }
-            else {
-                p = p.newNode(".");
-            }
-        }
-        else if (extentMax <= P_DIP_DASHMIN*halfTu) {
-            // only dots, two or more of them
-            for (int m = 0; m < beeps.size(); m++) {
-                p = p.newNode(".");
-            }
-        }
-        else {
-            // at least one dash
-            for (Beep beep : beeps) {
-                if (beep.extent/extentMaxD > P_DIP_DASHQUOTIENT) {
-                    p = p.newNode("-");
-                }
-                else {
-                    p = p.newNode(".");
-                }
-            }
-        }
-
-        new Debug("char no: %d, decoded: %s", charNo, p.text);
-        formatter.add(false, p.text, -1);
-        tc.chCus += p.nTus;
-    }
-
-//    private static void decodeLsq2(
-//            Formatter formatter,
-//            PlotEntries plotEntries,
-//            double[] sig,
-//            double[] cei,
-//            double[] flo,
-//            int sigSize,
-//            
-//            int offset,
-//            double tsLength,
-//            double tuMillis,
-//            
-//            double[] plotLimits,
-//            int framesPerSlice,
-//            int frameRate,
-//            int offsetFrames,
-//            double ceilingMax,
-//            
-//    		int ampMap,
-//    		double level,
-//    		double levelLog) {
-//
-//    	final int decoder = decoderIndex.LSQ2.ordinal();
-//
-//        int chCus = 0;
-//        int chTicks = 0;
-//        int spCusW = 0;
-//        int spTicksW = 0;
-//        int spCusC = 0;
-//        int spTicksC = 0;
-//
-//        final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
-//
-//        // in theory, 0.50 .. 0.40 works better
-//        final int jDotSmall = (int) Math.round(0.40/tsLength);
-//        final int jDot = jDotSmall;
-//
-//        final int jDash = (int) Math.round(1.5/tsLength);
-//
-//        final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
-//
-//        int highBegin = -999;
-//        boolean isHigh = false;
-//        double acc = 0.0;
-//        double accMax = 0.0;
-//        for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-//        	
-//        	final double thr = threshold(decoder, ampMap, level, levelLog, flo[k], cei[k]);
-//        	
-//        	final TwoDoubles r = lsq(sig, k, jDot, wDot);
-//
-//        	final boolean high = testAndUpdate(r.a, thr);
-//
-//        	if (!isHigh && !high) {
-//        		continue;
-//        	}
-//        	else if (!isHigh && high) {
-//        		highBegin = k;
-//        		acc = r.a - thr;
-//        		accMax = cei[k] - thr;
-//        		isHigh = true;
-//        	}
-//        	else if (isHigh && high) {
-//        		acc += r.a - thr;
-//        		accMax += cei[k] - thr;
-//        	}
-//        	else if (isHigh && !high && ((k - highBegin)*tsLength < 0.15 || acc < 0.04*accMax)) {  // PARA PARA
-//        		// ignore very thin dot
-//        		isHigh = false;
-//        		highBegin = k;
-//        		acc = 0.0; accMax = 0.0;
-//        	}
-//        	else if (isHigh && !high &&
-//        			(k - highBegin)*tsLength < DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
-//        		// create Dot
-//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-//        		dashes.put(Integer.valueOf(kMiddle),
-//        				new Dot(kMiddle, highBegin, k));
-//
-//        		isHigh = false;
-//        		acc = 0.0; accMax = 0.0;
-//        	}
-//        	else if (isHigh && !high) {
-//        		// create Dash
-//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-//        		dashes.put(Integer.valueOf(kMiddle),
-//        				new Dash(kMiddle, highBegin, k, r.a));
-//        		// TODO r.a above maybe not used
-//
-//        		isHigh = false;
-//        		acc = 0.0; accMax = 0.0;
-//        	}
-//        }
-//
-//        Node p = Node.tree;
-//        int qCharBegin = -999999;
-//        Integer prevKey = null;
-//        for (Integer key : dashes.navigableKeySet()) {
-//
-//        	if (prevKey == null) {
-//        		qCharBegin = lsqToneBegin(key, dashes, jDot);
-//        	}
-//            if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) >
-//            WORD_SPACE_LIMIT[decoder]/tsLength) {
-//            	
-//            	//formatter.add(true, p.text, -1);
-//            	final int ts =
-//                        GerkeLib.getFlag(O_TSTAMPS) ?
-//                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
-//                formatter.add(true, p.text, ts);
-//                chCus += p.nTus;
-//                spCusW += 7;
-//                spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-//                
-//                p = Node.tree;
-//                final ToneBase tb = dashes.get(key);
-//                if (tb instanceof Dash) {
-//                	p = p.newNode("-");
-//                }
-//                else {
-//                	p = p.newNode(".");
-//                }
-//                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-//                qCharBegin = lsqToneBegin(key, dashes, jDot);
-//                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-//            }
-//            else if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) > CHAR_SPACE_LIMIT[decoder]/tsLength) {
-//                formatter.add(false, p.text, -1);
-//                chCus += p.nTus;
-//                spCusC += 3;
-//                
-//                spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-//
-//                p = Node.tree;
-//                final ToneBase tb = dashes.get(key);
-//                if (tb instanceof Dash) {
-//                	p = p.newNode("-");
-//                }
-//                else {
-//                	p = p.newNode(".");
-//                }
-//                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-//                qCharBegin = lsqToneBegin(key, dashes, jDot);
-//                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-//            }
-//            else {
-//            	final ToneBase tb = dashes.get(key);
-//            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-//            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-//            }
-//            prevKey = key;
-//        }
-//
-//        if (p != Node.tree) {
-//            formatter.add(true, p.text, -1);
-//            formatter.newLine();
-//            chCus += p.nTus;
-//            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-//        }
-//
-//        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
-//    }
-
-//    private static boolean testAndUpdate(double value, double thr) {
-//		return value > thr;
-//    }
-    
-    private static void decodeByLeastSquares(
-            Formatter formatter,
-            PlotEntries plotEntries,
-            double[] sig,
-            double[] cei,
-            double[] flo,
-            int sigSize,
-            
-            int offset,
-            double tsLength,
-            double tuMillis,
-            
-            double[] plotLimits,
-            int framesPerSlice,
-            int frameRate,
-            int offsetFrames,
-            double ceilingMax) {
-    	
-    	final int decoder = decoderIndex.LEAST_SQUARES.ordinal();
-    	
-        int chCus = 0;
-        int chTicks = 0;
-        int spCusW = 0;
-        int spTicksW = 0;
-        int spCusC = 0;
-        int spTicksC = 0;
-
-        final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
-
-        // in theory, 0.50 .. 0.40 works better
-        final int jDotSmall = (int) Math.round(0.40/tsLength);
-        final int jDot = jDotSmall;
-
-        final int jDash = (int) Math.round(1.5/tsLength);
-
-        final int jDashSmall = (int) Math.round(1.35/tsLength);
-
-        final double dashStrengthLimit = 0.6;
-        
-        final double dotStrengthLimit = 0.8;
-        //final double dotStrengthLimit = 0.55;
-        
-        final double dotPeakCrit = 0.3;
-        //final double dotPeakCrit = 0.35;
-
-        final double mergeDashesWhenCloser = 2.8/tsLength;
-        final double mergeDotsWhenCloser = 0.8/tsLength;
-
-        final WeightBase w = new WeightDash(jDash);
-        final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
-        //final WeightBase w2 = new WeightTwoDots(jDash);
-        //double prevB = Double.MAX_VALUE;
-
-        TwoDoubles prevD = new TwoDoubles(0.0, Double.MAX_VALUE);
-
-        for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-            final TwoDoubles r = lsq(sig, k, jDash, w);
-
-            if (prevD.b >= 0.0 && r.b < 0.0) {
-
-                final int kBest = prevD.b > -r.b ? k : k-1;
-
-                final TwoDoubles aa = lsq(sig, kBest-2*jDot, jDot, wDot);
-                final TwoDoubles bb = lsq(sig, kBest, jDot, wDot);
-                final TwoDoubles cc = lsq(sig, kBest+2*jDot, jDot, wDot);
-
-                if ((kBest == k ?
-                        cei[kBest] - r.a < dashStrengthLimit :
-                            cei[kBest] - prevD.a < dashStrengthLimit) &&
-
-                        // PARA - this setting means that a dip in the middle
-                        // of the dash will be somewhat protected against.
-                        cei[kBest-2*jDot] - aa.a < 0.5 &&
-                        cei[kBest] - bb.a < 0.43 &&
-                        cei[kBest+2*jDot] - cc.a < 0.5
-
-                        ) {  // logarithmic assumed
-
-                	try {
-                		// index out of bounds can happen, hence try
-                		// use an average over aa, bb, cc
-                		dashes.put(Integer.valueOf(kBest),
-                				new Dash(
-                						kBest, jDot, jDash, sig,
-                						(aa.a + bb.a + cc.a)/3, true));
-                	}
-                	catch (Exception e) {
-                		new Info("cannot create dash, k: %d", kBest);
-                	}
-                }
-            }
-            prevD = r;
-        }
-
-        // check for clustering, merge doublets
-
-        mergeClusters(dashes, jDot, jDash, mergeDashesWhenCloser, sig);
-
-
-        // find all dots w/o worrying about dashes
-
-        TwoDoubles prevDot = new TwoDoubles(0.0,  Double.MAX_VALUE);
-
-        final NavigableMap<Integer, ToneBase> dots = new TreeMap<Integer, ToneBase>();
-
-        // TODO: the exact calculation of limits can be refined maybe
-        for (int k = 0 + 3*jDot; k < sigSize - 3*jDot; k++) {
-            final TwoDoubles r = lsq(sig, k, jDot, wDot);
-
-            //new Info("%10f %10f", r.a, r.b);
-            if (prevDot.b >= 0.0 && r.b < 0.0) {
-
-                final int kBest = prevDot.b > -r.b ? k : k-1;
-                final double a = prevDot.b > -r.b ? r.a : prevDot.a;
-
-//                final double t = 1+kBest*0.008005;
-//                if (t > 276 && t < 276.2) {
-//                    new Debug("dot candidate at t: %10f, k: %d, a: %10f", t, k, r.a);
-//                    new Debug("jDot: %d, %f", jDot, jDot * 0.008005);
-//                    for (int q = -5*jDot; q <= 5*jDot; q += jDot) {
-//                        final double dt = q*0.008005;
-//
-//                        final TwoDoubles x = lsq(sig, k + q, jDot, wDot);
-//                        new Debug("t: %f, ampl: %f", t+dt, x.a);
-//                    }
-//                }
-
-                final TwoDoubles u1 = lsq(sig, kBest - 2*jDot, jDot, wDot);
-                final TwoDoubles u2 = lsq(sig, kBest + 2*jDot, jDot, wDot);
-
-                if (cei[kBest] - a < dotStrengthLimit &&
-
-                        a - u1.a > dotPeakCrit &&
-                        a - u2.a > dotPeakCrit
-
-                        ) {
-                    dots.put(Integer.valueOf(kBest), new Dot(kBest, kBest - jDot, kBest + jDot));
-                }
-
-            }
-            prevDot = r;
-        }
-
-        mergeClusters(dots, jDot, jDash, mergeDotsWhenCloser, sig);
-
-        // remove dashes if there are two competing dots
-
-        final List<Integer> removals = new ArrayList<Integer>();
-        for (Integer key : dashes.navigableKeySet()) {
-
-            final Integer k1 = dots.lowerKey(key);
-            final Integer k2 = dots.higherKey(key);
-
-            if (k1 != null && k2 != null &&
-                    key-jDash < k1 && k1 < key-jDot && key+jDot < k2 && k2 < key+jDash) {
-                removals.add(key);
-            }
-        }
-
-        // remove dots if there is already a dash
-        removals.clear();
-        for (Integer key : dots.navigableKeySet()) {
-            final Integer k1 = dashes.floorKey(key);
-            final Integer k2 = dashes.higherKey(key);
-
-            if ((k1 != null && key - k1 < jDashSmall) || (k2 != null && k2 - key < jDashSmall)) {
-                removals.add(key);
-            }
-        }
-
-        for (Integer m : removals) {
-            dots.remove(m);
-        }
-
-        // merge the dots to the dashes
-        for (Integer key : dots.keySet()) {
-            dashes.put(key, dots.get(key));
-        }
-
-
-        Node p = Node.tree;
-        int qCharBegin = -999999;
-        Integer prevKey = null;
-        for (Integer key : dashes.navigableKeySet()) {
-
-            // TODO, the 4 is a decoder identifier
-        	if (prevKey == null) {
-        		qCharBegin = lsqToneBegin(key, dashes, jDot);
-        	}
-            if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) >
-            WORD_SPACE_LIMIT[decoder]/tsLength) {
-            	
-            	//formatter.add(true, p.text, -1);
-            	final int ts =
-                        GerkeLib.getFlag(O_TSTAMPS) ?
-                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
-                formatter.add(true, p.text, ts);
-                chCus += p.nTus;
-                spCusW += 7;
-                spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-                
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
-                }
-                else {
-                	p = p.newNode(".");
-                }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            else if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > CHAR_SPACE_LIMIT[decoder]/tsLength) {
-                formatter.add(false, p.text, -1);
-                chCus += p.nTus;
-                spCusC += 3;
-                
-                spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-
-//                if (p.text.equals("+")) {
-//                    new Info("\n    adding a '+'");
-//
-//                    ToneBase uu = dashes.get(prevKey);
-//                    ToneBase vv = dashes.get(key);
-//
-//                    new Info("dist: %d, %d, %f", uu.k, vv.k, (vv.k-uu.k - jDash -jDot)*tsLength);
-//                }
-
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
-                }
-                else {
-                	p = p.newNode(".");
-                }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            else {
-            	final ToneBase tb = dashes.get(key);
-            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, frameRate, offsetFrames, ceilingMax);
-            }
-            prevKey = key;
-        }
-
-        if (p != Node.tree) {
-            formatter.add(true, p.text, -1);
-            formatter.newLine();
-            chCus += p.nTus;
-            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-        }
-
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
-    }
-    
-    
-    private static int lsqToneBegin(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
-    	ToneBase tone = tones.get(key);
-    	if (tone instanceof Dash) {
-    		return ((Dash)tone).rise;
-    	}
-    	else {
-    		final int dotReduction = (int) Math.round(70.0*jDot/100);
-    		return tone.k - dotReduction;
-    	}	
-    }
-    
-    private static int lsqToneEnd(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
-    	ToneBase tone = tones.get(key);
-    	if (tone instanceof Dash) {
-    		return ((Dash)tone).drop;
-    	}
-    	else {
-    		final int dotReduction = (int) Math.round(70.0*jDot/100);
-    		return tone.k + dotReduction;
-    	}	
-    }
-    
-    
-    private static void lsqPlotHelper(PlotEntries plotEntries, double[] plotLimits, Integer key, ToneBase tb,
-    		int jDot, int framesPerSlice, int frameRate, int offsetFrames, double ceilingMax) {
-    	final int dotReduction = (int) Math.round(80.0*jDot/100);
-    	if (plotEntries != null) {
-    		if (tb instanceof Dot) {
-    			final int kRise = key - dotReduction;
-    			final int kDrop = key + dotReduction;
-    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
-    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
-    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
-    				plotEntries.addDecoded(secRise1, ceilingMax/20);
-    				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
-    				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
-    				plotEntries.addDecoded(secDrop2, ceilingMax/20);
-    			}
-    		}
-        	else if (tb instanceof Dash) {
-    			final int kRise = ((Dash) tb).rise;
-    			final int kDrop = ((Dash) tb).drop;
-    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
-    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
-    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
-    				plotEntries.addDecoded(secRise1, ceilingMax/20);
-    				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
-    				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
-    				plotEntries.addDecoded(secDrop2, ceilingMax/20);
-    			}
-        	}
-    	}
-    }
-
-    /**
-     * It is trusted that 'tones' is dashes-only or dots-only
-     * 
-     * @param tones
-     * @param jX
-     * @param ticks
-     */
-    private static void mergeClusters(
-            NavigableMap<Integer, ToneBase> tones,
-            int jDot,
-            int jDash,
-            double ticks,
-            double[] sig) {
-        final List<Cluster> clusters = new ArrayList<Cluster>();
-        for (Integer key : tones.navigableKeySet()) {
-                if (clusters.isEmpty()) {
-                    clusters.add(new Cluster(key));
-                }
-                else if (key - clusters.get(clusters.size() - 1).lowestKey < ticks) {
-                    clusters.get(clusters.size() - 1).add(key);
-                    boolean isDot = tones.get(key) instanceof Dot;
-                    final String ss = isDot ? "dots" : "dashes";
-                    new Debug("clustering %s at t: %f", ss, 0.008005*key);
-                }
-                else {
-                    clusters.add(new Cluster(key));
-                }
-        }
-
-        for (Cluster c : clusters) {
-            if (c.members.size() > 1) {
-                int kSum = 0;
-                boolean isDot = false;
-                
-                int minRise = 0;
-                int maxDrop = 0;
-                double sumCeiling = 0.0;
-
-                for (Integer kk : c.members) {
-                	
-                	final ToneBase tone =tones.get(kk); 
-                	if (tone instanceof Dot) {
-                		isDot = true;
-                	}
-                	else {
-                		final Dash dash = ((Dash) tone);
-                		minRise += Compute.iMin(minRise, dash.rise);
-                		maxDrop += Compute.iMax(maxDrop, dash.drop);
-                		sumCeiling += dash.ceiling;
-                	}
-
-                    tones.remove(kk);
-                    kSum += kk.intValue();
-                }
-                final int newK = (int) Math.round(((double) kSum)/c.members.size());
-                
-                if (isDot) {
-                	tones.put(Integer.valueOf(newK), new Dot(newK, newK - jDot, newK + jDot));
-                }
-                else {
-                	tones.put(Integer.valueOf(newK),
-                			new Dash(newK,
-                					minRise,
-                					maxDrop,
-                					sig,
-                					sumCeiling/c.members.size(), false));
-                }
-            }
-        }
-    }
-
-    private static int toneDist(
-            Integer k1,
-            Integer k2,
-            NavigableMap<Integer, ToneBase> tones,
-            int jDash,
-            int jDot) {
-
-        final ToneBase t1 = tones.get(k1);
-        final ToneBase t2 = tones.get(k2);
-
-        int reduction = 0;
-
-        final int dotReduction = (int) Math.round(80.0*jDot/100);
-        
-        if (t1 instanceof Dot) {
-        	reduction += dotReduction;
-        }
-        else if (t1 instanceof Dash) {
-        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
-        }
-        
-        if (t2 instanceof Dot) {
-        	reduction += dotReduction;
-        }
-        else if (t2 instanceof Dash) {
-        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
-        }
-
-        return k2 - k1 - reduction;
-    }
-    
-//    private static int toneDist2(
-//            Integer k1,
-//            Integer k2,
-//            NavigableMap<Integer, ToneBase> tones,
-//            int jDash,
-//            int jDot) {
-//
-//        final ToneBase t1 = tones.get(k1);
-//        final ToneBase t2 = tones.get(k2);
-//
-//        
-//        int reduction = 0;
-//        
-//        if (t1 instanceof Dot) {
-//        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
-//        }
-//        else if (t1 instanceof Dash) {
-//        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
-//        }
-//        
-//        
-//        if (t2 instanceof Dot) {
-//        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
-//        }
-//        else if (t2 instanceof Dash) {
-//        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
-//        }
-//
-//        return k2 - k1 - reduction;
-//    }
-
-    private static TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
-
-        double sumW = 0.0;
-        double sumJW = 0.0;
-        double sumJJW = 0.0;
-        double r1 = 0.0;
-        double r2 = 0.0;
-        for (int j = -jMax; j <= jMax; j++) {
-            final double w = weight.w(j);
-            sumW += w;
-            sumJW += j*w;
-            sumJJW += j*j*w;
-            r1 += w*sig[k+j];
-            r2 += j*w*sig[k+j];
-        }
-        double det = sumW*sumJJW - sumJW*sumJW;
-
-        return new TwoDoubles((r1*sumJJW - r2*sumJW)/det, (sumW*r2 - sumJW*r1)/det);
-    }
-
-
-
-    /**
-     * Report WPM estimates
-     * 
-     * @param chCus             nominal nof. TUs in character
-     * @param chTicks           actual nof. ticks in character
-     * @param spCusW            nominal nof. TUs in word spaces (always increment by 7)
-     * @param spTicksW          actual nof. ticks in word spaces
-     * @param spCusC            nominal nof. TUs in char spaces (always increment by 3)
-     * @param spTicksC          actual nof. ticks in char spaces
-     * @param tuMillis
-     * @param tsLength
-     */
-    private static void wpmReport(
-            int chCus,
-            int chTicks,
-            int spCusW,
-            int spTicksW,
-            int spCusC,
-            int spTicksC,
-            double tuMillis,
-            double tsLength) {
-
-        if (chTicks > 0) {
-            new Info("within-characters WPM rating: %.1f",
-                    1200*chCus/(chTicks*tuMillis*tsLength));
-        }
-        if (spCusC > 0) {
-            new Info("expansion of inter-char spaces: %.3f",
-                    (spTicksC*tsLength)/spCusC);
-        }
-        if (spCusW > 0) {
-            new Info("expansion of inter-word spaces: %.3f",
-                    (spTicksW*tsLength)/spCusW);
-        }
-        if (spTicksW + spTicksC + chTicks > 0) {
-            new Info("effective WPM: %.1f",
-                    1200*(spCusW + spCusC + chCus)/((spTicksW + spTicksC + chTicks)*tuMillis*tsLength));
-        }
-    }
 
     /**
      * Determines threshold based on decoder and amplitude mapping.
@@ -2394,9 +998,7 @@ new String[]{
         return result;
     }
 
-    public static double squared(double x) {
-        return x*x;
-    }
+
 
     private static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
@@ -2512,7 +1114,7 @@ new String[]{
         final int[] hist = new int[P_CEIL_HIST];
         for (int j = q1; j < q2; j++) {
             final int index = (int) Math.round((P_CEIL_HIST-1)*sig[j]/sigMax);
-            int points = (int)Math.round(500/(1 + squared((j-q)/P_CEIL_FOCUS)));
+            int points = (int)Math.round(500/(1 + Compute.squared((j-q)/P_CEIL_FOCUS)));
             hist[index] += points;
             sumPoints += points;
         }
@@ -2567,7 +1169,7 @@ new String[]{
         final int[] hist = new int[P_FLOOR_HIST];
         for (int j = q1; j < q2; j++) {
             final int index = (int) Math.round((P_FLOOR_HIST-1)*sig[j]/sigMax);
-            int points = (int)Math.round(500/(1 + squared((j-q)/P_FLOOR_FOCUS)));
+            int points = (int)Math.round(500/(1 + Compute.squared((j-q)/P_FLOOR_FOCUS)));
             hist[index] += points;
             sumPoints += points;
         }
