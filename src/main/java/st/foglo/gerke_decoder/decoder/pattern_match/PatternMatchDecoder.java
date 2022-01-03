@@ -49,10 +49,14 @@ public final class PatternMatchDecoder extends DecoderBase {
 			Formatter formatter,
 			
 			double ceilingMax,
-			Trans[] trans,
-			int transIndex,
+//			Trans[] trans,
+//			int transIndex,
 			int ampMap,
-			double level
+			double level,
+			
+			int nofSlices,
+			double[] cei,
+			double[] flo
 			
 			
 			) {
@@ -70,8 +74,19 @@ public final class PatternMatchDecoder extends DecoderBase {
 		
 		this.ceilingMax = ceilingMax;
 		
-		this.trans = trans;
-		this.transIndex = transIndex;
+		this.trans = findTransitions(
+				tuMillis,
+				tsLength, 
+				nofSlices, 
+				framesPerSlice, 
+				w, 
+				decoder, 
+				ampMap, 
+				level, 
+				sig, 
+				cei, 
+				flo);
+		this.transIndex = trans.length;
 		
 		this.ampMap = ampMap;
 		this.level = level;

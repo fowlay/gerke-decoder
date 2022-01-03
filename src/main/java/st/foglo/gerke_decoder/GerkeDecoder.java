@@ -24,7 +24,6 @@ import java.util.Map.Entry;
 
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.decoder.Decoder;
-import st.foglo.gerke_decoder.decoder.Trans;
 import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
 import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
 import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
@@ -143,7 +142,7 @@ public final class GerkeDecoder {
      * Tones longer than this are interpreted as two dashes
      * (dash dot = 5, dash dash = 7)
      */
-    static final double TWO_DASH_LIMIT = 6.0;
+    public static final double TWO_DASH_LIMIT = 6.0;
 
     // Decoder-independent parameters
 
@@ -482,8 +481,8 @@ new String[]{
 
             final int dashLimit = (int) Math.round(DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
             final int wordSpaceLimit = (int) Math.round(WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-            final int charSpaceLimit = (int) Math.round(CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-            final int twoDashLimit = (int) Math.round(TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
+//            final int charSpaceLimit = (int) Math.round(CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+//            final int twoDashLimit = (int) Math.round(TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
             final double level = GerkeLib.getDoubleOpt(O_LEVEL);
             final double levelLog = Math.log(level);
 
@@ -507,171 +506,21 @@ new String[]{
 
             // ============== identify transitions
             // usage depends on decoder method
-
-            final Trans[] trans = new Trans[nofSlices];
-            int transIndex = 0;
-            boolean tone = false;
-            double dipAcc = 0.0;
-            double spikeAcc = 0.0;
-            double thresholdMax = -1.0;
-            // double ceilingMax = -1.0; .. already done
-            new Debug("thresholdMax is: %e", thresholdMax);
-
-
-
-            for (int q = 0; true; q++) {
-                if (w.wav.length - q*framesPerSlice < framesPerSlice) {
-                    break;
-                }
-
-                final double threshold = threshold(decoder, ampMap, level, levelLog, flo[q], cei[q]);
-                thresholdMax = Compute.dMax(threshold, thresholdMax);
-
-                final boolean newTone = sig[q] > threshold;
-
-                if (newTone && !tone) {
-                    // raise
-                    if (transIndex > 0 && q - trans[transIndex-1].q <= charSpaceLimit) {
-                        trans[transIndex] = new Trans(q, true, dipAcc, cei[q], flo[q]);
-                    }
-                    else {
-                        trans[transIndex] = new Trans(q, true, cei[q], flo[q]);
-                    }
-                    transIndex++;
-                    tone = true;
-                    spikeAcc = Compute.squared(threshold - sig[q]);
-                }
-                else if (!newTone && tone) {
-                    // fall
-                    trans[transIndex] = new Trans(q, false, spikeAcc, cei[q], flo[q]);
-                    transIndex++;
-                    tone = false;
-                    dipAcc = Compute.squared(threshold - sig[q]);
-                }
-                else if (!tone) {
-                    dipAcc += Compute.squared(threshold - sig[q]);
-                }
-                else if (tone) {
-                    spikeAcc += Compute.squared(threshold - sig[q]);
-                }
-            }
-
-            new Debug("transIndex: %d", transIndex);
-
-            // Eliminate small dips
-
-            final double silentTu = (1.0/tsLength)*(0.5*thresholdMax)*(0.5*thresholdMax);
-            new Debug("thresholdMax is: %e", thresholdMax);
-            new Debug("tsLength is: %e", tsLength);
-            new Debug("silentTu is: %e", silentTu);
-            final double dipLimit = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.DIP.ordinal()];
-            final int veryShortDip = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
-
-            for (int t = 1; t < transIndex; t++) {
-                if (transIndex > 0 &&
-                        trans[t].rise &&
-                        trans[t].dipAcc != -1.0 &&
-                        (trans[t].dipAcc < dipLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortDip)) {
-                    new Trace("dip at: %d, width: %d, mass: %f, fraction: %f",
-                            t,
-                            trans[t].q - trans[t-1].q,
-                            trans[t].dipAcc,
-                            trans[t].dipAcc/silentTu);
-                    if (t+1 < transIndex) {
-                        // preserve accumulated spike value
-                        trans[t+1] =
-                                new Trans(trans[t+1].q,
-                                        false,
-                                        trans[t+1].spikeAcc + trans[t-1].spikeAcc,
-                                        trans[t].ceiling,
-                                        trans[t].floor
-                                        );
-                    }
-                    trans[t-1] = null;
-                    trans[t] = null;
-                }
-                else if (transIndex > 0 &&
-                        trans[t].rise &&
-                        trans[t].dipAcc != -1.0 && t % 200 == 0) {
-                    new Trace("dip at: %d, width: %d, mass: %e, limit: %e",
-                            t,
-                            trans[t].q - trans[t-1].q,
-                            trans[t].dipAcc,
-                            dipLimit*silentTu);
-                }
-            }
-
-            transIndex = removeHoles(trans, transIndex);
-
-            // check if potential spikes exist
-            boolean hasSpikes = false;
-            for (int t = 0; t < transIndex; t++) {
-                if (trans[t].spikeAcc > 0) {
-                    hasSpikes = true;
-                    break;
-                }
-            }
-
-            // remove spikes
-
-            final int veryShortSpike = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
-            if (hasSpikes) {
-                final double spikeLimit = GerkeLib.getDoubleOptMulti(O_HIDDEN)[HiddenOpts.SPIKE.ordinal()];
-                for (int t = 1; t < transIndex; t++) {
-                    if (!trans[t].rise && trans[t].spikeAcc != -1.0 &&
-                            (trans[t].spikeAcc < spikeLimit*silentTu || trans[t].q - trans[t-1].q <= veryShortSpike)) {
-                        trans[t-1] = null;
-                        trans[t] = null;
-                    }
-                }
-            }
-            transIndex = removeHoles(trans, transIndex);
-
-            // break up very long dashes
-
-            final boolean breakLongDash =
-                    GerkeLib.getIntOptMulti(O_HIDDEN)
-                    [HiddenOpts.BREAK_LONG_DASH.ordinal()] == 1;
-
-            if (breakLongDash) {
-                // TODO, refactor .. break off the first dash, then reconsider the rest
-                for (int t = 1; t < transIndex; ) {
-                    if (trans[t-1].rise && !trans[t].rise && trans[t].q - trans[t-1].q > twoDashLimit) {
-                        // break up a very long dash, make room for 2 more events
-                        for (int tt = transIndex-1; tt > t; tt--) {
-                            trans[tt+2] = trans[tt];
-                        }
-                        transIndex += 2;
-                        // fair split
-                        Trans big = trans[t];
-                        int dashSize = big.q - trans[t-1].q;
-                        int q1 = trans[t-1].q + dashSize/2 - (int) Math.round(0.5/tsLength);
-                        int q2 = trans[t-1].q + dashSize/2 + (int) Math.round(0.5/tsLength);
-                        int q3 = big.q;
-                        double acc = big.spikeAcc;
-                        double ceiling = trans[t-1].ceiling;
-                        double floor = trans[t-1].floor;
-                        trans[t] = new Trans(q1, false, acc/2, ceiling, floor);
-                        trans[t+1] = new Trans(q2, true, acc/2, ceiling, floor);
-                        trans[t+2] = new Trans(q3, false, acc/2, ceiling, floor);
-                        t +=3;
-                    }
-                    else {
-                        t++;
-                    }
-                }
-            }
-
-            ///////////////////////
-            // transition list is ready
-            ///////////////////////
-
-            if (transIndex == 0) {
-                new Death("no signal detected");
-            }
-            else if (transIndex == 1) {
-                new Death("no code detected");
-            }
+            
+//            final Trans[] trans = DecoderBase.findTransitions(
+//            		tuMillis, 
+//            		tsLength, 
+//            		nofSlices, 
+//            		framesPerSlice, 
+//            		w, 
+//            		decoder, 
+//            		ampMap, 
+//            		level, 
+//            		sig, 
+//            		cei, 
+//            		flo);
+            
+//            final int transIndex = trans.length;
 
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
             final Formatter formatter = new Formatter();
@@ -702,9 +551,17 @@ new String[]{
             			plotLimits,
             			formatter,
             			
-            			trans,
-            			transIndex,
-            			ceilingMax);
+//            			trans,
+//            			transIndex,
+            			ceilingMax,
+            			
+            			nofSlices,
+            			ampMap,
+            			level,
+            			cei,
+            			flo
+            			
+            			);
             	dec.execute();
             	
             }
@@ -723,10 +580,14 @@ new String[]{
             			formatter,
             			
             			ceilingMax,
-            			trans,
-            			transIndex,
+//            			trans,
+//            			transIndex,
             			ampMap,
-            			level);
+            			level,
+            			
+            			nofSlices,
+            			cei,
+            			flo);
             	dec.execute();
             }
 
@@ -743,10 +604,13 @@ new String[]{
             			formatter,
             			
             			ceilingMax,
-            			trans,
-            			transIndex,
+//            			trans,
+//            			transIndex,
             			cei,
-            			flo
+            			flo,
+            			nofSlices,
+            			ampMap,
+            			level
             			);
             	dec.execute();
             }
@@ -1004,24 +868,24 @@ new String[]{
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }
 
-    /**
-     * Remove null elements from the given array. The returned value
-     * is the new active size.
-     *
-     * @param trans
-     * @param activeSize
-     * @return
-     */
-    private static int removeHoles(Trans[] trans, int activeSize) {
-        int k = 0;
-        for (int i = 0; i < activeSize; i++) {
-            if (trans[i] != null) {
-                trans[k] = trans[i];
-                k++;
-            }
-        }
-        return k;
-    }
+//    /**
+//     * Remove null elements from the given array. The returned value
+//     * is the new active size.
+//     *
+//     * @param trans
+//     * @param activeSize
+//     * @return
+//     */
+//    private static int removeHoles(Trans[] trans, int activeSize) {
+//        int k = 0;
+//        for (int i = 0; i < activeSize; i++) {
+//            if (trans[i] != null) {
+//                trans[k] = trans[i];
+//                k++;
+//            }
+//        }
+//        return k;
+//    }
 
     /**
      * Weighted computation of phase angle. Returns 0.0 if there is no tone.

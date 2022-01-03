@@ -50,12 +50,13 @@ public final class DipsFindingDecoder extends DecoderBase {
 			Formatter formatter,
 			
 			double ceilingMax,
-			Trans[] trans,
-			int transIndex,
+//			Trans[] trans,
+//			int transIndex,
 			double[] cei,
-			double[] flo
-			
-			
+			double[] flo,
+			int nofSlices,
+			int ampMap,
+			double level
 			) {
 		super(
 				tuMillis,
@@ -70,8 +71,19 @@ public final class DipsFindingDecoder extends DecoderBase {
 				);
 		
 		this.ceilingMax = ceilingMax;
-		this.trans = trans;
-		this.transIndex = transIndex;
+		this.trans = findTransitions(
+				tuMillis,
+				tsLength,
+				nofSlices,
+				framesPerSlice,
+				w,
+				decoder,
+				ampMap,
+				level,
+				sig,
+				cei,
+				flo);
+		this.transIndex = trans.length;
 		
 		this.cei = cei;
 		this.flo = flo;

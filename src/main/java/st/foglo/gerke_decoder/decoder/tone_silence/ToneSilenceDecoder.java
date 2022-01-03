@@ -39,9 +39,14 @@ public final class ToneSilenceDecoder extends DecoderBase {
 			double[] plotLimits,
 			Formatter formatter,
 			
-			Trans[] trans,
-			int transIndex,
-			double ceilingMax
+//			Trans[] trans,
+//			int transIndex,
+			double ceilingMax,
+			int nofSlices,
+			int ampMap,
+			double level,
+			double[] cei,
+			double[] flo
 			) {
 		super(
 				tuMillis,
@@ -55,8 +60,19 @@ public final class ToneSilenceDecoder extends DecoderBase {
     			formatter
 				);
 		
-		this.trans = trans;
-		this.transIndex = transIndex;
+		this.trans = findTransitions(
+				tuMillis, 
+				tsLength, 
+				nofSlices, 
+				framesPerSlice, 
+				w, 
+				GerkeDecoder.decoderIndex.TONE_SILENCE.ordinal(),
+				ampMap, 
+				level, 
+				sig, 
+				cei, 
+				flo);
+		this.transIndex = trans.length;
 		this.ceilingMax = ceilingMax;
 		
 		
