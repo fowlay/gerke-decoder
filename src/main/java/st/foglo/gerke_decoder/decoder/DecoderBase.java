@@ -20,18 +20,21 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public abstract class DecoderBase implements Decoder {
 
-	public final double tuMillis;
-	public final int framesPerSlice;
-	public final double tsLength;
-	public final int offset;
-	public final Wav w;
+	protected double tuMillis;
+	protected int framesPerSlice;
+	protected double tsLength;
+	protected int offset;
+	protected Wav w;
 	
-	public final double[] sig;
+	protected double[] sig;
 	
-	public final PlotEntries plotEntries;
-	public final double[] plotLimits;
+	protected PlotEntries plotEntries;
+	protected double[] plotLimits;
 	
-	public final Formatter formatter;
+	protected Formatter formatter;
+	
+	protected double[] cei;
+	protected double ceilingMax;
 
 	protected DecoderBase(
 			double tuMillis,
@@ -42,7 +45,9 @@ public abstract class DecoderBase implements Decoder {
 			double[] sig,
 			PlotEntries plotEntries,
 			double[] plotLimits,
-			Formatter formatter) {
+			Formatter formatter,
+			double[] cei,
+			double ceilingMax) {
 
 		this.tuMillis = tuMillis;
 		this.framesPerSlice = framesPerSlice;
@@ -53,6 +58,8 @@ public abstract class DecoderBase implements Decoder {
 		this.plotEntries = plotEntries;
 		this.plotLimits = plotLimits;
 		this.formatter = formatter;
+		this.cei = cei;
+		this.ceilingMax = ceilingMax;
 	}
 	
     /**
@@ -152,17 +159,17 @@ public abstract class DecoderBase implements Decoder {
         return k2 - k1 - reduction;
     }
     
-    protected static void lsqPlotHelper(PlotEntries plotEntries, double[] plotLimits, Integer key, ToneBase tb,
-    		int jDot, int framesPerSlice, int frameRate, int offsetFrames, double ceilingMax) {
+    protected void lsqPlotHelper(Integer key, ToneBase tb,
+    		int jDot) {
     	final int dotReduction = (int) Math.round(80.0*jDot/100);
     	if (plotEntries != null) {
     		if (tb instanceof Dot) {
     			final int kRise = key - dotReduction;
     			final int kDrop = key + dotReduction;
-    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
-    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
+    			final double secRise1 = timeSeconds(kRise);
+    			final double secRise2 = timeSeconds(kRise+1);
+    			final double secDrop1 = timeSeconds(kDrop);
+    			final double secDrop2 = timeSeconds(kDrop+1);
     			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
     				plotEntries.addDecoded(secRise1, ceilingMax/20);
     				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
@@ -173,10 +180,10 @@ public abstract class DecoderBase implements Decoder {
         	else if (tb instanceof Dash) {
     			final int kRise = ((Dash) tb).rise;
     			final int kDrop = ((Dash) tb).drop;
-    			final double secRise1 = timeSeconds(kRise, framesPerSlice, frameRate, offsetFrames);
-    			final double secRise2 = timeSeconds(kRise+1, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop1 = timeSeconds(kDrop, framesPerSlice, frameRate, offsetFrames);
-    			final double secDrop2 = timeSeconds(kDrop+1, framesPerSlice, frameRate, offsetFrames);
+    			final double secRise1 = timeSeconds(kRise);
+    			final double secRise2 = timeSeconds(kRise+1);
+    			final double secDrop1 = timeSeconds(kDrop);
+    			final double secDrop2 = timeSeconds(kDrop+1);
     			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
     				plotEntries.addDecoded(secRise1, ceilingMax/20);
     				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
@@ -187,8 +194,8 @@ public abstract class DecoderBase implements Decoder {
     	}
     }
     
-    protected static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
-        return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
+    protected double timeSeconds(int q) {
+        return (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
     }
     
     /**
@@ -200,18 +207,14 @@ public abstract class DecoderBase implements Decoder {
      * @param spTicksW          actual nof. ticks in word spaces
      * @param spCusC            nominal nof. TUs in char spaces (always increment by 3)
      * @param spTicksC          actual nof. ticks in char spaces
-     * @param tuMillis
-     * @param tsLength
      */
-    protected static void wpmReport(
+    protected void wpmReport(
             int chCus,
             int chTicks,
             int spCusW,
             int spTicksW,
             int spCusC,
-            int spTicksC,
-            double tuMillis,
-            double tsLength) {
+            int spTicksC) {
 
         if (chTicks > 0) {
             new Info("within-characters WPM rating: %.1f",
@@ -231,19 +234,19 @@ public abstract class DecoderBase implements Decoder {
         }
     }
     
-    public static Trans[] findTransitions(
-    		double tuMillis,
-    		double tsLength,
-    		int nofSlices,
-    		int framesPerSlice,
-    		Wav w,
-    		int decoder,
-    		int ampMap,
-    		double level,
-    		
-    		double[] sig,
-    		double[] cei,
-    		double[] flo
+    protected  Trans[] findTransitions(
+//    		double tuMillis,
+//    		double tsLength,
+int nofSlices,
+//    		int framesPerSlice,
+//    		Wav w,
+int decoder,
+int ampMap,
+double level,
+//    		
+//    		double[] sig,
+//    		double[] cei,
+double[] flo
     		
     		) {
     	
@@ -438,7 +441,7 @@ public abstract class DecoderBase implements Decoder {
      * @param activeSize
      * @return
      */
-    private static int removeHoles(Trans[] trans, int activeSize) {
+    protected int removeHoles(Trans[] trans, int activeSize) {
         int k = 0;
         for (int i = 0; i < activeSize; i++) {
             if (trans[i] != null) {

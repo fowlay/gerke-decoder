@@ -24,12 +24,10 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class DipsFindingDecoder extends DecoderBase {
 	
-	final double ceilingMax;
 	
 	final Trans[] trans;
 	final int transIndex;
 	
-	final double[] cei;
 	final double[] flo;
 	
 	final int decoder = decoderIndex.DIPS_FINDING.ordinal();
@@ -67,25 +65,25 @@ public final class DipsFindingDecoder extends DecoderBase {
     			sig,
     		    plotEntries,
     			plotLimits,
-    			formatter
+    			formatter,
+    			cei,
+    			ceilingMax
 				);
 		
-		this.ceilingMax = ceilingMax;
 		this.trans = findTransitions(
-				tuMillis,
-				tsLength,
+//				tuMillis,
+//				tsLength,
 				nofSlices,
-				framesPerSlice,
-				w,
+//				framesPerSlice,
+//				w,
 				decoder,
 				ampMap,
 				level,
-				sig,
-				cei,
+//				sig,
+//				cei,
 				flo);
 		this.transIndex = trans.length;
 		
-		this.cei = cei;
 		this.flo = flo;
 		
 	}
@@ -142,7 +140,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
-                            formatter, plotEntries, ceilingMax, framesPerSlice, w.frameRate, w.offsetFrames,
+                            formatter, plotEntries, ceilingMax,
                             plotLimits,
                             tc);
                     final int ts =
@@ -157,7 +155,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
-                            formatter, plotEntries, ceilingMax, framesPerSlice, w.frameRate, w.offsetFrames,
+                            formatter, plotEntries, ceilingMax,
                             plotLimits,
                             tc);
                     beginChar = trans[t].q;
@@ -174,7 +172,7 @@ public final class DipsFindingDecoder extends DecoderBase {
             decodeGapChar(beginChar, trans[transIndex-1].q, sig, cei, flo, tsLength,
                     dipMergeLim, dipStrengthMin,
                     charNo++,
-                    formatter, plotEntries, ceilingMax, framesPerSlice, w.frameRate, w.offsetFrames,
+                    formatter, plotEntries, ceilingMax,
                     plotLimits,
                     tc);
         }
@@ -182,12 +180,12 @@ public final class DipsFindingDecoder extends DecoderBase {
         formatter.flush();
         formatter.newLine();
 
-        wpmReport(tc.chCus, tc.chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
+        wpmReport(tc.chCus, tc.chTicks, spCusW, spTicksW, spCusC, spTicksC);
     }
 
 
 
-private static void decodeGapChar(
+private void decodeGapChar(
         int q1,
         int q2,
         double[] sig,
@@ -200,24 +198,23 @@ private static void decodeGapChar(
         Formatter formatter,
         PlotEntries plotEntries,
         double ceilingMax,
-        int framesPerSlice, int frameRate, int offsetFrames,
         double[] plotLimits,
         TimeCounter tc) throws IOException, InterruptedException {
 
     tc.chTicks += q2 - q1;
 
     final boolean inView = plotEntries != null &&
-            timeSeconds(q1, framesPerSlice,frameRate, offsetFrames) >= plotLimits[0] &&
-            timeSeconds(q2, framesPerSlice,frameRate, offsetFrames) <= plotLimits[1];
+            timeSeconds(q1) >= plotLimits[0] &&
+            timeSeconds(q2) <= plotLimits[1];
 
     final double decodeLo = ceilingMax*PlotEntryDecode.height;
     final double decodeHi = ceilingMax*2*PlotEntryDecode.height;
 
     if (inView) {
-        plotEntries.addDecoded(timeSeconds(q1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-        plotEntries.addDecoded(timeSeconds(q1+1, framesPerSlice, frameRate, offsetFrames), decodeHi);
-        plotEntries.addDecoded(timeSeconds(q2-1, framesPerSlice, frameRate, offsetFrames), decodeHi);
-        plotEntries.addDecoded(timeSeconds(q2, framesPerSlice, frameRate, offsetFrames), decodeLo);
+        plotEntries.addDecoded(timeSeconds(q1), decodeLo);
+        plotEntries.addDecoded(timeSeconds(q1+1), decodeHi);
+        plotEntries.addDecoded(timeSeconds(q2-1), decodeHi);
+        plotEntries.addDecoded(timeSeconds(q2), decodeLo);
     }
 
     final int halfTu = (int) Math.round(1.0/(2*tau));
@@ -288,10 +285,10 @@ private static void decodeGapChar(
         count++;
 
         if (inView && d.strength < 9999.8) {
-            plotEntries.addDecoded(timeSeconds(d.q - halfTu, framesPerSlice, frameRate, offsetFrames), decodeHi);
-            plotEntries.addDecoded(timeSeconds(d.q - halfTu + 1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-            plotEntries.addDecoded(timeSeconds(d.q + halfTu - 1, framesPerSlice, frameRate, offsetFrames), decodeLo);
-            plotEntries.addDecoded(timeSeconds(d.q + halfTu, framesPerSlice, frameRate, offsetFrames), decodeHi);
+            plotEntries.addDecoded(timeSeconds(d.q - halfTu), decodeHi);
+            plotEntries.addDecoded(timeSeconds(d.q - halfTu + 1), decodeLo);
+            plotEntries.addDecoded(timeSeconds(d.q + halfTu - 1), decodeLo);
+            plotEntries.addDecoded(timeSeconds(d.q + halfTu), decodeHi);
         }
     }
 

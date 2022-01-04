@@ -16,7 +16,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 	final Trans[] trans;
 	final int transIndex;
 	
-	final double ceilingMax;
 	
 	final int decoder = decoderIndex.DIPS_FINDING.ordinal();
 	final int wordSpaceLimit =
@@ -39,8 +38,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 			double[] plotLimits,
 			Formatter formatter,
 			
-//			Trans[] trans,
-//			int transIndex,
 			double ceilingMax,
 			int nofSlices,
 			int ampMap,
@@ -57,23 +54,24 @@ public final class ToneSilenceDecoder extends DecoderBase {
     			sig,
     		    plotEntries,
     			plotLimits,
-    			formatter
+    			formatter,
+    			cei,
+    			ceilingMax
 				);
 		
 		this.trans = findTransitions(
-				tuMillis, 
-				tsLength, 
+//				tuMillis, 
+//				tsLength, 
 				nofSlices, 
-				framesPerSlice, 
-				w, 
+//				framesPerSlice, 
+//				w, 
 				GerkeDecoder.decoderIndex.TONE_SILENCE.ordinal(),
 				ampMap, 
 				level, 
-				sig, 
-				cei, 
+//				sig, 
+//				cei, 
 				flo);
 		this.transIndex = trans.length;
-		this.ceilingMax = ceilingMax;
 		
 		
 	}
@@ -87,7 +85,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
             boolean firstLap = true;
             for (int t = 0; t < transIndex; t++) {
 
-                final double sec = timeSeconds(trans[t].q, framesPerSlice, w.frameRate, w.offsetFrames);
+                final double sec = timeSeconds(trans[t].q);
 
                 if (plotLimits[0] <= sec && sec <= plotLimits[1]) {
                     plotEntries.addDecoded(sec, (trans[t].rise ? 2 : 1)*ceilingMax/20);
@@ -183,7 +181,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
             formatter.newLine();
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
+        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
 
 
 	}

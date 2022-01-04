@@ -28,8 +28,6 @@ import st.foglo.gerke_decoder.wave.Wav;
 public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
 	final int sigSize;
-	final double[] cei;
-	final double ceilingMax;   // both lsq decoders have this one
 	
 	public LeastSquaresDecoder(
 			double tuMillis,
@@ -57,11 +55,11 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 				sig,
 				plotEntries,
 				plotLimits,
-				formatter
+				formatter,
+				cei,
+				ceilingMax
 				);
 		this.sigSize = sigSize;
-		this.cei = cei;
-		this.ceilingMax = ceilingMax;
 	};
 	
 	
@@ -264,10 +262,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 }
                 chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                 qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice,
-                		w.frameRate,
-                		w.offsetFrames,
-                		ceilingMax);
+                lsqPlotHelper(key, tb, jDot);
             }
             else if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
                 formatter.add(false, p.text, -1);
@@ -295,12 +290,12 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 }
                 chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                 qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, w.frameRate, w.offsetFrames, ceilingMax);
+                lsqPlotHelper(key, tb, jDot);
             }
             else {
             	final ToneBase tb = dashes.get(key);
             	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, w.frameRate, w.offsetFrames, ceilingMax);
+            	lsqPlotHelper(key, tb, jDot);
             }
             prevKey = key;
         }
@@ -312,7 +307,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
+        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
 
 	}
 	

@@ -18,13 +18,10 @@ public final class SlidingLineDecoder extends DecoderBase {
 	final int sigSize;
 	final int ampMap;
 	
-	final double[] cei;
 	final double[] flo;
 	
 	final double level;
 	final double levelLog;
-	
-	final double ceilingMax;
 
 	public SlidingLineDecoder(
 			double tuMillis,
@@ -53,18 +50,17 @@ public final class SlidingLineDecoder extends DecoderBase {
     			sig,
     		    plotEntries,
     			plotLimits,
-    			formatter
+    			formatter,
+    			cei,
+    			ceilingMax
 				);
 		
 		this.sigSize = sigSize;
 		this.ampMap = ampMap;
 		
-		this.cei = cei;
 		this.flo = flo;
 		this.level = level;
 		this.levelLog = Math.log(level);
-		
-		this.ceilingMax = ceilingMax;
 		
 	}
 	
@@ -175,7 +171,7 @@ public final class SlidingLineDecoder extends DecoderBase {
                 }
                 chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                 qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, w.frameRate, w.offsetFrames, ceilingMax);
+                lsqPlotHelper(key, tb, jDot);
             }
             else if (prevKey != null && toneDist2(prevKey, key, dashes, jDash, jDot) > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
                 formatter.add(false, p.text, -1);
@@ -194,12 +190,12 @@ public final class SlidingLineDecoder extends DecoderBase {
                 }
                 chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                 qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, w.frameRate, w.offsetFrames, ceilingMax);
+                lsqPlotHelper(key, tb, jDot);
             }
             else {
             	final ToneBase tb = dashes.get(key);
             	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-            	lsqPlotHelper(plotEntries, plotLimits, key, tb, jDot, framesPerSlice, w.frameRate, w.offsetFrames, ceilingMax);
+            	lsqPlotHelper(key, tb, jDot);
             }
             prevKey = key;
         }
@@ -211,7 +207,7 @@ public final class SlidingLineDecoder extends DecoderBase {
             chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC, tuMillis, tsLength);
+        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
   
 		
 	}

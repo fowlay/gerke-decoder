@@ -504,24 +504,6 @@ new String[]{
             	}
             }
 
-            // ============== identify transitions
-            // usage depends on decoder method
-            
-//            final Trans[] trans = DecoderBase.findTransitions(
-//            		tuMillis, 
-//            		tsLength, 
-//            		nofSlices, 
-//            		framesPerSlice, 
-//            		w, 
-//            		decoder, 
-//            		ampMap, 
-//            		level, 
-//            		sig, 
-//            		cei, 
-//            		flo);
-            
-//            final int transIndex = trans.length;
-
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
             final Formatter formatter = new Formatter();
             final PlotEntries plotEntries =
@@ -562,7 +544,6 @@ new String[]{
             			flo
             			
             			);
-            	dec.execute();
             	
             }
 
@@ -588,7 +569,6 @@ new String[]{
             			nofSlices,
             			cei,
             			flo);
-            	dec.execute();
             }
 
             else if (decoder == decoderIndex.DIPS_FINDING.ordinal()) {
@@ -612,7 +592,6 @@ new String[]{
             			ampMap,
             			level
             			);
-            	dec.execute();
             }
 
             else if (decoder == decoderIndex.LEAST_SQUARES.ordinal()) {
@@ -633,7 +612,6 @@ new String[]{
             			ceilingMax
             			
             			);
-            	dec.execute();
             }
             else if (decoder == decoderIndex.LSQ2.ordinal()) {
             	dec = new SlidingLineDecoder(
@@ -655,12 +633,12 @@ new String[]{
             		    ceilingMax
             			
             			);
-            	dec.execute();
             }
             else {
             	dec = null;
                 new Death("no such decoder: '%d'", decoder);
             }
+            dec.execute();
 
             new Info("decoded text MD5 digest: %s", formatter.getDigest());
 

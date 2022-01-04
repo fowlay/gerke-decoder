@@ -18,9 +18,14 @@ import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
+/**
+ * This decoder does not produce a WPM report.
+ * 
+ * @author erarafo
+ *
+ */
 public final class PatternMatchDecoder extends DecoderBase {
 	
-	final double ceilingMax;
 	
 	final Trans[] trans;
 	final int transIndex;
@@ -49,8 +54,6 @@ public final class PatternMatchDecoder extends DecoderBase {
 			Formatter formatter,
 			
 			double ceilingMax,
-//			Trans[] trans,
-//			int transIndex,
 			int ampMap,
 			double level,
 			
@@ -69,31 +72,29 @@ public final class PatternMatchDecoder extends DecoderBase {
     			sig,
     		    plotEntries,
     			plotLimits,
-    			formatter
+    			formatter,
+    			cei,
+    			ceilingMax
 				);
 		
-		this.ceilingMax = ceilingMax;
 		
 		this.trans = findTransitions(
-				tuMillis,
-				tsLength, 
+//				tuMillis,
+//				tsLength, 
 				nofSlices, 
-				framesPerSlice, 
-				w, 
+//				framesPerSlice, 
+//				w, 
 				decoder, 
 				ampMap, 
 				level, 
-				sig, 
-				cei, 
+//				sig, 
+//				cei, 
 				flo);
 		this.transIndex = trans.length;
 		
 		this.ampMap = ampMap;
 		this.level = level;
 		this.levelLog = Math.log(level);
-		
-
-		
 	}
 
 	@Override
@@ -175,10 +176,9 @@ public final class PatternMatchDecoder extends DecoderBase {
 
                         // if we are plotting, then collect some things here
                         if (plotEntries != null && ct != null) {
-                            final double seconds = offset + timeSeconds(cd.transes.get(0).q, framesPerSlice, w.frameRate, w.offsetFrames);
+                            final double seconds = offset + timeSeconds(cd.transes.get(0).q);
                             if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
-                                plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax,
-                                        framesPerSlice, w.frameRate, w.offsetFrames);
+                                plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax);
                             }
                         }
             }
@@ -277,12 +277,11 @@ public final class PatternMatchDecoder extends DecoderBase {
      * @param d
      * @param ceilingMax
      */
-    private static void plotDecoded(
+    private void plotDecoded(
             PlotEntries plotEntries,
             CharData cd,
             CharTemplate ct,
-            int offset, double tsSecs, double ceilingMax,
-            int framesPerSlice, int frameRate, int offsetFrames) {
+            int offset, double tsSecs, double ceilingMax) {
 
         int prevValue = CharTemplate.LO;
 
@@ -296,7 +295,7 @@ public final class PatternMatchDecoder extends DecoderBase {
                 // a rise
 
                 final double t1 =
-                        timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
+                        timeSeconds(cd.transes.get(0).q) +
                            i*(tChar/ct.pattern.length);
                 final double t2 = t1 + 0.1*tsSecs;
 
@@ -313,7 +312,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
                 // compute points in time
                 final double t1 =
-                        timeSeconds(cd.transes.get(0).q, framesPerSlice, frameRate, offsetFrames) +
+                        timeSeconds(cd.transes.get(0).q) +
                            i*(tChar/ct.pattern.length);
                 final double t2 = t1 + 0.1*tsSecs;
 
@@ -327,7 +326,7 @@ public final class PatternMatchDecoder extends DecoderBase {
             prevValue = ct.pattern[i];
         }
 
-        final double t1 = timeSeconds(cd.transes.get(nTranses-1).q, framesPerSlice, frameRate, offsetFrames);
+        final double t1 = timeSeconds(cd.transes.get(nTranses-1).q);
         final double t2 = t1 + 0.1*tsSecs;
 //		plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
 //		plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
