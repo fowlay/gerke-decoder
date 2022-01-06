@@ -67,8 +67,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 	
 	@Override
 	public void execute() {
-
-    	
+		
     	final int decoder = decoderIndex.LEAST_SQUARES.ordinal();
     	
         int chCus = 0;
@@ -147,7 +146,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
         // check for clustering, merge doublets
 
-        mergeClusters(dashes, jDot, jDash, mergeDashesWhenCloser, sig);
+        mergeClusters(dashes, jDot, jDash, mergeDashesWhenCloser);
 
 
         // find all dots w/o worrying about dashes
@@ -194,7 +193,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             prevDot = r;
         }
 
-        mergeClusters(dots, jDot, jDash, mergeDotsWhenCloser, sig);
+        mergeClusters(dots, jDot, jDash, mergeDotsWhenCloser);
 
         // remove dashes if there are two competing dots
 
@@ -236,7 +235,6 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         Integer prevKey = null;
         for (Integer key : dashes.navigableKeySet()) {
 
-            // TODO, the 4 is a decoder identifier
         	if (prevKey == null) {
         		qCharBegin = lsqToneBegin(key, dashes, jDot);
         	}
@@ -318,12 +316,11 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
      * @param jX
      * @param ticks
      */
-    private static void mergeClusters(
+    private void mergeClusters(
             NavigableMap<Integer, ToneBase> tones,
             int jDot,
             int jDash,
-            double ticks,
-            double[] sig) {
+            double ticks) {
         final List<Cluster> clusters = new ArrayList<Cluster>();
         for (Integer key : tones.navigableKeySet()) {
                 if (clusters.isEmpty()) {
@@ -382,7 +379,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         }
     }
     
-    private static int toneDist(
+    private int toneDist(
             Integer k1,
             Integer k2,
             NavigableMap<Integer, ToneBase> tones,

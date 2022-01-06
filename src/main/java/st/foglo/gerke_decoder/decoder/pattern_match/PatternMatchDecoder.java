@@ -164,7 +164,7 @@ public final class PatternMatchDecoder extends DecoderBase {
             else {
                 ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
                         offset + (int) Math.round(cd.transes.get(0).q*tsLength*tuMillis/1000) : -1;
-                        final CharTemplate ct = decodeCharByPattern(decoder, ampMap, cd, sig, level, levelLog, tsLength, offset, tuMillis);
+                        final CharTemplate ct = decodeCharByPattern(cd);
                         tuCount += tuCount == 0 ? 0 : 3;
 
                         // TODO, the 5 below represents the undecodable character; compute
@@ -196,12 +196,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
 	}
 	
-    private static CharTemplate decodeCharByPattern(
-            int decoder,
-            int ampMap,
-            CharData cd,
-            double[] sig, double level, double levelLog,
-            double tsLength, int offset, double tuMillis) {
+    private CharTemplate decodeCharByPattern(CharData cd) {
 
         final int qSize = cd.getLastAdded().q - cd.transes.get(0).q;
         final int tuClass = (int) Math.round(tsLength*qSize);

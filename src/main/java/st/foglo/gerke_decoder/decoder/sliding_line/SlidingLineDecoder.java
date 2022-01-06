@@ -98,7 +98,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         	
         	final TwoDoubles r = lsq(sig, k, jDot, wDot);
 
-        	final boolean high = testAndUpdate(r.a, thr);
+        	final boolean high = r.a > thr;
 
         	if (!isHigh && !high) {
         		continue;
@@ -212,8 +212,34 @@ public final class SlidingLineDecoder extends DecoderBase {
 		
 	}
 	
-    private static boolean testAndUpdate(double value, double thr) {
-		return value > thr;
-    }
+    private int toneDist2(
+            Integer k1,
+            Integer k2,
+            NavigableMap<Integer, ToneBase> tones,
+            int jDash,
+            int jDot) {
 
+        final ToneBase t1 = tones.get(k1);
+        final ToneBase t2 = tones.get(k2);
+
+        
+        int reduction = 0;
+        
+        if (t1 instanceof Dot) {
+        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
+        }
+        else if (t1 instanceof Dash) {
+        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
+        }
+        
+        
+        if (t2 instanceof Dot) {
+        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
+        }
+        else if (t2 instanceof Dash) {
+        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
+        }
+
+        return k2 - k1 - reduction;
+    }
 }

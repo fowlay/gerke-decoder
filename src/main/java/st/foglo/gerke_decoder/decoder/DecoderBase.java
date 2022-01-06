@@ -65,7 +65,7 @@ public abstract class DecoderBase implements Decoder {
     /**
      * Determines threshold based on decoder and amplitude mapping.
      */
-    public static double threshold(
+    protected double threshold(
             int decoder,
             int ampMap,
             double level,
@@ -86,7 +86,7 @@ public abstract class DecoderBase implements Decoder {
         }
     }
     
-    public static TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
+    protected TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
 
         double sumW = 0.0;
         double sumJW = 0.0;
@@ -106,7 +106,7 @@ public abstract class DecoderBase implements Decoder {
         return new TwoDoubles((r1*sumJJW - r2*sumJW)/det, (sumW*r2 - sumJW*r1)/det);
     }
     
-    public static int lsqToneBegin(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
+    protected int lsqToneBegin(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
     	ToneBase tone = tones.get(key);
     	if (tone instanceof Dash) {
     		return ((Dash)tone).rise;
@@ -117,7 +117,7 @@ public abstract class DecoderBase implements Decoder {
     	}	
     }
     
-    public static int lsqToneEnd(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
+    protected int lsqToneEnd(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
     	ToneBase tone = tones.get(key);
     	if (tone instanceof Dash) {
     		return ((Dash)tone).drop;
@@ -127,38 +127,7 @@ public abstract class DecoderBase implements Decoder {
     		return tone.k + dotReduction;
     	}	
     }
-    
-    public static int toneDist2(
-            Integer k1,
-            Integer k2,
-            NavigableMap<Integer, ToneBase> tones,
-            int jDash,
-            int jDot) {
 
-        final ToneBase t1 = tones.get(k1);
-        final ToneBase t2 = tones.get(k2);
-
-        
-        int reduction = 0;
-        
-        if (t1 instanceof Dot) {
-        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
-        }
-        else if (t1 instanceof Dash) {
-        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
-        }
-        
-        
-        if (t2 instanceof Dot) {
-        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
-        }
-        else if (t2 instanceof Dash) {
-        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
-        }
-
-        return k2 - k1 - reduction;
-    }
-    
     protected void lsqPlotHelper(Integer key, ToneBase tb,
     		int jDot) {
     	final int dotReduction = (int) Math.round(80.0*jDot/100);
@@ -234,21 +203,7 @@ public abstract class DecoderBase implements Decoder {
         }
     }
     
-    protected  Trans[] findTransitions(
-//    		double tuMillis,
-//    		double tsLength,
-int nofSlices,
-//    		int framesPerSlice,
-//    		Wav w,
-int decoder,
-int ampMap,
-double level,
-//    		
-//    		double[] sig,
-//    		double[] cei,
-double[] flo
-    		
-    		) {
+    protected  Trans[] findTransitions(int nofSlices, int decoder, int ampMap, double level, double[] flo) {
     	
     	final double levelLog = Math.log(level);
     	
@@ -432,6 +387,219 @@ double[] flo
         }
     	return result;
     }
+    
+//    protected  Trans[] findTransitionsNew(int nofSlices, int decoder, int ampMap, double level, double[] flo) {
+//    	
+//    	final double levelLog = Math.log(level);
+//    	
+//    	final int charSpaceLimit =
+//    			(int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+//    	
+//    	final int twoDashLimit = (int) Math.round(GerkeDecoder.TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
+//    	
+//    	
+//    	 // ============== identify transitions
+//        // usage depends on decoder method
+//
+//        //final Trans[] tr = new Trans[nofSlices];
+//    	
+//    	final LinkedList<Trans> tr = new LinkedList<Trans>();
+//    	
+//        int transIndex = 0;
+//        boolean tone = false;
+//        double dipAcc = 0.0;
+//        double spikeAcc = 0.0;
+//        double thresholdMax = -1.0;
+//        // double ceilingMax = -1.0; .. already done
+//        new Debug("thresholdMax is: %e", thresholdMax);
+//
+//
+//
+//        for (int q = 0; true; q++) {
+//            if (w.wav.length - q*framesPerSlice < framesPerSlice) {
+//                break;
+//            }
+//
+//            final double threshold = threshold(decoder, ampMap, level, levelLog, flo[q], cei[q]);
+//            thresholdMax = Compute.dMax(threshold, thresholdMax);
+//
+//            final boolean newTone = sig[q] > threshold;
+//
+//            if (newTone && !tone) {
+//                // raise
+//                //if (transIndex > 0 && q - tr[transIndex-1].q <= charSpaceLimit) {
+//                if (!tr.isEmpty() && q - tr.get(transIndex-1).q <= charSpaceLimit) {
+//                    //tr[transIndex] = new Trans(q, true, dipAcc, cei[q], flo[q]);
+//                	tr.addLast(new Trans(q, true, dipAcc, cei[q], flo[q]));
+//                }
+//                else {
+//                    //tr[transIndex] = new Trans(q, true, cei[q], flo[q]);
+//                    tr.addLast(new Trans(q, true, cei[q], flo[q]));
+//                }
+//                transIndex++;
+//                tone = true;
+//                spikeAcc = Compute.squared(threshold - sig[q]);
+//            }
+//            else if (!newTone && tone) {
+//                // fall
+//                //tr[transIndex] = new Trans(q, false, spikeAcc, cei[q], flo[q]);
+//                tr.addLast(new Trans(q, false, spikeAcc, cei[q], flo[q]));
+//                transIndex++;
+//                tone = false;
+//                dipAcc = Compute.squared(threshold - sig[q]);
+//            }
+//            else if (!tone) {
+//                dipAcc += Compute.squared(threshold - sig[q]);
+//            }
+//            else if (tone) {
+//                spikeAcc += Compute.squared(threshold - sig[q]);
+//            }
+//        }
+//
+//        new Debug("transIndex: %d", transIndex);
+//        if (transIndex != tr.size()) {
+//        	new GerkeLib.Death("internal error");
+//        }
+//
+//        // Eliminate small dips
+//
+//        final double silentTu = (1.0/tsLength)*(0.5*thresholdMax)*(0.5*thresholdMax);
+//        new Debug("thresholdMax is: %e", thresholdMax);
+//        new Debug("tsLength is: %e", tsLength);
+//        new Debug("silentTu is: %e", silentTu);
+//        final double dipLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DIP.ordinal()];
+//        final int veryShortDip = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
+//
+//        for (int t = 1; t < transIndex; t++) {
+//            if (transIndex > 0 &&
+//                    tr[t].rise &&
+//                    tr[t].dipAcc != -1.0 &&
+//                    (tr[t].dipAcc < dipLimit*silentTu || tr[t].q - tr[t-1].q <= veryShortDip)) {
+//                new Trace("dip at: %d, width: %d, mass: %f, fraction: %f",
+//                        t,
+//                        tr[t].q - tr[t-1].q,
+//                        tr[t].dipAcc,
+//                        tr[t].dipAcc/silentTu);
+//                if (t+1 < transIndex) {
+//                    // preserve accumulated spike value
+//                    tr[t+1] =
+//                            new Trans(tr[t+1].q,
+//                                    false,
+//                                    tr[t+1].spikeAcc + tr[t-1].spikeAcc,
+//                                    tr[t].ceiling,
+//                                    tr[t].floor
+//                                    );
+//                }
+//                tr[t-1] = null;
+//                tr[t] = null;
+//            }
+//            else if (transIndex > 0 &&
+//                    tr[t].rise &&
+//                    tr[t].dipAcc != -1.0 && t % 200 == 0) {
+//                new Trace("dip at: %d, width: %d, mass: %e, limit: %e",
+//                        t,
+//                        tr[t].q - tr[t-1].q,
+//                        tr[t].dipAcc,
+//                        dipLimit*silentTu);
+//            }
+//        }
+//        
+//        ListIterator<Trans> it = tr.listIterator();
+//        Trans uuPrev = null;
+//        for (; true;) {
+//        	if (!it.hasNext()) {
+//        		// break
+//        	}
+//        	else {
+//        		final Trans uu = it.next();
+//        		
+//        		
+//        		uuPrev = uu;
+//        	}
+//
+//        }
+//        
+//        
+//
+//        transIndex = removeHoles(tr, transIndex);
+//
+//        // check if potential spikes exist
+//        boolean hasSpikes = false;
+//        for (int t = 0; t < transIndex; t++) {
+//            if (tr[t].spikeAcc > 0) {
+//                hasSpikes = true;
+//                break;
+//            }
+//        }
+//
+//        // remove spikes
+//
+//        final int veryShortSpike = (int) Math.round(0.2/tsLength);  // PARAMETER 0.2
+//        if (hasSpikes) {
+//            final double spikeLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.SPIKE.ordinal()];
+//            for (int t = 1; t < transIndex; t++) {
+//                if (!tr[t].rise && tr[t].spikeAcc != -1.0 &&
+//                        (tr[t].spikeAcc < spikeLimit*silentTu || tr[t].q - tr[t-1].q <= veryShortSpike)) {
+//                    tr[t-1] = null;
+//                    tr[t] = null;
+//                }
+//            }
+//        }
+//        transIndex = removeHoles(tr, transIndex);
+//
+//        // break up very long dashes
+//
+//        final boolean breakLongDash =
+//                GerkeLib.getIntOptMulti(GerkeDecoder.O_HIDDEN)
+//                [HiddenOpts.BREAK_LONG_DASH.ordinal()] == 1;
+//
+//        if (breakLongDash) {
+//            // TODO, refactor .. break off the first dash, then reconsider the rest
+//            for (int t = 1; t < transIndex; ) {
+//                if (tr[t-1].rise && !tr[t].rise && tr[t].q - tr[t-1].q > twoDashLimit) {
+//                    // break up a very long dash, make room for 2 more events
+//                    for (int tt = transIndex-1; tt > t; tt--) {
+//                        tr[tt+2] = tr[tt];
+//                    }
+//                    transIndex += 2;
+//                    // fair split
+//                    Trans big = tr[t];
+//                    int dashSize = big.q - tr[t-1].q;
+//                    int q1 = tr[t-1].q + dashSize/2 - (int) Math.round(0.5/tsLength);
+//                    int q2 = tr[t-1].q + dashSize/2 + (int) Math.round(0.5/tsLength);
+//                    int q3 = big.q;
+//                    double acc = big.spikeAcc;
+//                    double ceiling = tr[t-1].ceiling;
+//                    double floor = tr[t-1].floor;
+//                    tr[t] = new Trans(q1, false, acc/2, ceiling, floor);
+//                    tr[t+1] = new Trans(q2, true, acc/2, ceiling, floor);
+//                    tr[t+2] = new Trans(q3, false, acc/2, ceiling, floor);
+//                    t +=3;
+//                }
+//                else {
+//                    t++;
+//                }
+//            }
+//        }
+//
+//        ///////////////////////
+//        // transition list is ready
+//        ///////////////////////
+//
+//        if (transIndex == 0) {
+//            new Death("no signal detected");
+//        }
+//        else if (transIndex == 1) {
+//            new Death("no code detected");
+//        }
+//    	
+//        Trans[] result = new Trans[transIndex];
+//        for (int i = 0; i < transIndex; i++) {
+//        	result[i] = tr[i];
+//        }
+//    	return result;
+//    }
+
     
     /**
      * Remove null elements from the given array. The returned value
