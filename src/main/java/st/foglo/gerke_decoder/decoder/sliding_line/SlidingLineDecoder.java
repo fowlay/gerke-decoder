@@ -99,27 +99,33 @@ public final class SlidingLineDecoder extends DecoderBase {
         	
         	final TwoDoubles r = lsq(sig, k, jDot, wDot);
 
-        	final boolean high = r.a > thr;
+        	final boolean high = r.a > thr; final double rr = r.a - thr;
+        	
+        	final double tSec = timeSeconds(k);
 
         	if (!isHigh && !high) {
         		continue;
         	}
         	else if (!isHigh && high) {
+        		if (tSec > 458 && tSec < 458.7) { new Info("/   %d, %f %f", k, tSec, rr); }
         		highBegin = k;
         		acc = r.a - thr;
         		accMax = cei[k] - thr;
         		isHigh = true;
         	}
         	else if (isHigh && high) {
+        		if (tSec > 458 && tSec < 458.7) { new Info("~   %d, %f %f", k, tSec, rr); }
         		acc += r.a - thr;
         		accMax += cei[k] - thr;
         	}
         	else if (isHigh && !high && ((double)(framesPerSlice*(k - highBegin)))/w.frameRate < 0.10*tuMillis/1000) {  // PARA PARA
         		// ignore very thin dot
+        		if (tSec > 458 && tSec < 458.7) { new Info("!   %d, %f %f", k, tSec, rr); }
         		new Info("ignoring very thin dot: %d, %f", k, timeSeconds(k));
         		isHigh = false;
         	}
         	else if (isHigh && !high && acc < 0.03*accMax) {  // PARA PARA
+        		if (tSec > 458 && tSec < 458.7) { new Info("w   %d, %f %f", k, tSec, rr); }
         		// ignore very weak dot
         		new Info("ignoring very weak dot: %d, %f", k, timeSeconds(k));
         		isHigh = false;
@@ -127,6 +133,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         	else if (isHigh && !high &&
         			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
         		// create Dot
+        		if (tSec > 458 && tSec < 458.7) { new Info("\\   %d, %f %f   (make dot)", k, tSec, rr); }
         		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
         		dashes.put(Integer.valueOf(kMiddle),
         				new Dot(kMiddle, highBegin, k));
@@ -135,12 +142,16 @@ public final class SlidingLineDecoder extends DecoderBase {
         	}
         	else if (isHigh && !high) {
         		// create Dash
+        		if (tSec > 458 && tSec < 458.7) { new Info("\\   %d, %f %f   (make dash)", k, tSec, rr); }
         		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
         		dashes.put(Integer.valueOf(kMiddle),
         				new Dash(kMiddle, highBegin, k, r.a));
         		// TODO r.a above maybe not used
 
         		isHigh = false;
+        	}
+        	else if (!isHigh && !high) {
+        		if (tSec > 458 && tSec < 458.7) { new Info("_   %d, %f", k, tSec); }
         	}
         }
 

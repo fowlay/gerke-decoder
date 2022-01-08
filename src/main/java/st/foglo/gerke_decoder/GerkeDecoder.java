@@ -56,7 +56,7 @@ public final class GerkeDecoder {
      * decoding some recordings with good signal strength.
      */
     public static final double[] THRESHOLD = {IGNORE,
-            0.524, 0.64791, 0.524, 0.524};
+            0.524, 0.64791, 0.524, 0.524, 0.524*0.9};
 
     /**
      * For use when logarithmic mapping is in effect. The encoded
@@ -132,14 +132,14 @@ public final class GerkeDecoder {
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 2.2};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 1.9};  // 2.3??
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.7};
+    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.9};
 
     /**
      * Tones longer than this are interpreted as two dashes
@@ -254,7 +254,7 @@ public final class GerkeDecoder {
 
         new SingleValueOption("D", O_DECODER, "5");
 
-        new SingleValueOption("U", O_AMP_MAPPING, "3");
+        new SingleValueOption("U", O_AMP_MAPPING, "1");
 
         new SingleValueOption("u", O_LEVEL, "1.0");
 

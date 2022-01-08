@@ -163,6 +163,11 @@ public abstract class DecoderBase implements Decoder {
     	}
     }
     
+    /**
+     * Convert from slice index to seconds.
+     * @param q
+     * @return
+     */
     protected double timeSeconds(int q) {
         return (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
     }
