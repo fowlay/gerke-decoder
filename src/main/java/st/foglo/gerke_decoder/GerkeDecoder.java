@@ -85,6 +85,9 @@ public final class GerkeDecoder {
     static final String O_PLOT = "plot";
     static final String O_PPLOT = "phase-plot";
     public static final String O_VERBOSE = "verbose";
+    
+    public static final String O_COHSIZE = "coherence-size";
+    public static final String O_SEGSIZE = "segment-size";
 
     public static final String O_HIDDEN = "hidden-options";
     public enum HiddenOpts {
@@ -245,6 +248,9 @@ public final class GerkeDecoder {
         new SingleValueOption("c", O_CLIPPING, "-1");
         new SingleValueOption("q", O_STIME, "0.10");
         new SingleValueOption("s", O_SIGMA, "0.18");
+        
+        new SingleValueOption("C", O_COHSIZE, "0.8");
+        new SingleValueOption("G", O_SEGSIZE, "3.0");
 
         new SingleValueOption("D", O_DECODER, "5");
 
@@ -273,7 +279,7 @@ public final class GerkeDecoder {
                         ",0.8"+                     // phase averaging, relative to TU
                         ",0.75"+                    // merge-dips limit
                         ",0.7"+                     // dip strength min
-                        ",1"                        // detector, 1: basic, 2: adaptive                         
+                        ",2"                        // detector, 1: basic, 2: adaptive                         
                 );
 
         new HelpOption(
@@ -301,6 +307,9 @@ new String[]{
 
         String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault(O_STIME)),
         String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
+        
+        String.format("  -C COHERENCE_SIZE  coherence size, defaults to %s TU", GerkeLib.getDefault(O_COHSIZE)),
+        String.format("  -G SEGMENT_SIZE    segment size, defaults to %s s", GerkeLib.getDefault(O_SEGSIZE)),
 
         String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault(O_HIDDEN)),
 
@@ -410,6 +419,12 @@ new String[]{
             	
             	// warn if specified frequency .. not expected by this detector
             	
+            	final double cohSizeGiven = GerkeLib.getDoubleOpt(O_COHSIZE);
+            	final int cohFactor = (int) Math.round(cohSizeGiven/tsLength);
+            	final int segFactor = (int) Math.round(
+            			GerkeLib.getDoubleOpt(O_SEGSIZE)*w.frameRate/
+            			(cohFactor*framesPerSlice));
+            	
             	detector = new CwAdaptiveImpl(
             			nofSlices,
             			w,
@@ -417,10 +432,11 @@ new String[]{
             			framesPerSlice,
             			
             			// TODO, parameter, 4 or 5 seems a reasonable value
-            			5,   
+            			cohFactor,   
             			
             			// TODO, parameter, unclear if it is very critical
-            			100,
+            			segFactor,
+            			// while trying out, let the product of the two be about 500
             			
             			tsLength
             			);

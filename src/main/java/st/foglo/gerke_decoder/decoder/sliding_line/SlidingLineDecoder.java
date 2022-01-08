@@ -4,6 +4,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 
 import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
@@ -113,11 +114,15 @@ public final class SlidingLineDecoder extends DecoderBase {
         		acc += r.a - thr;
         		accMax += cei[k] - thr;
         	}
-        	else if (isHigh && !high && ((k - highBegin)*tsLength < 0.15 || acc < 0.04*accMax)) {  // PARA PARA
+        	else if (isHigh && !high && ((double)(framesPerSlice*(k - highBegin)))/w.frameRate < 0.10*tuMillis/1000) {  // PARA PARA
         		// ignore very thin dot
+        		new Info("ignoring very thin dot: %d, %f", k, timeSeconds(k));
         		isHigh = false;
-        		highBegin = k;
-        		acc = 0.0; accMax = 0.0;
+        	}
+        	else if (isHigh && !high && acc < 0.03*accMax) {  // PARA PARA
+        		// ignore very weak dot
+        		new Info("ignoring very weak dot: %d, %f", k, timeSeconds(k));
+        		isHigh = false;
         	}
         	else if (isHigh && !high &&
         			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
@@ -127,7 +132,6 @@ public final class SlidingLineDecoder extends DecoderBase {
         				new Dot(kMiddle, highBegin, k));
 
         		isHigh = false;
-        		acc = 0.0; accMax = 0.0;
         	}
         	else if (isHigh && !high) {
         		// create Dash
@@ -137,7 +141,6 @@ public final class SlidingLineDecoder extends DecoderBase {
         		// TODO r.a above maybe not used
 
         		isHigh = false;
-        		acc = 0.0; accMax = 0.0;
         	}
         }
 

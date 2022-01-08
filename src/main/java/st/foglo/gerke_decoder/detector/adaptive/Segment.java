@@ -2,10 +2,14 @@ package st.foglo.gerke_decoder.detector.adaptive;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeLib.Death;
+import st.foglo.gerke_decoder.GerkeLib.Debug;
+import st.foglo.gerke_decoder.GerkeLib.Info;
+
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.wave.Wav;
 
-public final class Segment {
+final class Segment {
 	
 	final CwAdaptiveImpl parent;
 	
@@ -47,9 +51,11 @@ public final class Segment {
 		
 		this.strength = sumOverSegment(bestFrequency);
 		
-		new GerkeLib.Info("seg no: %d, f: %f, strength: %f", base/size, bestFrequency, strength);
+//		new Info("seg no: %d, f: %f, strength: %f", base/size, bestFrequency, strength);
 		
 		this.clipLevel = clipLevelInSegment();
+		
+		new Debug("clip level in segment: %d", clipLevel);
 	}
 
 	/**
@@ -83,7 +89,7 @@ public final class Segment {
 				final double u = u0 + k*uRange/divide;
 				e[k] = sumOverSegment(u);
 				
-				//new GerkeLib.Info("k: %d, u: %f, signal: %f", k, u, e[k]);
+				//new Info("k: %d, u: %f, signal: %f", k, u, e[k]);
 
 				if (e[k] > eBest) {
 					eBest = e[k];
@@ -92,10 +98,10 @@ public final class Segment {
 			}
 			
 			if (kBest == 0) {
-				new GerkeLib.Death("include lower frequencies in range");
+				new Death("include lower frequencies in range");
 			}
 			else if (kBest == divide) {
-				new GerkeLib.Death("include higher frequencies in range");
+				new Death("include higher frequencies in range");
 			}
 			
 			// zoom in
@@ -103,7 +109,7 @@ public final class Segment {
 			u1 = u0 + (kBest+1)*uRange/divide;
 			u0 = u0 + (kBest-1)*uRange/divide;
 			
-			//new GerkeLib.Info("frequency: %f", uFinal);
+			//new Info("frequency: %f", uFinal);
 
 		}
 
@@ -155,13 +161,13 @@ public final class Segment {
 				for (double y = 1.05*x; true; y *= 1.05) {
 					final double clipAmountInner = signalLossAmount(y);
 					if (clipAmountInner <= acceptableLoss) {
-						new GerkeLib.Debug("[%d] accepted clip level: % f, amount: %f", segIndex, y, clipAmountInner);
+						new Debug("[%d] accepted clip level: % f, amount: %f", segIndex, y, clipAmountInner);
 						return (int) Math.round(y);
 					}
-					new GerkeLib.Debug("[%d] incr clip level: % f, amount: %f", segIndex, y, clipAmountInner);
+					// new Debug("[%d] incr clip level: % f, amount: %f", segIndex, y, clipAmountInner);
 				}
 			}
-			new GerkeLib.Debug("[%d] decr clip level: % f, amount: %f", segIndex, x, clipAmount);
+			// new Debug("[%d] decr clip level: % f, amount: %f", segIndex, x, clipAmount);
 		}
 	}
 	

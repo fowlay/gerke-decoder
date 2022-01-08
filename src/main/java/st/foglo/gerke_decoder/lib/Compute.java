@@ -5,6 +5,10 @@ public final class Compute {
 	private Compute() {
 	}
 	
+	public static int iAbs(int k) {
+		return k < 0 ? -k : k;
+	}
+	
     public static double dMax(double a, double b) {
         return a > b ? a : b;
     }

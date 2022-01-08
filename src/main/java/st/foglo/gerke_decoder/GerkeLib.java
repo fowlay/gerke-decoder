@@ -385,6 +385,10 @@ public final class GerkeLib {
         public Death(String format, int v1, int v2) {
             this(String.format(format, v1, v2));
         }
+        
+        public Death(String format, int v1, int v2, int v3) {
+            this(String.format(format, v1, v2, v3));
+        }
 
         public Death(String format, long value) {
             this(String.format(format, value));

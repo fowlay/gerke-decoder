@@ -6,7 +6,10 @@ import java.util.Map;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 
+import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeLib.Death;
+import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
@@ -32,7 +35,9 @@ public final class CwAdaptiveImpl implements CwDetector {
 	// This is a huge performance boost!
 	final Map<Double, TrigTable> trigTableMap = new HashMap<Double, TrigTable>();
 	
-	final NavigableSet<Double> strengths = new TreeSet<Double>(); 
+	final NavigableSet<Double> strengths = new TreeSet<Double>();
+	
+	final Map<Integer, double[]> weightTableMap = new HashMap<Integer, double[]>(); 
 	
 	public CwAdaptiveImpl(
 			int nofSlices,
@@ -50,6 +55,9 @@ public final class CwAdaptiveImpl implements CwDetector {
 		this.cohFactor = cohFactor;
 		this.segFactor = segFactor;
 		this.tsLength = tsLength;
+		
+		new Info("coherence factor: %d", cohFactor);
+		new Info("segment factor: %d", segFactor);
 	}
 
 	@Override
@@ -93,9 +101,9 @@ public final class CwAdaptiveImpl implements CwDetector {
 			
 			sig[q] = getStrength(q, u, seg.clipLevel);
 			
-			if (q % 1000 == 999) {
-				new GerkeLib.Info("sig: %f", sig[q]);
-			}
+//			if (q % 1000 == 999) {
+//				new GerkeLib.Info("sig: %f", sig[q]);
+//			}
 		}
 		
 		
@@ -153,13 +161,47 @@ public final class CwAdaptiveImpl implements CwDetector {
 			hiIndex = Compute.iMin(hiMax, (q + cohFactor/2 + 1)*framesPerSlice);
 		}
 		
+		final double sigma = GerkeLib.getDoubleOpt(GerkeDecoder.O_SIGMA);
+		final int wTabSize;
+		if ((hiIndex - loIndex) % 2 == 1) {
+			wTabSize = (hiIndex - loIndex)/2 + 1;
+		}
+		else {
+			wTabSize = (hiIndex - loIndex)/2;
+		}
+//		final double[] wTab = new double[wTabSize];
+		
+		final double[] wTab = getWeightTable(wTabSize, sigma);
+		
+		final int kMid = loIndex + (hiIndex - loIndex)/2;
+		
+		if ((hiIndex - loIndex) % 2 == 1) {
+			for (int k = 0; k < wTabSize; k++) {
+				final int d = k;
+				wTab[k] = Math.exp(-Compute.squared(1000*d/(tuMillis*w.frameRate*sigma)));
+			}
+		}
+		else {
+			for (int k = 0; k < wTabSize; k++) {
+				final double d = k + 0.5;
+				wTab[k] = Math.exp(-Compute.squared(1000*d/(tuMillis*w.frameRate*sigma)));
+			}
+		}
+		if (q == 100) {
+			// TODO, 100 is ad-hoc
+			new Info("smallest weight: %f", wTab[wTabSize-1]);			
+		}
+
+
+		
 		double sumCosInChunk = 0.0;
 		double sumSinInChunk = 0.0;
-
+		double sumWeight = 0.0;
+		
 		final TrigTable trigTable = getTrigTable(u);
+		
 		for (int k = loIndex; k < hiIndex; k++) {
-			final int wIndex = k;
-			final int frameValueRaw = w.wav[wIndex];
+			final int frameValueRaw = w.wav[k];
 			final int frameValue = frameValueRaw > clipLevel ? clipLevel :
 				frameValueRaw < -clipLevel ? -clipLevel :
 					frameValueRaw;
@@ -168,11 +210,27 @@ public final class CwAdaptiveImpl implements CwDetector {
 //				new GerkeLib.Info("frame value: %d", frameValueRaw);
 //			}
 			
-			sumSinInChunk += trigTable.sin(k - loIndex)*frameValue;
-		    sumCosInChunk += trigTable.cos(k - loIndex)*frameValue;
+			double weight;
+			if ((hiIndex - loIndex) % 2 == 1) {
+				weight = wTab[Compute.iAbs(k - kMid)];
+			}
+			else {
+				try {
+					weight = k < kMid ? wTab[kMid - k - 1] : wTab[k - kMid];
+				}
+				catch (Exception e) {
+					new Info("odd or even: %d, points: %d", (hiIndex - loIndex) % 2, hiIndex - loIndex);
+					new Death("k: %d, kMid: %d, table; %d", k, kMid, wTab.length);
+					weight = 1.0;
+				}
+			}
+
+			sumSinInChunk += weight*trigTable.sin(k - loIndex)*frameValue;
+		    sumCosInChunk += weight*trigTable.cos(k - loIndex)*frameValue;
+		    sumWeight += weight;
 		}
 		
-		return Math.sqrt(sumSinInChunk*sumSinInChunk + sumCosInChunk*sumCosInChunk)/(hiIndex - loIndex);
+		return Math.sqrt(sumSinInChunk*sumSinInChunk + sumCosInChunk*sumCosInChunk)/sumWeight;
 	}
 
 	TrigTable getTrigTable(double u) {
@@ -186,6 +244,27 @@ public final class CwAdaptiveImpl implements CwDetector {
 		}
 		else {
 			return result;
+		}
+	}
+	
+	/**
+	 * Returns a weights table of given size, using the given sigma.
+	 * @param size
+	 * @param sigma
+	 * @return
+	 */
+	private double[] getWeightTable(int size, double sigma) {
+		final double[] wTable = weightTableMap.get(Integer.valueOf(size));
+		if (wTable == null) {
+			final double[] newTable = new double[size];
+			for (int k = 0; k < size; k++) {
+				newTable[k] = Math.exp(-Compute.squared(1000*k/(tuMillis*w.frameRate*sigma)));
+			}
+			weightTableMap.put(Integer.valueOf(size), newTable);
+			return newTable;
+		}
+		else {
+			return wTable;
 		}
 	}
 	
