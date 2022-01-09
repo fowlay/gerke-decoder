@@ -53,7 +53,7 @@ public final class FilterRunnerPhaseLocked extends FilterRunnerBase {
                 if (wavIndex >= 0) {
                     int ampRaw = wav[wavIndex];   // k is non-positive!
                     final int amp = ampRaw < 0 ? Compute.iMax(-clipLevel, ampRaw) : Compute.iMin(clipLevel, ampRaw);
-                    final double angle = ((freq*wavIndex)*GerkeDecoder.TWO_PI)/frameRate;
+                    final double angle = ((freq*wavIndex)*Compute.TWO_PI)/frameRate;
                     sum += Math.sin(angle - phase)*amp;
                 }
                 outSignal = f.filter(sum);
@@ -93,7 +93,7 @@ public final class FilterRunnerPhaseLocked extends FilterRunnerBase {
                         int ampRaw = wav[wavIndex];   // k is non-positive!
                         final int amp = ampRaw < 0 ? Compute.iMax(-clipLevel, ampRaw) : Compute.iMin(clipLevel, ampRaw);
 
-                        final double angle = ((freq*wavIndex)*GerkeDecoder.TWO_PI)/frameRate;
+                        final double angle = ((freq*wavIndex)*Compute.TWO_PI)/frameRate;
 
                         final double sinValue = Math.sin(angle+phaseShift);
                         final double cosValue = Math.cos(angle+phaseShift);

@@ -1,6 +1,6 @@
 package st.foglo.gerke_decoder.detector;
 
-import st.foglo.gerke_decoder.GerkeDecoder;
+import st.foglo.gerke_decoder.lib.Compute;
 
 public final class TrigTable {
     final double[] sines;
@@ -10,7 +10,7 @@ public final class TrigTable {
         this.sines = new double[nFrames];
         this.coses = new double[nFrames];
         for (int j = 0; j < nFrames; j++) {
-            final double angle = GerkeDecoder.TWO_PI*f*j/frameRate;
+            final double angle = Compute.TWO_PI*f*j/frameRate;
             sines[j] = Math.sin(angle);
             coses[j] = Math.cos(angle);
         }

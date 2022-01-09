@@ -1,6 +1,8 @@
 package st.foglo.gerke_decoder.lib;
 
 public final class Compute {
+	
+    public static final double TWO_PI = 2*Math.PI;
 
 	private Compute() {
 	}

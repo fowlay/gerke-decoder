@@ -47,7 +47,6 @@ public final class GerkeDecoder {
 
 
 
-    public static final double TWO_PI = 2*Math.PI;
 
     static final double IGNORE = 0.0;
 
@@ -167,7 +166,7 @@ public final class GerkeDecoder {
 
     static final int P_CEIL_HIST_WIDTH = 30;
 
-    static final double P_CEIL_FOCUS = 50.0;
+    static final double P_CEIL_FOCUS = 45.0; // 50.0;
 
     static final double P_CEIL_FRAC = 0.70;
 
@@ -227,6 +226,12 @@ public final class GerkeDecoder {
      * lower than this limit.
      */
     public static final double P_DIP_EXPTABLE_LIM = 0.01;
+    
+    /**
+     * Do not change. Changing this constant would affect the ceiling
+     * and floor estimation.
+     */
+    public static final String STIME_DEFAULT = "0.10";
 
 
     static {
@@ -246,7 +251,7 @@ public final class GerkeDecoder {
         new SingleValueOption("W", O_SPACE_EXP, "1.0");
 
         new SingleValueOption("c", O_CLIPPING, "-1");
-        new SingleValueOption("q", O_STIME, "0.10");
+        new SingleValueOption("q", O_STIME, STIME_DEFAULT);
         new SingleValueOption("s", O_SIGMA, "0.18");
         
         new SingleValueOption("C", O_COHSIZE, "0.8");
@@ -405,6 +410,8 @@ new String[]{
             new Info("time slice: %.3f ms", 1000.0*framesPerSlice/w.frameRate);
             new Info("frames per time slice: %d", framesPerSlice);
             new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
+            
+            new Info("sigma: %f", GerkeLib.getDoubleOpt(O_SIGMA));
 
 
             // ============  Multiply by sine and cosine functions, apply filtering
@@ -487,8 +494,8 @@ new String[]{
                     break;
                 }
 
-                flo[q] = localFloorByHist(q, sig, estBaseFloor);
-                cei[q] = localCeilByHist(q, sig, estBaseCeil);
+                flo[q] = localFloorByHist(q, sig, estBaseFloor, tsLength);
+                cei[q] = localCeilByHist(q, sig, estBaseCeil, tsLength);
                 ceilingMax = Compute.dMax(ceilingMax, cei[q]);
             }
 
@@ -773,7 +780,7 @@ new String[]{
             }
 
             final double angleOffset =
-                    phasePlot ? TWO_PI*fBest*timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames) : 0.0;
+                    phasePlot ? Compute.TWO_PI*fBest*timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames) : 0.0;
 
                     double sinAcc = 0.0;
                     double cosAcc = 0.0;
@@ -784,7 +791,7 @@ new String[]{
                                 Compute.iMax(-clipLevel, ampRaw) :
                                     Compute.iMin(clipLevel, ampRaw);
 
-                                final double angle = angleOffset + TWO_PI*fBest*j/w.frameRate;
+                                final double angle = angleOffset + Compute.TWO_PI*fBest*j/w.frameRate;
                                 sinAcc += Math.sin(angle)*amp;
                                 cosAcc += Math.cos(angle)*amp;
                     }
@@ -957,10 +964,13 @@ new String[]{
         }
     }
 
-    private static double localCeilByHist(int q, double[] sig, int width) {
+    private static double localCeilByHist(int q, double[] sig, int width, double tsLength) {
 
-        int q1 = Compute.iMax(q-width/2, 0);
-        int q2 = Compute.iMin(q+width/2, sig.length);
+        final int q1 = Compute.iMax(q-width/2, 0);
+        final int q2 = Compute.iMin(q+width/2, sig.length);
+        
+        final double tsLengthDefault = Double.parseDouble(GerkeDecoder.STIME_DEFAULT);
+        final int largeInt = 500;    // not critical, not a parameter
 
         // find the maximal sig value
         double sigMax = -1.0;
@@ -968,12 +978,12 @@ new String[]{
             sigMax = Compute.dMax(sig[j], sigMax);
         }
 
-        // produce a histogram with HIST_SIZE_CEILING slots
+        // produce a histogram with P_CEIL_HIST slots
         int sumPoints = 0;
         final int[] hist = new int[P_CEIL_HIST];
         for (int j = q1; j < q2; j++) {
             final int index = (int) Math.round((P_CEIL_HIST-1)*sig[j]/sigMax);
-            int points = (int)Math.round(500/(1 + Compute.squared((j-q)/P_CEIL_FOCUS)));
+            int points = (int)Math.round(largeInt/(1 + Compute.squared((j-q)*(tsLength/tsLengthDefault)/P_CEIL_FOCUS)));
             hist[index] += points;
             sumPoints += points;
         }
@@ -1010,12 +1020,16 @@ new String[]{
      * @param q
      * @param sig
      * @param width
+     * @param tsLength 
      * @return
      */
-    private static double localFloorByHist(int q, double[] sig, int width) {
+    private static double localFloorByHist(int q, double[] sig, int width, double tsLength) {
 
-        int q1 = Compute.iMax(q-width/2, 0);
-        int q2 = Compute.iMin(q+width/2, sig.length);
+        final int q1 = Compute.iMax(q-width/2, 0);
+        final int q2 = Compute.iMin(q+width/2, sig.length);
+        
+        final double tsLengthDefault = Double.parseDouble(GerkeDecoder.STIME_DEFAULT);
+        final int largeInt = 500;    // not critical, not a parameter
 
         // find the maximum amplitude
         double sigMax = -1.0;
@@ -1028,7 +1042,7 @@ new String[]{
         final int[] hist = new int[P_FLOOR_HIST];
         for (int j = q1; j < q2; j++) {
             final int index = (int) Math.round((P_FLOOR_HIST-1)*sig[j]/sigMax);
-            int points = (int)Math.round(500/(1 + Compute.squared((j-q)/P_FLOOR_FOCUS)));
+            int points = (int)Math.round(largeInt/(1 + Compute.squared((j-q)*(tsLength/tsLengthDefault)/P_FLOOR_FOCUS)));
             hist[index] += points;
             sumPoints += points;
         }

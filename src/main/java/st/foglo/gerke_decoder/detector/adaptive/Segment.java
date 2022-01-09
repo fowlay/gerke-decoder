@@ -4,7 +4,6 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
-import st.foglo.gerke_decoder.GerkeLib.Info;
 
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.wave.Wav;

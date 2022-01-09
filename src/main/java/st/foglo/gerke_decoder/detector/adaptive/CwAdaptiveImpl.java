@@ -240,7 +240,7 @@ public final class CwAdaptiveImpl implements CwDetector {
 		frequencies.add(uDouble);
 		
 		// maximum phase fault 0.2 radians
-		final double freqStep = 0.2 / (GerkeDecoder.TWO_PI*((double)framesPerSlice*cohFactor/w.frameRate));
+		final double freqStep = 0.2 / (Compute.TWO_PI*((double)framesPerSlice*cohFactor/w.frameRate));
 		
 		final long nSteps = Math.round(u/freqStep);
 		
