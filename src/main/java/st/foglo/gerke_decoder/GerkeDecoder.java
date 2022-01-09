@@ -456,8 +456,9 @@ new String[]{
             final double[] sig = signal.sig;
             final int sigSize = signal.sig.length;
             
-
-            
+            if (detector instanceof CwAdaptiveImpl) {
+            	((CwAdaptiveImpl)detector).trigTableReport();
+            }
 
             final int ampMap = GerkeLib.getIntOpt(O_AMP_MAPPING);
             applyAmplitudeMapping(sig, sigSize, ampMap);

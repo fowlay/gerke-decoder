@@ -23,6 +23,14 @@ public final class SlidingLineDecoder extends DecoderBase {
 	
 	final double level;
 	final double levelLog;
+	
+	/**
+	 * Half-width of the sliding line, expressed as nof. slices
+	 * PARAMETER 0.40
+	 * 
+	 * This parameter is quite sensitive!
+	 */
+	final int halfWidth = (int) Math.round( ((double)8/8) *  0.40/tsLength);
 
 	public SlidingLineDecoder(
 			double tuMillis,
@@ -63,6 +71,8 @@ public final class SlidingLineDecoder extends DecoderBase {
 		this.level = level;
 		this.levelLog = Math.log(level);
 		
+		new Info("sliding line half-width (slices): %d", halfWidth);
+		
 	}
 	
 	
@@ -97,7 +107,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         	
         	final double thr = threshold(decoder, ampMap, level, levelLog, flo[k], cei[k]);
         	
-        	final TwoDoubles r = lsq(sig, k, jDot, wDot);
+        	final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
 
         	final boolean high = r.a > thr; final double rr = r.a - thr;
         	

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.Set;
 import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
@@ -32,8 +33,8 @@ public final class CwAdaptiveImpl implements CwDetector {
 	
 	final LinkedList<Segment> segments = new LinkedList<Segment>();
 	
-	// This is a huge performance boost!
 	final Map<Double, TrigTable> trigTableMap = new HashMap<Double, TrigTable>();
+	final Set<Double> frequencies = new TreeSet<Double>();  // for diagnostics only
 	
 	final NavigableSet<Double> strengths = new TreeSet<Double>();
 	
@@ -234,12 +235,22 @@ public final class CwAdaptiveImpl implements CwDetector {
 	}
 
 	TrigTable getTrigTable(double u) {
+		
 		final Double uDouble = Double.valueOf(u);
-		final TrigTable result = trigTableMap.get(uDouble);
+		frequencies.add(uDouble);
+		
+		// maximum phase fault 0.2 radians
+		final double freqStep = 0.2 / (GerkeDecoder.TWO_PI*((double)framesPerSlice*cohFactor/w.frameRate));
+		
+		final long nSteps = Math.round(u/freqStep);
+		
+		final Double uIntegral = nSteps*freqStep;
+		
+		final TrigTable result = trigTableMap.get(uIntegral);
 		if (result == null) {
 			final int chunkSize = framesPerSlice*cohFactor;
 			final TrigTable trigTable = new TrigTable(u, chunkSize, w.frameRate);
-			trigTableMap.put(uDouble, trigTable);
+			trigTableMap.put(uIntegral, trigTable);
 			return trigTable;
 		}
 		else {
@@ -365,5 +376,13 @@ public final class CwAdaptiveImpl implements CwDetector {
 			}
 		}
 		return 1.0 - sumClipped/sum;
+	}
+	
+	/**
+	 * For diagnostics only
+	 */
+	public void trigTableReport() {
+		new Info("nof. frequencies considered: %d", frequencies.size());
+		new Info("nof. trig tables: %d", trigTableMap.size());
 	}
 }

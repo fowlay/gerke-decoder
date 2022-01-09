@@ -86,7 +86,12 @@ public abstract class DecoderBase implements Decoder {
         }
     }
     
-    protected TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
+    protected TwoDoubles lsq(
+    		double[] sig,
+    		int k,
+    		int jMax,
+    		WeightBase weight
+    		) {
 
         double sumW = 0.0;
         double sumJW = 0.0;
