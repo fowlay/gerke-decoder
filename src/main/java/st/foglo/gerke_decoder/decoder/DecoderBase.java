@@ -4,6 +4,7 @@ import java.util.NavigableMap;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeDecoder.DetectorIndex;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
@@ -61,6 +62,26 @@ public abstract class DecoderBase implements Decoder {
 		this.cei = cei;
 		this.ceilingMax = ceilingMax;
 	}
+	
+	
+	/**
+	 * Returns the index of the suitable detector for this decoder. This method is
+	 * static since we need the detector before the decoder is instantiated.
+	 * @return
+	 */
+	public static DetectorIndex getDetector(int decoder) {
+		if (decoder == 5) {
+			return DetectorIndex.ADAPTIVE_DETECTOR;
+		}
+		else if (decoder == 4 || decoder == 3 || decoder == 2 || decoder == 1) {
+			return DetectorIndex.BASIC_DETECTOR;
+		}
+		else {
+			new Death("no such decoder: %d", decoder);
+			throw new RuntimeException();
+		}
+	}
+	
 	
     /**
      * Determines threshold based on decoder and amplitude mapping.

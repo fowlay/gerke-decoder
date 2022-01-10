@@ -7,7 +7,7 @@ import java.util.Map.Entry;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
-import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
@@ -30,7 +30,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 	final Trans[] trans;
 	final int transIndex;
 	
-	final int decoder = decoderIndex.PATTERN_MATCHING.ordinal();
+	final int decoder = DecoderIndex.PATTERN_MATCHING.ordinal();
 	
 	final int wordSpaceLimit =
 			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
@@ -96,7 +96,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 		this.level = level;
 		this.levelLog = Math.log(level);
 	}
-
+	
 	@Override
 	public void execute() throws Exception {
 		

@@ -2,7 +2,7 @@ package st.foglo.gerke_decoder.decoder.tone_silence;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
-import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.Node;
@@ -17,7 +17,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
 	final int transIndex;
 	
 	
-	final int decoder = decoderIndex.DIPS_FINDING.ordinal();
+	final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
 	final int wordSpaceLimit =
 			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 	
@@ -65,7 +65,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
 				nofSlices, 
 //				framesPerSlice, 
 //				w, 
-				GerkeDecoder.decoderIndex.TONE_SILENCE.ordinal(),
+				GerkeDecoder.DecoderIndex.TONE_SILENCE.ordinal(),
 				ampMap, 
 				level, 
 //				sig, 
@@ -75,8 +75,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
 		
 		
 	}
-	
-	
+
 	@Override
 	public void execute() throws Exception {
 		

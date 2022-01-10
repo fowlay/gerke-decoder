@@ -7,7 +7,7 @@ import java.util.TreeMap;
 
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeDecoder;
-import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.decoder.Decoder;
@@ -62,13 +62,10 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 		this.sigSize = sigSize;
 	};
 	
-	
-	
-	
 	@Override
 	public void execute() {
 		
-    	final int decoder = decoderIndex.LEAST_SQUARES.ordinal();
+    	final int decoder = DecoderIndex.LEAST_SQUARES.ordinal();
     	
         int chCus = 0;
         int chTicks = 0;

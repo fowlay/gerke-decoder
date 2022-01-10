@@ -10,7 +10,7 @@ import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
-import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
@@ -30,7 +30,7 @@ public final class DipsFindingDecoder extends DecoderBase {
 	
 	final double[] flo;
 	
-	final int decoder = decoderIndex.DIPS_FINDING.ordinal();
+	final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
 	final int wordSpaceLimit =
 			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 	
@@ -87,9 +87,7 @@ public final class DipsFindingDecoder extends DecoderBase {
 		this.flo = flo;
 		
 	}
-	
-	
-	
+
 	@Override
 	public void execute() throws IOException, InterruptedException {
 

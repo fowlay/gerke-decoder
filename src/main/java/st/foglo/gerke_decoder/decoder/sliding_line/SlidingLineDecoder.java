@@ -6,7 +6,7 @@ import java.util.TreeMap;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeDecoder;
-import st.foglo.gerke_decoder.GerkeDecoder.decoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.Node;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
@@ -74,13 +74,11 @@ public final class SlidingLineDecoder extends DecoderBase {
 		new Info("sliding line half-width (slices): %d", halfWidth);
 		
 	}
-	
-	
-	
+
 	@Override
 	public void execute() {
 
-    	final int decoder = decoderIndex.LSQ2.ordinal();
+    	final int decoder = DecoderIndex.LSQ2.ordinal();
 
         int chCus = 0;
         int chTicks = 0;
@@ -142,7 +140,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         		isHigh = false;
         	}
         	else if (isHigh && !high &&
-        			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[decoderIndex.LSQ2.ordinal()]) {
+        			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()]) {
         		// create Dot
         		// if (tSec > 458 && tSec < 458.7) { new Info("\\   %d, %f %f   (make dot)", k, tSec, rr); }
         		final int kMiddle = (int) Math.round((highBegin + k)/2.0);

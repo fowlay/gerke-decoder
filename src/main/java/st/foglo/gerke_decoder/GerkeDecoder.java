@@ -24,6 +24,7 @@ import java.util.Map.Entry;
 
 import st.foglo.gerke_decoder.GerkeLib.*;
 import st.foglo.gerke_decoder.decoder.Decoder;
+import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
 import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
 import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
@@ -99,8 +100,7 @@ public final class GerkeDecoder {
         PHASELOCKED,
         PLWIDTH,
         DIP_MERGE_LIM,
-        DIP_STRENGTH_MIN,
-        DETECTOR
+        DIP_STRENGTH_MIN
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -110,7 +110,12 @@ public final class GerkeDecoder {
     		"least squares",
     		"lsq2"};
     
-    public enum decoderIndex {
+    /**
+     * Numeric decoder index 1..5 maps to these names. Do not reorder.
+     * @author erarafo
+     *
+     */
+    public enum DecoderIndex {
     	ZERO,
         TONE_SILENCE,
         PATTERN_MATCHING,
@@ -118,6 +123,11 @@ public final class GerkeDecoder {
         LEAST_SQUARES,
         LSQ2
     };
+    
+    public enum DetectorIndex {
+    	BASIC_DETECTOR,
+    	ADAPTIVE_DETECTOR
+    }
 
     /**
      * Pauses longer than this denote a word boundary. Unit is TU.
@@ -283,8 +293,7 @@ public final class GerkeDecoder {
                         ",0"+                       // phase-locked: 0=off, 1=on
                         ",0.8"+                     // phase averaging, relative to TU
                         ",0.75"+                    // merge-dips limit
-                        ",0.7"+                     // dip strength min
-                        ",2"                        // detector, 1: basic, 2: adaptive                         
+                        ",0.7"                      // dip strength min                       
                 );
 
         new HelpOption(
@@ -301,11 +310,11 @@ new String[]{
         String.format("  -f FREQ            Audio frequency, bypassing search"),
         String.format("  -c CLIPLEVEL       Clipping level, optional"),
         String.format("  -D DECODER         1: %s, 2: %s, 3: %s, 4: %s, defaults to %s",
-        		DECODER_NAME[decoderIndex.TONE_SILENCE.ordinal()],
-        		DECODER_NAME[decoderIndex.PATTERN_MATCHING.ordinal()],
-        		DECODER_NAME[decoderIndex.DIPS_FINDING.ordinal()],
-        		DECODER_NAME[decoderIndex.LEAST_SQUARES.ordinal()],
-        		DECODER_NAME[decoderIndex.LSQ2.ordinal()],
+        		DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()],
+        		DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()],
+        		DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()],
+        		DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()],
+        		DECODER_NAME[DecoderIndex.LSQ2.ordinal()],
                 GerkeLib.getDefault(O_DECODER)),
         String.format("  -U MAPPING         1: none, 2: square root, 3: logarithm, defaults to: %d", GerkeLib.getIntOpt(O_AMP_MAPPING)),
         String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
@@ -420,9 +429,10 @@ new String[]{
 
             final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
             
-            final CwDetector detector;
+            final int decoder = GerkeLib.getIntOpt(O_DECODER);
             
-            if (GerkeLib.getIntOptMulti(O_HIDDEN)[HiddenOpts.DETECTOR.ordinal()] == 2) {
+            final CwDetector detector;
+            if (DecoderBase.getDetector(decoder) == DetectorIndex.ADAPTIVE_DETECTOR) {
             	
             	// warn if specified frequency .. not expected by this detector
             	
@@ -448,7 +458,7 @@ new String[]{
             			tsLength
             			);
             }
-            else {
+            else if (DecoderBase.getDetector(decoder) == DetectorIndex.BASIC_DETECTOR) {
             	detector = new CwBasicImpl(
             			nofSlices,
             			w,
@@ -457,6 +467,9 @@ new String[]{
             			tsLength,
             			fSpecified
             			);
+            }
+            else {
+            	throw new RuntimeException();
             }
 
             final Signal signal = detector.getSignal();
@@ -501,8 +514,6 @@ new String[]{
 
             // some of this is used by the phase plot
 
-            final int decoder = GerkeLib.getIntOpt(O_DECODER);
-
             final int dashLimit = (int) Math.round(DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
             final int wordSpaceLimit = (int) Math.round(WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 //            final int charSpaceLimit = (int) Math.round(CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
@@ -545,7 +556,7 @@ new String[]{
 
             new Info("decoder: %s (%d)", DECODER_NAME[decoder], decoder);
             final Decoder dec;
-            if (decoder == decoderIndex.TONE_SILENCE.ordinal()) {
+            if (decoder == DecoderIndex.TONE_SILENCE.ordinal()) {
             	dec = new ToneSilenceDecoder(
             			tuMillis,
             			framesPerSlice,
@@ -571,7 +582,7 @@ new String[]{
             	
             }
 
-            else if (decoder == decoderIndex.PATTERN_MATCHING.ordinal()) {
+            else if (decoder == DecoderIndex.PATTERN_MATCHING.ordinal()) {
             	dec = new PatternMatchDecoder(
             			
         				tuMillis,
@@ -595,7 +606,7 @@ new String[]{
             			flo);
             }
 
-            else if (decoder == decoderIndex.DIPS_FINDING.ordinal()) {
+            else if (decoder == DecoderIndex.DIPS_FINDING.ordinal()) {
             	dec = new DipsFindingDecoder(
             			tuMillis,
             			framesPerSlice,
@@ -618,7 +629,7 @@ new String[]{
             			);
             }
 
-            else if (decoder == decoderIndex.LEAST_SQUARES.ordinal()) {
+            else if (decoder == DecoderIndex.LEAST_SQUARES.ordinal()) {
             	dec = new LeastSquaresDecoder(
             			
             			tuMillis,
@@ -637,7 +648,7 @@ new String[]{
             			
             			);
             }
-            else if (decoder == decoderIndex.LSQ2.ordinal()) {
+            else if (decoder == DecoderIndex.LSQ2.ordinal()) {
             	dec = new SlidingLineDecoder(
             			tuMillis,
             			framesPerSlice,
