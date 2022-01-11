@@ -6,6 +6,7 @@ import java.util.TreeMap;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 
+import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.LowpassButterworth;
 import st.foglo.gerke_decoder.LowpassChebyshevI;
@@ -13,7 +14,6 @@ import st.foglo.gerke_decoder.LowpassFilter;
 import st.foglo.gerke_decoder.LowpassNone;
 import st.foglo.gerke_decoder.LowpassTimeSliceSum;
 import st.foglo.gerke_decoder.LowpassWindow;
-import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
@@ -225,7 +225,80 @@ public class CwBasicImpl implements CwDetector {
         new Debug("signal average clipped: %f", sa);
 
 		return new Signal(sig, fBest, clipLevel);
+	}
+
+	@Override
+	public void phasePlot(
+			int fBest,
+			int nofSlices,
+			int framesPerSlice,
+			Wav w,
+			int clipLevel,
+			double[] sig,
+			double level,
+			double levelLog,
+			double[] flo,
+			double[] cei,
+			int decoder,
+			int ampMap) throws IOException, InterruptedException {
 		
+        final boolean phasePlot = GerkeLib.getFlag(GerkeDecoder.O_PPLOT);
+        final double[] plotLimits = w.getPlotLimits();
+
+
+        final double[] cosSum = new double[nofSlices];
+        final double[] sinSum = new double[nofSlices];
+        final double[] wphi = new double[nofSlices];
+
+        for (int q = 0; true; q++) {
+
+            if (w.wav.length - q*framesPerSlice < framesPerSlice) {
+                break;
+            }
+            
+            // TODO, duplication, this code is also in DecoderBase
+            final double timeSeconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+
+            final double angleOffset =
+            		
+                    phasePlot ? Compute.TWO_PI*fBest*timeSeconds : 0.0;
+
+                    double sinAcc = 0.0;
+                    double cosAcc = 0.0;
+                    for (int j = 0; j < framesPerSlice; j++) {
+                        // j is frame index
+                        final int ampRaw = w.wav[q*framesPerSlice + j];
+                        final int amp = ampRaw < 0 ?
+                                Compute.iMax(-clipLevel, ampRaw) :
+                                    Compute.iMin(clipLevel, ampRaw);
+
+                                final double angle = angleOffset + Compute.TWO_PI*fBest*j/w.frameRate;
+                                sinAcc += Math.sin(angle)*amp;
+                                cosAcc += Math.cos(angle)*amp;
+                    }
+                    cosSum[q] = cosAcc;
+                    sinSum[q] = sinAcc;
+        }
+
+        for (int q = 0; q < wphi.length; q++) {
+            wphi[q] = wphi(q, cosSum, sinSum, sig, level, levelLog, flo, cei, decoder, ampMap);
+        }
+
+        final PlotCollector pcPhase = new PlotCollector();
+        for (int q = 0; q < wphi.length; q++) {
+            
+         // TODO, duplication, this code is also in DecoderBase
+            final double seconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+            
+            
+            if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+                final double phase = wphi[q];
+                if (phase != 0.0) {
+                    pcPhase.ps.println(String.format("%f %f", seconds, phase));
+                }
+            }
+        }
+        pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
 	}
 	
 
@@ -387,6 +460,79 @@ public class CwBasicImpl implements CwDetector {
             }
             final double rSquared = sinAcc*sinAcc + cosAcc*cosAcc;
             rSquaredSum += rSquared;
+        }
+    }
+    
+    /**
+     * Weighted computation of phase angle. Returns 0.0 if there is no tone.
+     *
+     * @param k
+     * @param x
+     * @param y
+     * @param sig
+     * @return
+     */
+    private double wphi(
+            int k,
+            double[] x,
+            double[] y,
+            double[] sig,
+            double level,
+            double levelLog,
+            double[] flo,
+            double[] cei,
+            int decoder,
+            int ampMap) {
+
+        final int len = sig.length;
+        final int width = 7;
+
+        double sumx = 0.0;
+        double sumy = 0.0;
+        double ampAve = 0.0;
+        int m = 0;
+        for (int j = Compute.iMax(0, k-width); j <= Compute.iMin(len-1, k+width); j++) {
+            final double amp = sig[j];
+            ampAve += amp;
+            m++;
+            sumx += amp*amp*x[j];
+            sumy += amp*amp*y[j];
+        }
+        ampAve = ampAve/m;
+
+        // TODO, revise for logarithmic case?
+        if (ampAve < threshold(decoder, ampMap, 0.2*level, levelLog, flo[k], cei[k])) {
+            return 0.0;
+        }
+        else {
+            return Math.atan2(sumy, sumx);
+        }
+    }
+    
+
+    /**
+     * Determines threshold based on decoder and amplitude mapping.
+     * 
+     * TODO, duplication, this code is also in DecoderBase
+     */
+    private double threshold(
+            int decoder,
+            int ampMap,
+            double level,
+            double levelLog,
+            double floor,
+            double ceiling) {
+
+        if (ampMap == 3) {
+        	// logarithmic mapping, floor is ignored
+            return ceiling + GerkeDecoder.THRESHOLD_BY_LOG[decoder] + levelLog;
+        }
+        else if (ampMap == 2 || ampMap == 1) {
+            return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
+        }
+        else {
+            new Death("invalid amplitude mapping: %d", ampMap);
+            return 0.0;
         }
     }
 }

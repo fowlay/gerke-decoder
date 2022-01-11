@@ -11,6 +11,7 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
+import st.foglo.gerke_decoder.GerkeLib.Warning;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
@@ -119,6 +120,12 @@ public final class CwAdaptiveImpl implements CwDetector {
 	}
 
 
+	@Override
+	public void phasePlot(int fBest, int nofSlices, int framesPerSlice, Wav w, int clipLevel, double[] sig,
+			double level, double levelLog, double[] flo, double[] cei, int decoder, int ampMap) {
+		new Warning("phase plot not yet supported by this detector");
+		
+	}
 
 
 	/**

@@ -17,7 +17,6 @@ package st.foglo.gerke_decoder;
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map.Entry;
@@ -81,9 +80,9 @@ public final class GerkeDecoder {
     static final String O_LEVEL = "level";
     public static final String O_TSTAMPS = "timestamps";
     public static final String O_FPLOT = "frequency-plot";
-    static final String O_PLINT = "plot-interval";
-    static final String O_PLOT = "plot";
-    static final String O_PPLOT = "phase-plot";
+    public static final String O_PLINT = "plot-interval";
+    public static final String O_PLOT = "plot";
+    public static final String O_PPLOT = "phase-plot";
     public static final String O_VERBOSE = "verbose";
     
     public static final String O_COHSIZE = "coherence-size";
@@ -477,6 +476,7 @@ new String[]{
             final int sigSize = signal.sig.length;
             
             if (detector instanceof CwAdaptiveImpl) {
+            	// diagnostic only
             	((CwAdaptiveImpl)detector).trigTableReport();
             }
 
@@ -525,18 +525,23 @@ new String[]{
             new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
 
             // ================ Phase plot, optional
-            // not supported by all detectors
 
             if (GerkeLib.getFlag(O_PPLOT)) {
-            	if (signal.fBest == 0) {
-            		new Warning("phase plot not supported by this decoder");
-            	}
-            	else {
-            		phasePlot(signal.fBest, nofSlices, framesPerSlice,
-            				w, signal.clipLevel,
-            				sig, level, levelLog,
-            				flo, cei, decoder, ampMap);
-            	}
+     
+            	detector.phasePlot(
+            			signal.fBest,
+            			nofSlices,
+            			framesPerSlice,
+            			w,
+            			signal.clipLevel,
+            			sig,
+            			level,
+            			levelLog,
+            			flo,
+            			cei,
+            			decoder,
+            			ampMap);
+            
             }
 
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
@@ -771,62 +776,6 @@ new String[]{
         }
     }
 
-    private static void phasePlot(int fBest, int nofSlices, int framesPerSlice, Wav w,
-            int clipLevel, double[] sig, double level, double levelLog,
-            double[] flo, double[] cei,
-            int decoder,
-            int ampMap) throws IOException, InterruptedException {
-        final boolean phasePlot = GerkeLib.getFlag(O_PPLOT);
-        final double[] plotLimits = getPlotLimits(w);
-
-
-        final double[] cosSum = new double[nofSlices];
-        final double[] sinSum = new double[nofSlices];
-        final double[] wphi = new double[nofSlices];
-
-        for (int q = 0; true; q++) {
-
-            if (w.wav.length - q*framesPerSlice < framesPerSlice) {
-                break;
-            }
-
-            final double angleOffset =
-                    phasePlot ? Compute.TWO_PI*fBest*timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames) : 0.0;
-
-                    double sinAcc = 0.0;
-                    double cosAcc = 0.0;
-                    for (int j = 0; j < framesPerSlice; j++) {
-                        // j is frame index
-                        final int ampRaw = w.wav[q*framesPerSlice + j];
-                        final int amp = ampRaw < 0 ?
-                                Compute.iMax(-clipLevel, ampRaw) :
-                                    Compute.iMin(clipLevel, ampRaw);
-
-                                final double angle = angleOffset + Compute.TWO_PI*fBest*j/w.frameRate;
-                                sinAcc += Math.sin(angle)*amp;
-                                cosAcc += Math.cos(angle)*amp;
-                    }
-                    cosSum[q] = cosAcc;
-                    sinSum[q] = sinAcc;
-        }
-
-        for (int q = 0; q < wphi.length; q++) {
-            wphi[q] = wphi(q, cosSum, sinSum, sig, level, levelLog, flo, cei, decoder, ampMap);
-        }
-
-        final PlotCollector pcPhase = new PlotCollector();
-        for (int q = 0; q < wphi.length; q++) {
-            final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
-            if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
-                final double phase = wphi[q];
-                if (phase != 0.0) {
-                    pcPhase.ps.println(String.format("%f %f", seconds, phase));
-                }
-            }
-        }
-        pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
-    }
-
     private static double[] getPlotLimits(Wav w) {
 
         final double[] result = new double[2];
@@ -899,52 +848,6 @@ new String[]{
 //        }
 //        return k;
 //    }
-
-    /**
-     * Weighted computation of phase angle. Returns 0.0 if there is no tone.
-     *
-     * @param k
-     * @param x
-     * @param y
-     * @param sig
-     * @return
-     */
-    private static double wphi(
-            int k,
-            double[] x,
-            double[] y,
-            double[] sig,
-            double level,
-            double levelLog,
-            double[] flo,
-            double[] cei,
-            int decoder,
-            int ampMap) {
-
-        final int len = sig.length;
-        final int width = 7;
-
-        double sumx = 0.0;
-        double sumy = 0.0;
-        double ampAve = 0.0;
-        int m = 0;
-        for (int j = Compute.iMax(0, k-width); j <= Compute.iMin(len-1, k+width); j++) {
-            final double amp = sig[j];
-            ampAve += amp;
-            m++;
-            sumx += amp*amp*x[j];
-            sumy += amp*amp*y[j];
-        }
-        ampAve = ampAve/m;
-
-        // TODO, revise for logarithmic case?
-        if (ampAve < threshold(decoder, ampMap, 0.2*level, levelLog, flo[k], cei[k])) {
-            return 0.0;
-        }
-        else {
-            return Math.atan2(sumy, sumx);
-        }
-    }
 
 
     private static void showClData() {
