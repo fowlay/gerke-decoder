@@ -12,21 +12,13 @@ import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeLib.Warning;
-import st.foglo.gerke_decoder.detector.CwDetector;
+import st.foglo.gerke_decoder.detector.DetectorBase;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.wave.Wav;
 
-public final class CwAdaptiveImpl implements CwDetector {
-	
-	final int nofSlices;
-	final Wav w;
-	final double tuMillis;
-	
-	final double tsLength;            // time slice is defined as this fraction of TU
-	
-	final int framesPerSlice;         // nof. frames in one slice
+public final class CwAdaptiveImpl extends DetectorBase {
 
 	final int cohFactor;              // coherence chunk size is cohFactor*framesPerSlice
 	
@@ -49,14 +41,11 @@ public final class CwAdaptiveImpl implements CwDetector {
 			int cohFactor,
 			int segFactor,
 			double tsLength) {
+		
+		super(w, framesPerSlice, nofSlices, tsLength, tuMillis);
 
-		this.nofSlices = nofSlices;
-		this.w = w;
-		this.tuMillis = tuMillis;
-		this.framesPerSlice = framesPerSlice;
 		this.cohFactor = cohFactor;
 		this.segFactor = segFactor;
-		this.tsLength = tsLength;
 		
 		new Info("coherence factor: %d", cohFactor);
 		new Info("segment factor: %d", segFactor);
@@ -121,8 +110,13 @@ public final class CwAdaptiveImpl implements CwDetector {
 
 
 	@Override
-	public void phasePlot(int fBest, int nofSlices, int framesPerSlice, Wav w, int clipLevel, double[] sig,
-			double level, double levelLog, double[] flo, double[] cei, int decoder, int ampMap) {
+	public void phasePlot(
+			double[] sig,
+			double level,
+			double levelLog,
+			double[] flo,
+			double[] cei,
+			int ampMap) {
 		new Warning("phase plot not yet supported by this detector");
 		
 	}

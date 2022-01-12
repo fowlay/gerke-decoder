@@ -20,7 +20,7 @@ import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeLib.Trace;
 import st.foglo.gerke_decoder.GerkeLib.Warning;
-import st.foglo.gerke_decoder.detector.CwDetector;
+import st.foglo.gerke_decoder.detector.DetectorBase;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
@@ -28,29 +28,27 @@ import st.foglo.gerke_decoder.plot.PlotCollector;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.wave.Wav;
 
-public class CwBasicImpl implements CwDetector {
+public class CwBasicImpl extends DetectorBase {
 	
-	final int nofSlices;
-	final Wav w;
-	final double tuMillis;
-	final int framesPerSlice;
-	final double tsLength;
+	final int decoder;
 	final int fBest;
+	
+	final Signal signal;
 	
 
 	public CwBasicImpl(
+			int decoder,
 			int nofSlices,
 			Wav w,
 			double tuMillis,
 			int framesPerSlice,
 			double tsLength,
 			int fSpecified
-			) throws IOException, InterruptedException {
-		this.nofSlices = nofSlices;
-		this.w = w;
-		this.tuMillis = tuMillis;
-		this.framesPerSlice = framesPerSlice;
-		this.tsLength = tsLength;
+			) throws Exception {
+		
+		super(w, framesPerSlice, nofSlices, tsLength, tuMillis);
+		
+		this.decoder = decoder;
 
 		if (fSpecified != -1) {
 			fBest = fSpecified;
@@ -63,11 +61,16 @@ public class CwBasicImpl implements CwDetector {
 			fBest = findFrequency();
 			new Info("estimated frequency: %d", fBest);
 		}
+		
+		this.signal = detectSignal();
 	}
-
 
 	@Override
 	public Signal getSignal() throws Exception {
+		return signal;
+	}
+
+	public Signal detectSignal() throws Exception {
 
         // ========================== Find clip level
         // TODO, could clipping be applied once and for all, after
@@ -229,17 +232,11 @@ public class CwBasicImpl implements CwDetector {
 
 	@Override
 	public void phasePlot(
-			int fBest,
-			int nofSlices,
-			int framesPerSlice,
-			Wav w,
-			int clipLevel,
 			double[] sig,
 			double level,
 			double levelLog,
 			double[] flo,
 			double[] cei,
-			int decoder,
 			int ampMap) throws IOException, InterruptedException {
 		
         final boolean phasePlot = GerkeLib.getFlag(GerkeDecoder.O_PPLOT);
@@ -269,8 +266,8 @@ public class CwBasicImpl implements CwDetector {
                         // j is frame index
                         final int ampRaw = w.wav[q*framesPerSlice + j];
                         final int amp = ampRaw < 0 ?
-                                Compute.iMax(-clipLevel, ampRaw) :
-                                    Compute.iMin(clipLevel, ampRaw);
+                                Compute.iMax(-signal.clipLevel, ampRaw) :
+                                    Compute.iMin(signal.clipLevel, ampRaw);
 
                                 final double angle = angleOffset + Compute.TWO_PI*fBest*j/w.frameRate;
                                 sinAcc += Math.sin(angle)*amp;
@@ -281,7 +278,7 @@ public class CwBasicImpl implements CwDetector {
         }
 
         for (int q = 0; q < wphi.length; q++) {
-            wphi[q] = wphi(q, cosSum, sinSum, sig, level, levelLog, flo, cei, decoder, ampMap);
+            wphi[q] = wphi(q, cosSum, sinSum, sig, level, levelLog, flo, cei, ampMap);
         }
 
         final PlotCollector pcPhase = new PlotCollector();
@@ -481,7 +478,6 @@ public class CwBasicImpl implements CwDetector {
             double levelLog,
             double[] flo,
             double[] cei,
-            int decoder,
             int ampMap) {
 
         final int len = sig.length;
@@ -501,7 +497,7 @@ public class CwBasicImpl implements CwDetector {
         ampAve = ampAve/m;
 
         // TODO, revise for logarithmic case?
-        if (ampAve < threshold(decoder, ampMap, 0.2*level, levelLog, flo[k], cei[k])) {
+        if (ampAve < threshold(ampMap, 0.2*level, levelLog, flo[k], cei[k])) {
             return 0.0;
         }
         else {
@@ -516,7 +512,6 @@ public class CwBasicImpl implements CwDetector {
      * TODO, duplication, this code is also in DecoderBase
      */
     private double threshold(
-            int decoder,
             int ampMap,
             double level,
             double levelLog,

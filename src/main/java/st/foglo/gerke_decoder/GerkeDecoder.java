@@ -459,6 +459,7 @@ new String[]{
             }
             else if (DecoderBase.getDetector(decoder) == DetectorIndex.BASIC_DETECTOR) {
             	detector = new CwBasicImpl(
+            			decoder,
             			nofSlices,
             			w,
             			tuMillis,
@@ -491,7 +492,6 @@ new String[]{
             // ================= Determine floor and ceiling. These arrays are used for
             // decoding and plotting as well.
 
-            //
             final int estBaseCeil = Compute.ensureEven((int)(P_CEIL_HIST_WIDTH*(tuMillis/1000.0)*w.frameRate/framesPerSlice));
             new Debug("ceiling estimation based on slices: %d", estBaseCeil);
 
@@ -529,19 +529,12 @@ new String[]{
             if (GerkeLib.getFlag(O_PPLOT)) {
      
             	detector.phasePlot(
-            			signal.fBest,
-            			nofSlices,
-            			framesPerSlice,
-            			w,
-            			signal.clipLevel,
             			sig,
             			level,
             			levelLog,
             			flo,
             			cei,
-            			decoder,
             			ampMap);
-            
             }
 
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
