@@ -25,8 +25,7 @@ import st.foglo.gerke_decoder.wave.Wav;
  *
  */
 public final class PatternMatchDecoder extends DecoderBase {
-	
-	
+
 	final Trans[] trans;
 	final int transIndex;
 	
@@ -37,9 +36,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 	
 	final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
-	final int ampMap;
 	final double level;
-	final double levelLog;
 	
 	public PatternMatchDecoder(
 			
@@ -54,14 +51,11 @@ public final class PatternMatchDecoder extends DecoderBase {
 			Formatter formatter,
 			
 			double ceilingMax,
-			int ampMap,
 			double level,
 			
 			int nofSlices,
 			double[] cei,
 			double[] flo
-			
-			
 			) {
 		super(
 				tuMillis,
@@ -74,6 +68,7 @@ public final class PatternMatchDecoder extends DecoderBase {
     			plotLimits,
     			formatter,
     			cei,
+    			flo,
     			ceilingMax
 				);
 		
@@ -84,17 +79,14 @@ public final class PatternMatchDecoder extends DecoderBase {
 				nofSlices, 
 //				framesPerSlice, 
 //				w, 
-				decoder, 
-				ampMap, 
+				decoder,
 				level, 
 //				sig, 
 //				cei, 
 				flo);
 		this.transIndex = trans.length;
 		
-		this.ampMap = ampMap;
 		this.level = level;
-		this.levelLog = Math.log(level);
 	}
 	
 	@Override
@@ -236,7 +228,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
                     int indx = (candSize*qq)/qSize;
 
-                    double u = sig[q] - threshold(decoder, ampMap, level, levelLog, floor, ceiling);
+                    double u = sig[q] - threshold(decoder, level, floor, ceiling);
 
 
                     // sum += Math.signum(u)*u*u*cand.pattern[indx];

@@ -234,10 +234,8 @@ public class CwBasicImpl extends DetectorBase {
 	public void phasePlot(
 			double[] sig,
 			double level,
-			double levelLog,
 			double[] flo,
-			double[] cei,
-			int ampMap) throws IOException, InterruptedException {
+			double[] cei) throws IOException, InterruptedException {
 		
         final boolean phasePlot = GerkeLib.getFlag(GerkeDecoder.O_PPLOT);
         final double[] plotLimits = w.getPlotLimits();
@@ -278,16 +276,16 @@ public class CwBasicImpl extends DetectorBase {
         }
 
         for (int q = 0; q < wphi.length; q++) {
-            wphi[q] = wphi(q, cosSum, sinSum, sig, level, levelLog, flo, cei, ampMap);
+            wphi[q] = wphi(q, cosSum, sinSum, sig, level, flo, cei);
         }
 
         final PlotCollector pcPhase = new PlotCollector();
         for (int q = 0; q < wphi.length; q++) {
             
          // TODO, duplication, this code is also in DecoderBase
-            final double seconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
-            
-            
+            final double seconds =
+            		(((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+
             if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
                 final double phase = wphi[q];
                 if (phase != 0.0) {
@@ -475,10 +473,8 @@ public class CwBasicImpl extends DetectorBase {
             double[] y,
             double[] sig,
             double level,
-            double levelLog,
             double[] flo,
-            double[] cei,
-            int ampMap) {
+            double[] cei) {
 
         final int len = sig.length;
         final int width = 7;
@@ -496,8 +492,7 @@ public class CwBasicImpl extends DetectorBase {
         }
         ampAve = ampAve/m;
 
-        // TODO, revise for logarithmic case?
-        if (ampAve < threshold(ampMap, 0.2*level, levelLog, flo[k], cei[k])) {
+        if (ampAve < threshold(0.2*level, flo[k], cei[k])) {
             return 0.0;
         }
         else {
@@ -512,22 +507,10 @@ public class CwBasicImpl extends DetectorBase {
      * TODO, duplication, this code is also in DecoderBase
      */
     private double threshold(
-            int ampMap,
             double level,
-            double levelLog,
             double floor,
             double ceiling) {
 
-        if (ampMap == 3) {
-        	// logarithmic mapping, floor is ignored
-            return ceiling + GerkeDecoder.THRESHOLD_BY_LOG[decoder] + levelLog;
-        }
-        else if (ampMap == 2 || ampMap == 1) {
-            return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
-        }
-        else {
-            new Death("invalid amplitude mapping: %d", ampMap);
-            return 0.0;
-        }
+        return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
     }
 }

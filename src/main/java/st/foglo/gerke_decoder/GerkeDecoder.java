@@ -57,14 +57,6 @@ public final class GerkeDecoder {
     public static final double[] THRESHOLD = {IGNORE,
             0.524, 0.64791, 0.524, 0.524, 0.524*0.9};
 
-    /**
-     * For use when logarithmic mapping is in effect. The encoded
-     * value is the logarithm of the threshold value, expressed as
-     * a fraction of the ceiling level.
-     */
-    public static final double[] THRESHOLD_BY_LOG = {IGNORE,
-            Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.54), Math.log(0.677)};
-
     static final String O_VERSION = "version";
     public static final String O_OFFSET = "offset";
     public static final String O_LENGTH = "length";
@@ -76,8 +68,7 @@ public final class GerkeDecoder {
     static final String O_STIME = "sample-time";
     public static final String O_SIGMA = "sigma";
     static final String O_DECODER = "decoder";
-    static final String O_AMP_MAPPING = "amp-mapping";
-    static final String O_LEVEL = "level";
+    public static final String O_LEVEL = "level";
     public static final String O_TSTAMPS = "timestamps";
     public static final String O_FPLOT = "frequency-plot";
     public static final String O_PLINT = "plot-interval";
@@ -268,8 +259,6 @@ public final class GerkeDecoder {
 
         new SingleValueOption("D", O_DECODER, "5");
 
-        new SingleValueOption("U", O_AMP_MAPPING, "1");
-
         new SingleValueOption("u", O_LEVEL, "1.0");
 
         new Flag("t", O_TSTAMPS);
@@ -315,7 +304,6 @@ new String[]{
         		DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()],
         		DECODER_NAME[DecoderIndex.LSQ2.ordinal()],
                 GerkeLib.getDefault(O_DECODER)),
-        String.format("  -U MAPPING         1: none, 2: square root, 3: logarithm, defaults to: %d", GerkeLib.getIntOpt(O_AMP_MAPPING)),
         String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
 
         String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault(O_STIME)),
@@ -481,9 +469,6 @@ new String[]{
             	((CwAdaptiveImpl)detector).trigTableReport();
             }
 
-            final int ampMap = GerkeLib.getIntOpt(O_AMP_MAPPING);
-            applyAmplitudeMapping(sig, sigSize, ampMap);
-
             if (sigSize != nofSlices) {
                 // unexpected ...
                 new Info("sigSize: %d, nofSlices: %d", sigSize, nofSlices);
@@ -519,7 +504,6 @@ new String[]{
 //            final int charSpaceLimit = (int) Math.round(CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 //            final int twoDashLimit = (int) Math.round(TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
             final double level = GerkeLib.getDoubleOpt(O_LEVEL);
-            final double levelLog = Math.log(level);
 
             new Info("relative tone/silence threshold: %.3f", level);
             new Debug("dash limit: %d, word space limit: %d", dashLimit, wordSpaceLimit);
@@ -531,10 +515,8 @@ new String[]{
             	detector.phasePlot(
             			sig,
             			level,
-            			levelLog,
             			flo,
-            			cei,
-            			ampMap);
+            			cei);
             }
 
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
@@ -546,7 +528,7 @@ new String[]{
                 for (int q = 0; q < sig.length; q++) {
                     final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
                     if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
-                        final double threshold = threshold(decoder, ampMap, level, levelLog, flo[q], cei[q]);
+                        final double threshold = threshold(decoder, level, flo[q], cei[q]);
                         plotEntries.addAmplitudes(seconds, sig[q], threshold, cei[q], flo[q]);
                     }
                 }
@@ -571,7 +553,6 @@ new String[]{
             			ceilingMax,
             			
             			nofSlices,
-            			ampMap,
             			level,
             			cei,
             			flo
@@ -596,7 +577,6 @@ new String[]{
             			ceilingMax,
 //            			trans,
 //            			transIndex,
-            			ampMap,
             			level,
             			
             			nofSlices,
@@ -622,7 +602,6 @@ new String[]{
             			cei,
             			flo,
             			nofSlices,
-            			ampMap,
             			level
             			);
             }
@@ -642,6 +621,7 @@ new String[]{
             			
             			sigSize,
             			cei,
+            			flo,
             			ceilingMax
             			
             			);
@@ -659,7 +639,6 @@ new String[]{
             			formatter,
             			
             			sigSize,
-            			ampMap,
             			cei,
             			flo,
             			level,
@@ -710,63 +689,16 @@ new String[]{
         }
     }
 
-    private static void applyAmplitudeMapping(double[] sig, int size, int ampMap) {
-
-        if (ampMap == 3) {
-            new Info("apply logarithmic mapping");
-            double sigMax = 0.0;
-            for (int k = 0; k < size; k++) {
-                sigMax = Compute.dMax(sigMax, sig[k]);
-            }
-            if (!(sigMax > 0.0)) {
-                new Death("no data, cannot apply logarithmic mapping");
-            }
-            double sigMin = Double.MAX_VALUE;
-            for (int k = 0; k < size; k++) {
-                sig[k] = Math.log(sig[k] + sigMax/100);
-                sigMin = Compute.dMin(sigMin, sig[k]);
-            }
-            for (int k = 0; k < size; k++) {
-                sig[k] = sig[k] - sigMin;
-            }
-        }
-        else if (ampMap == 2) {
-            new Info("");
-            for (int k = 0; k < size; k++) {
-                sig[k] = Math.sqrt(sig[k]);
-            }
-        }
-        else if (ampMap == 1) {
-            new Info("no amplitude mapping");
-        }
-        else {
-            new Death("invalid amplitude mapping: %d", ampMap);
-        }
-    }
-
-
     /**
      * Determines threshold based on decoder and amplitude mapping.
      */
     private static double threshold(
             int decoder,
-            int ampMap,
             double level,
-            double levelLog,
             double floor,
             double ceiling) {
 
-        if (ampMap == 3) {
-        	// logarithmic mapping, floor is ignored
-            return ceiling + THRESHOLD_BY_LOG[decoder] + levelLog;
-        }
-        else if (ampMap == 2 || ampMap == 1) {
-            return floor + level*THRESHOLD[decoder]*(ceiling - floor);
-        }
-        else {
-            new Death("invalid amplitude mapping: %d", ampMap);
-            return 0.0;
-        }
+        return floor + level*THRESHOLD[decoder]*(ceiling - floor);
     }
 
     private static double[] getPlotLimits(Wav w) {

@@ -17,12 +17,8 @@ import st.foglo.gerke_decoder.wave.Wav;
 public final class SlidingLineDecoder extends DecoderBase {
 	
 	final int sigSize;
-	final int ampMap;
-	
-	final double[] flo;
 	
 	final double level;
-	final double levelLog;
 	
 	/**
 	 * Half-width of the sliding line, expressed as nof. slices
@@ -44,7 +40,6 @@ public final class SlidingLineDecoder extends DecoderBase {
 			Formatter formatter,
 			
 			int sigSize,
-			int ampMap,
 			double[] cei,
 			double[] flo,
 			double level,
@@ -61,15 +56,13 @@ public final class SlidingLineDecoder extends DecoderBase {
     			plotLimits,
     			formatter,
     			cei,
+    			flo,
     			ceilingMax
 				);
 		
 		this.sigSize = sigSize;
-		this.ampMap = ampMap;
 		
-		this.flo = flo;
 		this.level = level;
-		this.levelLog = Math.log(level);
 		
 		new Info("sliding line half-width (slices): %d", halfWidth);
 		
@@ -103,7 +96,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         double accMax = 0.0;
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
         	
-        	final double thr = threshold(decoder, ampMap, level, levelLog, flo[k], cei[k]);
+        	final double thr = threshold(decoder, level, flo[k], cei[k]);
         	
         	final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
 

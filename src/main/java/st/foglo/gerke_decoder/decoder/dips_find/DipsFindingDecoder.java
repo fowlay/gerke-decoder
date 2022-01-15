@@ -23,12 +23,9 @@ import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class DipsFindingDecoder extends DecoderBase {
-	
-	
+
 	final Trans[] trans;
 	final int transIndex;
-	
-	final double[] flo;
 	
 	final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
 	final int wordSpaceLimit =
@@ -53,7 +50,6 @@ public final class DipsFindingDecoder extends DecoderBase {
 			double[] cei,
 			double[] flo,
 			int nofSlices,
-			int ampMap,
 			double level
 			) {
 		super(
@@ -67,6 +63,7 @@ public final class DipsFindingDecoder extends DecoderBase {
     			plotLimits,
     			formatter,
     			cei,
+    			flo,
     			ceilingMax
 				);
 		
@@ -77,14 +74,11 @@ public final class DipsFindingDecoder extends DecoderBase {
 //				framesPerSlice,
 //				w,
 				decoder,
-				ampMap,
 				level,
 //				sig,
 //				cei,
 				flo);
 		this.transIndex = trans.length;
-		
-		this.flo = flo;
 		
 	}
 

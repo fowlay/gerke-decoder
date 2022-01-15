@@ -113,10 +113,8 @@ public final class CwAdaptiveImpl extends DetectorBase {
 	public void phasePlot(
 			double[] sig,
 			double level,
-			double levelLog,
 			double[] flo,
-			double[] cei,
-			int ampMap) {
+			double[] cei) {
 		new Warning("phase plot not yet supported by this detector");
 		
 	}

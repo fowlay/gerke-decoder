@@ -25,6 +25,10 @@ import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
+/**
+ * This decoder has turned out to be difficult to tune, due to its
+ * many parameters.
+ */
 public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
 	final int sigSize;
@@ -42,6 +46,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 			
 			int sigSize,
 			double[] cei,
+			double[] flo,
 			double ceilingMax
 			
 			
@@ -57,6 +62,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 				plotLimits,
 				formatter,
 				cei,
+				flo,
 				ceilingMax
 				);
 		this.sigSize = sigSize;
@@ -73,6 +79,8 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         int spTicksW = 0;
         int spCusC = 0;
         int spTicksC = 0;
+        
+        final double level = GerkeLib.getDoubleOpt(GerkeDecoder.O_LEVEL);
 
         final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
 
@@ -84,12 +92,16 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
         final int jDashSmall = (int) Math.round(1.35/tsLength);
 
-        final double dashStrengthLimit = 0.6;
+        final double dashStrengthLimit = level*0.63;
         
-        final double dotStrengthLimit = 0.8;
+        // i becomes t  <---------------------------> i becomes i 
+        final double middleDipLimit = 0.75;
+        
+        final double dotStrengthLimit = level*0.495;
         //final double dotStrengthLimit = 0.55;
         
-        final double dotPeakCrit = 0.3;
+        // PARA, a dot has to be stronger than surrounding by this much
+        final double dotPeakCrit = 1.2;
         //final double dotPeakCrit = 0.35;
 
         final double mergeDashesWhenCloser = 2.8/tsLength;
@@ -100,43 +112,56 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         //final WeightBase w2 = new WeightTwoDots(jDash);
         //double prevB = Double.MAX_VALUE;
 
+        
+        
+        // scan for candidate dashes
         TwoDoubles prevD = new TwoDoubles(0.0, Double.MAX_VALUE);
-
+        
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
             final TwoDoubles r = lsq(sig, k, jDash, wDash);
 
             if (prevD.b >= 0.0 && r.b < 0.0) {
+            	// just passed a maximum
 
-                final int kBest = prevD.b > -r.b ? k : k-1;
-
-                final TwoDoubles aa = lsq(sig, kBest-2*jDot, jDot, wDot);
-                final TwoDoubles bb = lsq(sig, kBest, jDot, wDot);
-                final TwoDoubles cc = lsq(sig, kBest+2*jDot, jDot, wDot);
-
-                if ((kBest == k ?
-                        cei[kBest] - r.a < dashStrengthLimit :
-                            cei[kBest] - prevD.a < dashStrengthLimit) &&
-
-                        // PARA - this setting means that a dip in the middle
-                        // of the dash will be somewhat protected against.
-                        cei[kBest-2*jDot] - aa.a < 0.5 &&
-                        cei[kBest] - bb.a < 0.43 &&
-                        cei[kBest+2*jDot] - cc.a < 0.5
-
-                        ) {  // logarithmic assumed
-
-                	try {
-                		// index out of bounds can happen, hence try
-                		// use an average over aa, bb, cc
-                		dashes.put(Integer.valueOf(kBest),
-                				new Dash(
-                						kBest, jDot, jDash, sig,
-                						(aa.a + bb.a + cc.a)/3, true));
-                	}
-                	catch (Exception e) {
-                		new Info("cannot create dash, k: %d", kBest);
-                	}
+                final int kBest;
+                //final double ampRange;
+                final double dashStrength;
+                
+                if (prevD.b > -r.b) {
+                	// slope was greater at previous k
+                	kBest = k;
+                	//ampRange = cei[kBest] - flo[kBest];
+                	dashStrength = relStrength(r.a, cei[kBest], flo[kBest]);
+                } 
+                else {
+                	// slope is greater at this k
+                	kBest = k-1;
+                	//ampRange = cei[kBest] - flo[kBest];
+                	dashStrength = relStrength(prevD.a, cei[kBest], flo[kBest]);
                 }
+
+                if (dashStrength > dashStrengthLimit) {
+                	
+                    final TwoDoubles aa = lsq(sig, kBest-2*jDot, jDot, wDot);
+                    final TwoDoubles bb = lsq(sig, kBest, jDot, wDot);
+                    final TwoDoubles cc = lsq(sig, kBest+2*jDot, jDot, wDot);
+                	
+                    // protect against dip in the middle
+                	if (bb.a > middleDipLimit*(aa.a + cc.a)/2) {
+                		
+                    	try {
+                    		// index out of bounds can happen, hence try
+                    		// use an average over aa, bb, cc
+                    		dashes.put(Integer.valueOf(kBest),
+                    				new Dash(
+                    						kBest, jDot, jDash, sig,
+                    						r.a, true));
+                    	}
+                    	catch (Exception e) {
+                    		new Info("cannot create dash, k: %d", kBest);
+                    	}
+                	}
+                } 
             }
             prevD = r;
         }
@@ -159,33 +184,29 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             //new Info("%10f %10f", r.a, r.b);
             if (prevDot.b >= 0.0 && r.b < 0.0) {
 
-                final int kBest = prevDot.b > -r.b ? k : k-1;
-                final double a = prevDot.b > -r.b ? r.a : prevDot.a;
+            	final int kBest;
+            	final double a;
+            	if (prevDot.b > -r.b) {
+            		kBest = k;
+            		a = r.a;
+            		
+            	}
+            	else {
+            		kBest = k-1;
+            		a = prevDot.a;
+            	}
 
-//                final double t = 1+kBest*0.008005;
-//                if (t > 276 && t < 276.2) {
-//                    new Debug("dot candidate at t: %10f, k: %d, a: %10f", t, k, r.a);
-//                    new Debug("jDot: %d, %f", jDot, jDot * 0.008005);
-//                    for (int q = -5*jDot; q <= 5*jDot; q += jDot) {
-//                        final double dt = q*0.008005;
-//
-//                        final TwoDoubles x = lsq(sig, k + q, jDot, wDot);
-//                        new Debug("t: %f, ampl: %f", t+dt, x.a);
-//                    }
-//                }
+                final double dotStrength = relStrength(a, cei[kBest], flo[kBest]); 
 
-                final TwoDoubles u1 = lsq(sig, kBest - 2*jDot, jDot, wDot);
-                final TwoDoubles u2 = lsq(sig, kBest + 2*jDot, jDot, wDot);
-
-                if (cei[kBest] - a < dotStrengthLimit &&
-
-                        a - u1.a > dotPeakCrit &&
-                        a - u2.a > dotPeakCrit
-
-                        ) {
-                    dots.put(Integer.valueOf(kBest), new Dot(kBest, kBest - jDot, kBest + jDot));
+                if (dotStrength > dotStrengthLimit) {
+                	
+                    final TwoDoubles u1 = lsq(sig, kBest - 2*jDot, jDot, wDot);
+                    final TwoDoubles u2 = lsq(sig, kBest + 2*jDot, jDot, wDot);
+                    
+                    if (a/u1.a > dotPeakCrit && a/u2.a > dotPeakCrit) {
+                    	dots.put(Integer.valueOf(kBest), new Dot(kBest, kBest - jDot, kBest + jDot));
+                    }
                 }
-
             }
             prevDot = r;
         }
@@ -407,5 +428,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         return k2 - k1 - reduction;
     }
     
-
+    private double relStrength(double x, double ceiling, double floor) {
+    	return (x - floor)/(ceiling - floor);
+    }
 }

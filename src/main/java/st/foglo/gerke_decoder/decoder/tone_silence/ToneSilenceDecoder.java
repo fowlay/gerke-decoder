@@ -40,7 +40,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 			
 			double ceilingMax,
 			int nofSlices,
-			int ampMap,
 			double level,
 			double[] cei,
 			double[] flo
@@ -56,6 +55,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
     			plotLimits,
     			formatter,
     			cei,
+    			flo,
     			ceilingMax
 				);
 		
@@ -66,7 +66,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 //				framesPerSlice, 
 //				w, 
 				GerkeDecoder.DecoderIndex.TONE_SILENCE.ordinal(),
-				ampMap, 
 				level, 
 //				sig, 
 //				cei, 

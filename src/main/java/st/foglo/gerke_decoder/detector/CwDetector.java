@@ -5,12 +5,20 @@ import java.io.IOException;
 public interface CwDetector {
 	public Signal getSignal() throws InterruptedException, Exception;
 
+	/**
+	 * Create a phase plot.
+	 * 
+	 * @param sig
+	 * @param level
+	 * @param flo
+	 * @param cei
+	 * @throws IOException
+	 * @throws InterruptedException
+	 */
 	public void phasePlot(
 			double[] sig,
 			double level,
-			double levelLog,
 			double[] flo,
-			double[] cei,
-			int ampMap
+			double[] cei
 			) throws IOException, InterruptedException;
 }
