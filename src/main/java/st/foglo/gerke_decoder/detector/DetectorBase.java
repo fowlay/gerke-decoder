@@ -1,5 +1,6 @@
 package st.foglo.gerke_decoder.detector;
 
+import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public abstract class DetectorBase implements CwDetector {
@@ -18,4 +19,20 @@ public abstract class DetectorBase implements CwDetector {
 		this.tsLength = tsLength;
 		this.tuMillis = tuMillis;
 	}
+	
+    
+
+    /**
+     * Determines threshold based on decoder.
+     * 
+     * TODO, duplication, this code is also in DecoderBase
+     */
+    public double threshold(
+            double level,
+            double floor,
+            double ceiling,
+            int decoder) {
+
+        return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
+    }
 }

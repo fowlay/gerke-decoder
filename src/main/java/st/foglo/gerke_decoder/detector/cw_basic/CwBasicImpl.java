@@ -492,25 +492,11 @@ public class CwBasicImpl extends DetectorBase {
         }
         ampAve = ampAve/m;
 
-        if (ampAve < threshold(0.2*level, flo[k], cei[k])) {
+        if (ampAve < threshold(0.2*level, flo[k], cei[k], decoder)) {
             return 0.0;
         }
         else {
             return Math.atan2(sumy, sumx);
         }
-    }
-    
-
-    /**
-     * Determines threshold based on decoder and amplitude mapping.
-     * 
-     * TODO, duplication, this code is also in DecoderBase
-     */
-    private double threshold(
-            double level,
-            double floor,
-            double ceiling) {
-
-        return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
     }
 }

@@ -528,7 +528,7 @@ new String[]{
                 for (int q = 0; q < sig.length; q++) {
                     final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
                     if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
-                        final double threshold = threshold(decoder, level, flo[q], cei[q]);
+                        final double threshold = detector.threshold(level, flo[q], cei[q], decoder);
                         plotEntries.addAmplitudes(seconds, sig[q], threshold, cei[q], flo[q]);
                     }
                 }
@@ -687,18 +687,6 @@ new String[]{
         catch (Exception e) {
             new Death(e);
         }
-    }
-
-    /**
-     * Determines threshold based on decoder and amplitude mapping.
-     */
-    private static double threshold(
-            int decoder,
-            double level,
-            double floor,
-            double ceiling) {
-
-        return floor + level*THRESHOLD[decoder]*(ceiling - floor);
     }
 
     private static double[] getPlotLimits(Wav w) {

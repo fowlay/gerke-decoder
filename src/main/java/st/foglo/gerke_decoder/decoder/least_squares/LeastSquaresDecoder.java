@@ -33,6 +33,20 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
 	final int sigSize;
 	
+	final class Cluster {
+	    final Integer lowestKey;
+	    final List<Integer> members = new ArrayList<Integer>();
+
+	    Cluster(Integer a) {
+	        lowestKey = a;
+	        members.add(a);
+	    }
+
+	    void add(Integer b) {
+	        members.add(b);
+	    }
+	}
+	
 	public LeastSquaresDecoder(
 			double tuMillis,
 			int framesPerSlice,

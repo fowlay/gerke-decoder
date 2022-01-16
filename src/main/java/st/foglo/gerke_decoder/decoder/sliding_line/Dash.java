@@ -16,8 +16,16 @@ public final class Dash extends ToneBase {
     }
 
 
-    public Dash(int k, int jDot, int jDash, double sig[], double ceiling, boolean improve) {
-    	super(k, dashRise(k, sig, jDot, jDash, ceiling, improve), dashDrop(k, sig, jDot, jDash, ceiling, improve));
+    public Dash(
+    		int k,
+    		int jDot,
+    		int jDash,
+    		double sig[],
+    		double ceiling,
+    		boolean improve) {
+    	super(k,
+    			dashRise(k, sig, jDot, jDash, ceiling, improve),
+    			dashDrop(k, sig, jDot, jDash, ceiling, improve));
     	this.ceiling = ceiling;
     }
 

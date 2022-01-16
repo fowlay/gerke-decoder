@@ -21,4 +21,10 @@ public interface CwDetector {
 			double[] flo,
 			double[] cei
 			) throws IOException, InterruptedException;
+	
+	public double threshold(
+			double level,
+			double flo,
+			double cei,
+			int decoder);
 }
