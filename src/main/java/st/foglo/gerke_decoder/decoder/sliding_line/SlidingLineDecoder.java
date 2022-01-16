@@ -7,8 +7,11 @@ import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
+import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
+import st.foglo.gerke_decoder.decoder.Dot;
 import st.foglo.gerke_decoder.decoder.Node;
+import st.foglo.gerke_decoder.decoder.ToneBase;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.plot.PlotEntries;
@@ -73,14 +76,7 @@ public final class SlidingLineDecoder extends DecoderBase {
 
     	final int decoder = DecoderIndex.LSQ2.ordinal();
 
-        int chCus = 0;
-        int chTicks = 0;
-        int spCusW = 0;
-        int spTicksW = 0;
-        int spCusC = 0;
-        int spTicksC = 0;
-
-        final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
+        final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
 
         // in theory, 0.50 .. 0.40 works better .. quite sensitive, TODO, PARAMETER
         final int jDotSmall = (int) Math.round(0.40/tsLength);
@@ -130,7 +126,7 @@ public final class SlidingLineDecoder extends DecoderBase {
         			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()]) {
         		// create Dot
         		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-        		dashes.put(Integer.valueOf(kMiddle),
+        		tones.put(Integer.valueOf(kMiddle),
         				new Dot(kMiddle, highBegin, k));
 
         		isHigh = false;
@@ -138,9 +134,8 @@ public final class SlidingLineDecoder extends DecoderBase {
         	else if (isHigh && !high) {
         		// create Dash
         		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-        		dashes.put(Integer.valueOf(kMiddle),
-        				new Dash(kMiddle, highBegin, k, r.a));
-        		// TODO r.a above maybe not used
+        		tones.put(Integer.valueOf(kMiddle),
+        				new Dash(kMiddle, highBegin, k));
 
         		isHigh = false;
         	}
@@ -152,21 +147,21 @@ public final class SlidingLineDecoder extends DecoderBase {
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
-        for (Integer key : dashes.navigableKeySet()) {
+        for (Integer key : tones.navigableKeySet()) {
 
         	if (prevKey == null) {
-        		qCharBegin = lsqToneBegin(key, dashes, jDot);
+        		qCharBegin = lsqToneBegin(key, tones, jDot);
         	}
         	
 			if (prevKey == null) {
-				final ToneBase tb = dashes.get(key);
+				final ToneBase tb = tones.get(key);
 				p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
 				lsqPlotHelper(key, tb, jDot);
 				
 			} else if (prevKey != null) {
 				
-	            final ToneBase t1 = dashes.get(prevKey);
-	            final ToneBase t2 = dashes.get(key);
+	            final ToneBase t1 = tones.get(prevKey);
+	            final ToneBase t2 = tones.get(key);
 	        	final int toneDistSlices = t2.rise - t1.drop;
 	        	
 				if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
@@ -174,40 +169,40 @@ public final class SlidingLineDecoder extends DecoderBase {
 							? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
 							: -1;
 					formatter.add(true, p.text, ts);
-					chCus += p.nTus;
-					spCusW += 7;
-					spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+					wpm.chCus += p.nTus;
+					wpm.spCusW += 7;
+					wpm.spTicksW += lsqToneBegin(key, tones, jDot) - lsqToneEnd(prevKey, tones, jDot);
 
 					p = Node.tree;
-					final ToneBase tb = dashes.get(key);
+					final ToneBase tb = tones.get(key);
 					if (tb instanceof Dash) {
 						p = p.newNode("-");
 					} else {
 						p = p.newNode(".");
 					}
-					chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-					qCharBegin = lsqToneBegin(key, dashes, jDot);
+					wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
+					qCharBegin = lsqToneBegin(key, tones, jDot);
 					lsqPlotHelper(key, tb, jDot);
 					
 				} else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
 					formatter.add(false, p.text, -1);
-					chCus += p.nTus;
-					spCusC += 3;
+					wpm.chCus += p.nTus;
+					wpm.spCusC += 3;
 
-					spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+					wpm.spTicksC += lsqToneBegin(key, tones, jDot) - lsqToneEnd(prevKey, tones, jDot);
 
 					p = Node.tree;
-					final ToneBase tb = dashes.get(key);
+					final ToneBase tb = tones.get(key);
 					if (tb instanceof Dash) {
 						p = p.newNode("-");
 					} else {
 						p = p.newNode(".");
 					}
-					chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-					qCharBegin = lsqToneBegin(key, dashes, jDot);
+					wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
+					qCharBegin = lsqToneBegin(key, tones, jDot);
 					lsqPlotHelper(key, tb, jDot);
 				} else {
-					final ToneBase tb = dashes.get(key);
+					final ToneBase tb = tones.get(key);
 					p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
 					lsqPlotHelper(key, tb, jDot);
 				}
@@ -219,43 +214,11 @@ public final class SlidingLineDecoder extends DecoderBase {
         if (p != Node.tree) {
             formatter.add(true, p.text, -1);
             formatter.newLine();
-            chCus += p.nTus;
-            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+            wpm.chCus += p.nTus;
+            wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
-  
-		
+        wpm.report();
+
 	}
-	
-//    private int toneDist2(
-//            Integer k1,
-//            Integer k2,
-//            NavigableMap<Integer, ToneBase> tones,
-//            int jDash,
-//            int jDot) {
-//
-//        final ToneBase t1 = tones.get(k1);
-//        final ToneBase t2 = tones.get(k2);
-//
-//        
-//        int reduction = 0;
-//        
-//        if (t1 instanceof Dot) {
-//        	reduction += ((Dot) t1).drop - ((Dot) t1).k;
-//        }
-//        else if (t1 instanceof Dash) {
-//        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
-//        }
-//        
-//        
-//        if (t2 instanceof Dot) {
-//        	reduction += ((Dot) t2).k - ((Dot) t2).rise;
-//        }
-//        else if (t2 instanceof Dash) {
-//        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
-//        }
-//
-//        return k2 - k1 - reduction;
-//    }
 }

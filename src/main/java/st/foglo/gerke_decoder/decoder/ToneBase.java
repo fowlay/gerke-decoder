@@ -1,6 +1,6 @@
-package st.foglo.gerke_decoder.decoder.sliding_line;
+package st.foglo.gerke_decoder.decoder;
 
-import st.foglo.gerke_decoder.decoder.TwoDoubles;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 
 public abstract class ToneBase {
 

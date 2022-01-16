@@ -10,9 +10,6 @@ import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeLib.Trace;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dash;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dot;
-import st.foglo.gerke_decoder.decoder.sliding_line.ToneBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
@@ -37,7 +34,49 @@ public abstract class DecoderBase implements Decoder {
 	protected double[] cei;
 	protected double[] flo;
 	protected double ceilingMax;
+	protected final Wpm wpm = new Wpm();
+	
+	public class Wpm {
+		public int chCus = 0;       // character
+		public int chTicks = 0;
+		
+		public int spCusW = 0;      // word space
+		public int spTicksW = 0;
+		
+		public int spCusC = 0;      // char space
+		public int spTicksC = 0;
+		
+	    /**
+	     * Report WPM estimates
+	     * 
+	     * @param chCus             nominal nof. TUs in character
+	     * @param chTicks           actual nof. ticks in character
+	     * @param spCusW            nominal nof. TUs in word spaces (always increment by 7)
+	     * @param spTicksW          actual nof. ticks in word spaces
+	     * @param spCusC            nominal nof. TUs in char spaces (always increment by 3)
+	     * @param spTicksC          actual nof. ticks in char spaces
+	     */
+	    public void report() {
 
+	        if (chTicks > 0) {
+	            new Info("within-characters WPM rating: %.1f",
+	                    1200*chCus/(chTicks*tuMillis*tsLength));
+	        }
+	        if (spCusC > 0) {
+	            new Info("expansion of inter-char spaces: %.3f",
+	                    (spTicksC*tsLength)/spCusC);
+	        }
+	        if (spCusW > 0) {
+	            new Info("expansion of inter-word spaces: %.3f",
+	                    (spTicksW*tsLength)/spCusW);
+	        }
+	        if (spTicksW + spTicksC + chTicks > 0) {
+	            new Info("effective WPM: %.1f",
+	                    1200*(spCusW + spCusC + chCus)/((spTicksW + spTicksC + chTicks)*tuMillis*tsLength));
+	        }
+	    }
+	}
+	
 	protected DecoderBase(
 			double tuMillis,
 			int framesPerSlice,
@@ -187,42 +226,6 @@ public abstract class DecoderBase implements Decoder {
      */
     protected double timeSeconds(int q) {
         return (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
-    }
-    
-    /**
-     * Report WPM estimates
-     * 
-     * @param chCus             nominal nof. TUs in character
-     * @param chTicks           actual nof. ticks in character
-     * @param spCusW            nominal nof. TUs in word spaces (always increment by 7)
-     * @param spTicksW          actual nof. ticks in word spaces
-     * @param spCusC            nominal nof. TUs in char spaces (always increment by 3)
-     * @param spTicksC          actual nof. ticks in char spaces
-     */
-    protected void wpmReport(
-            int chCus,
-            int chTicks,
-            int spCusW,
-            int spTicksW,
-            int spCusC,
-            int spTicksC) {
-
-        if (chTicks > 0) {
-            new Info("within-characters WPM rating: %.1f",
-                    1200*chCus/(chTicks*tuMillis*tsLength));
-        }
-        if (spCusC > 0) {
-            new Info("expansion of inter-char spaces: %.3f",
-                    (spTicksC*tsLength)/spCusC);
-        }
-        if (spCusW > 0) {
-            new Info("expansion of inter-word spaces: %.3f",
-                    (spTicksW*tsLength)/spCusW);
-        }
-        if (spTicksW + spTicksC + chTicks > 0) {
-            new Info("effective WPM: %.1f",
-                    1200*(spCusW + spCusC + chCus)/((spTicksW + spTicksC + chTicks)*tuMillis*tsLength));
-        }
     }
     
     protected  Trans[] findTransitions(
@@ -431,3 +434,4 @@ public abstract class DecoderBase implements Decoder {
         return k;
     }
 }
+

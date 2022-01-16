@@ -19,10 +19,7 @@ import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 /**
- * This decoder does not produce a WPM report.
- * 
- * @author erarafo
- *
+ * TODO: This decoder does not produce a full WPM report.
  */
 public final class PatternMatchDecoder extends DecoderBase {
 

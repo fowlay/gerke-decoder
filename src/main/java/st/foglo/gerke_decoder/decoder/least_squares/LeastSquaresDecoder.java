@@ -10,13 +10,13 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
+import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.Decoder;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
+import st.foglo.gerke_decoder.decoder.Dot;
 import st.foglo.gerke_decoder.decoder.Node;
+import st.foglo.gerke_decoder.decoder.ToneBase;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dash;
-import st.foglo.gerke_decoder.decoder.sliding_line.Dot;
-import st.foglo.gerke_decoder.decoder.sliding_line.ToneBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDash;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
@@ -86,14 +86,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 	public void execute() {
 		
     	final int decoder = DecoderIndex.LEAST_SQUARES.ordinal();
-    	
-        int chCus = 0;
-        int chTicks = 0;
-        int spCusW = 0;
-        int spTicksW = 0;
-        int spCusC = 0;
-        int spTicksC = 0;
-        
+
         final double level = GerkeLib.getDoubleOpt(GerkeDecoder.O_LEVEL);
 
         final NavigableMap<Integer, ToneBase> dashes = new TreeMap<Integer, ToneBase>();
@@ -292,9 +285,9 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                             GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
                             offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
                     formatter.add(true, p.text, ts);
-                    chCus += p.nTus;
-                    spCusW += 7;
-                    spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+                    wpm.chCus += p.nTus;
+                    wpm.spCusW += 7;
+                    wpm.spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
                     
                     p = Node.tree;
                     final ToneBase tb = dashes.get(key);
@@ -304,16 +297,16 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     else {
                     	p = p.newNode(".");
                     }
-                    chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+                    wpm.chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, dashes, jDot);
                     lsqPlotHelper(key, tb, jDot);
                 }
                 else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
                     formatter.add(false, p.text, -1);
-                    chCus += p.nTus;
-                    spCusC += 3;
+                    wpm.chCus += p.nTus;
+                    wpm.spCusC += 3;
                     
-                    spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+                    wpm.spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
 
                     p = Node.tree;
                     final ToneBase tb = dashes.get(key);
@@ -323,7 +316,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     else {
                     	p = p.newNode(".");
                     }
-                    chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+                    wpm.chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, dashes, jDot);
                     lsqPlotHelper(key, tb, jDot);
                 }
@@ -340,11 +333,11 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         if (p != Node.tree) {
             formatter.add(true, p.text, -1);
             formatter.newLine();
-            chCus += p.nTus;
-            chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+            wpm.chCus += p.nTus;
+            wpm.chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
+        wpm.report();
 
 	}
 	

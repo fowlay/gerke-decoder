@@ -108,14 +108,6 @@ public final class DipsFindingDecoder extends DecoderBase {
         boolean prevTone = false;
         int beginChar = -1;
 
-        int spTicksC = 0;    // inter-char spaces: time-slice ticks
-        int spCusC = 0;      // inter-char spaces: code units
-
-        int spTicksW = 0;    // inter-word spaces: time-slice ticks
-        int spCusW = 0;      // inter-word spaces: code units
-
-        final TimeCounter tc = new TimeCounter();
-
         for (int t = 0; t < transIndex; t++) {
             final boolean newTone = trans[t].rise;
             final double spExp = GerkeLib.getDoubleOpt(GerkeDecoder.O_SPACE_EXP);
@@ -133,26 +125,26 @@ public final class DipsFindingDecoder extends DecoderBase {
                             dipMergeLim, dipStrengthMin,
                             charNo++,
                             formatter, plotEntries, ceilingMax,
-                            plotLimits,
-                            tc);
+                            plotLimits);
+                    wpm.chTicks += trans[t-1].q - beginChar;
                     final int ts =
                             GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
                             offset + (int) Math.round(trans[t].q*tsLength*tuMillis/1000) : -1;
                     formatter.add(true, "", ts);
                     beginChar = trans[t].q;
-                    spCusW += 7;
-                    spTicksW += trans[t].q - trans[t-1].q;
+                    wpm.spCusW += 7;
+                    wpm.spTicksW += trans[t].q - trans[t-1].q;
                 }
                 else if (trans[t].q - trans[t-1].q > spExp*charSpaceLimit) {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
                             formatter, plotEntries, ceilingMax,
-                            plotLimits,
-                            tc);
+                            plotLimits);
+                    wpm.chTicks += trans[t-1].q - beginChar;
                     beginChar = trans[t].q;
-                    spCusC += 3;
-                    spTicksC += trans[t].q - trans[t-1].q;
+                    wpm.spCusC += 3;
+                    wpm.spTicksC += trans[t].q - trans[t-1].q;
                 }
             }
 
@@ -165,14 +157,14 @@ public final class DipsFindingDecoder extends DecoderBase {
                     dipMergeLim, dipStrengthMin,
                     charNo++,
                     formatter, plotEntries, ceilingMax,
-                    plotLimits,
-                    tc);
+                    plotLimits);
+            wpm.chTicks += trans[transIndex-1].q - beginChar;
         }
 
         formatter.flush();
         formatter.newLine();
 
-        wpmReport(tc.chCus, tc.chTicks, spCusW, spTicksW, spCusC, spTicksC);
+        wpm.report();
     }
 
 
@@ -190,10 +182,7 @@ private void decodeGapChar(
         Formatter formatter,
         PlotEntries plotEntries,
         double ceilingMax,
-        double[] plotLimits,
-        TimeCounter tc) throws IOException, InterruptedException {
-
-    tc.chTicks += q2 - q1;
+        double[] plotLimits) throws IOException, InterruptedException {
 
     final boolean inView = plotEntries != null &&
             timeSeconds(q1) >= plotLimits[0] &&
@@ -348,7 +337,7 @@ private void decodeGapChar(
 
     new Debug("char no: %d, decoded: %s", charNo, p.text);
     formatter.add(false, p.text, -1);
-    tc.chCus += p.nTus;
+    wpm.chCus += p.nTus;
 }
 
 }

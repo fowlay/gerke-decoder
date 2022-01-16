@@ -1,4 +1,4 @@
-package st.foglo.gerke_decoder.decoder.sliding_line;
+package st.foglo.gerke_decoder.decoder;
 
 /**
  * Represents a dot, centered at index k. The extent is implied.

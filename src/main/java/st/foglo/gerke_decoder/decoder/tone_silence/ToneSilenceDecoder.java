@@ -101,13 +101,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 
         Node p = Node.tree;
 
-        int spTicksW = 0;   // inter-word spaces: time-slice ticks
-        int spCusW = 0;     // inter-word spaces: code units
-        int spTicksC = 0;   // inter-char spaces: time-slice ticks
-        int spCusC = 0;     // inter-char spaces: code units
-        int chTicks = 0;    // characters: time-slice ticks
-        int chCus = 0;      // spaces: character units
-
         int qCharBegin = -1;
 
         for (int t = 0; t < transIndex; t++) {
@@ -130,10 +123,10 @@ public final class ToneSilenceDecoder extends DecoderBase {
                         formatter.add(true, p.text, -1);
                     }
 
-                    spTicksW += trans[t].q - trans[t-1].q;
-                    spCusW += 7;
-                    chTicks += trans[t-1].q - qCharBegin;
-                    chCus += p.nTus;
+                    wpm.spTicksW += trans[t].q - trans[t-1].q;
+                    wpm.spCusW += 7;
+                    wpm.chTicks += trans[t-1].q - qCharBegin;
+                    wpm.chCus += p.nTus;
                     qCharBegin = trans[t].q;
 
                     p = Node.tree;
@@ -141,10 +134,10 @@ public final class ToneSilenceDecoder extends DecoderBase {
                 else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
                     formatter.add(false, p.text, -1);
 
-                    spTicksC += trans[t].q - trans[t-1].q;
-                    spCusC += 3;
-                    chTicks += trans[t-1].q - qCharBegin;
-                    chCus += p.nTus;
+                    wpm.spTicksC += trans[t].q - trans[t-1].q;
+                    wpm.spCusC += 3;
+                    wpm.chTicks += trans[t-1].q - qCharBegin;
+                    wpm.chCus += p.nTus;
                     qCharBegin = trans[t].q;
 
                     p = Node.tree;
@@ -171,17 +164,15 @@ public final class ToneSilenceDecoder extends DecoderBase {
             formatter.add(true, p.text, -1);
             formatter.newLine();
 
-            chTicks += trans[transIndex-1].q - qCharBegin;
-            chCus += p.nTus;
+            wpm.chTicks += trans[transIndex-1].q - qCharBegin;
+            wpm.chCus += p.nTus;
         }
         else if (p == Node.tree && formatter.getPos() > 0) {
             formatter.flush();
             formatter.newLine();
         }
 
-        wpmReport(chCus, chTicks, spCusW, spTicksW, spCusC, spTicksC);
-
-
+        wpm.report();
 	}
 
 }

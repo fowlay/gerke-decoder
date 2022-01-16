@@ -1,6 +1,7 @@
-package st.foglo.gerke_decoder.decoder.sliding_line;
+package st.foglo.gerke_decoder.decoder;
 
-import st.foglo.gerke_decoder.decoder.TwoDoubles;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
 
 /**
  * Represents a dash, centered at index k. Indexes for the rise and drop are
@@ -10,11 +11,10 @@ public final class Dash extends ToneBase {
 
     public final double ceiling;
     
-    public Dash(int k, int rise, int drop, double ceiling) {
+    public Dash(int k, int rise, int drop) {
         super(k, rise, drop);
-        this.ceiling = ceiling;
+        this.ceiling = 0.0;
     }
-
 
     public Dash(
     		int k,
