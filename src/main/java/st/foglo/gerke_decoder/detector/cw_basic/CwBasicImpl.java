@@ -31,6 +31,8 @@ import st.foglo.gerke_decoder.wave.Wav;
 public class CwBasicImpl extends DetectorBase {
 	
 	final int decoder;
+	final double threshold;
+	
 	final int fBest;
 	
 	final Signal signal;
@@ -38,6 +40,7 @@ public class CwBasicImpl extends DetectorBase {
 
 	public CwBasicImpl(
 			int decoder,
+			double threshold,
 			int nofSlices,
 			Wav w,
 			double tuMillis,
@@ -49,6 +52,7 @@ public class CwBasicImpl extends DetectorBase {
 		super(w, framesPerSlice, nofSlices, tsLength, tuMillis);
 		
 		this.decoder = decoder;
+		this.threshold = threshold;
 
 		if (fSpecified != -1) {
 			fBest = fSpecified;

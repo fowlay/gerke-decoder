@@ -31,6 +31,8 @@ import st.foglo.gerke_decoder.wave.Wav;
  */
 public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
+	public static final double THRESHOLD = 0.524;
+	
 	final int sigSize;
 	
 	final class Cluster {
@@ -77,7 +79,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 				formatter,
 				cei,
 				flo,
-				ceilingMax
+				ceilingMax,THRESHOLD
 				);
 		this.sigSize = sigSize;
 	};

@@ -32,7 +32,8 @@ public abstract class DetectorBase implements CwDetector {
             double floor,
             double ceiling,
             int decoder) {
-
-        return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
+    	
+    	final double thr = GerkeDecoder.getThreshold(decoder);
+        return floor + level*thr*(ceiling - floor);
     }
 }

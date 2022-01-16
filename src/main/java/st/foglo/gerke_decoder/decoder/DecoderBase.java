@@ -36,6 +36,8 @@ public abstract class DecoderBase implements Decoder {
 	protected double ceilingMax;
 	protected final Wpm wpm = new Wpm();
 	
+	public final double threshold;
+	
 	public class Wpm {
 		public int chCus = 0;       // character
 		public int chTicks = 0;
@@ -89,7 +91,8 @@ public abstract class DecoderBase implements Decoder {
 			Formatter formatter,
 			double[] cei,
 			double[] flo,
-			double ceilingMax) {
+			double ceilingMax,
+			double threshold) {
 
 		this.tuMillis = tuMillis;
 		this.framesPerSlice = framesPerSlice;
@@ -103,6 +106,8 @@ public abstract class DecoderBase implements Decoder {
 		this.cei = cei;
 		this.flo = flo;
 		this.ceilingMax = ceilingMax;
+		
+		this.threshold = threshold;
 	}
 	
 	
@@ -112,7 +117,7 @@ public abstract class DecoderBase implements Decoder {
 	 * @return
 	 */
 	public static DetectorIndex getDetector(int decoder) {
-		if (decoder == 5) {
+		if (decoder == 5 || decoder == 6) {
 			return DetectorIndex.ADAPTIVE_DETECTOR;
 		}
 		else if (decoder == 4 || decoder == 3 || decoder == 2 || decoder == 1) {
@@ -134,7 +139,7 @@ public abstract class DecoderBase implements Decoder {
             double floor,
             double ceiling) {
 
-        return floor + level*GerkeDecoder.THRESHOLD[decoder]*(ceiling - floor);
+        return floor + level*threshold*(ceiling - floor);
     }
     
     protected TwoDoubles lsq(

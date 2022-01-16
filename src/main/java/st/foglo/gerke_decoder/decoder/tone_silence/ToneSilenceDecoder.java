@@ -13,6 +13,8 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class ToneSilenceDecoder extends DecoderBase {
 
+	public static final double THRESHOLD = 0.524;
+
 	final Trans[] trans;
 	final int transIndex;
 	
@@ -56,7 +58,8 @@ public final class ToneSilenceDecoder extends DecoderBase {
     			formatter,
     			cei,
     			flo,
-    			ceilingMax
+    			ceilingMax,
+    			THRESHOLD
 				);
 		
 		this.trans = findTransitions(

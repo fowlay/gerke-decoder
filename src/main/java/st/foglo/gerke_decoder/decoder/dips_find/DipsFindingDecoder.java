@@ -23,6 +23,8 @@ import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class DipsFindingDecoder extends DecoderBase {
+	
+	public static final double THRESHOLD = 0.524;
 
 	final Trans[] trans;
 	final int transIndex;
@@ -64,7 +66,8 @@ public final class DipsFindingDecoder extends DecoderBase {
     			formatter,
     			cei,
     			flo,
-    			ceilingMax
+    			ceilingMax,
+    			THRESHOLD
 				);
 		
 		this.trans = findTransitions(

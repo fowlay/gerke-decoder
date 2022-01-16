@@ -28,6 +28,7 @@ import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
 import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
 import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLineDecoder;
+import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLinePlus;
 import st.foglo.gerke_decoder.decoder.tone_silence.ToneSilenceDecoder;
 import st.foglo.gerke_decoder.detector.CwDetector;
 import st.foglo.gerke_decoder.detector.Signal;
@@ -49,13 +50,6 @@ public final class GerkeDecoder {
 
 
     static final double IGNORE = 0.0;
-
-    /**
-     * Tone/silence threshold per decoder. Values were determined by
-     * decoding some recordings with good signal strength.
-     */
-    public static final double[] THRESHOLD = {IGNORE,
-            0.524, 0.64791, 0.524, 0.524, 0.524*0.9};
 
     static final String O_VERSION = "version";
     public static final String O_OFFSET = "offset";
@@ -98,12 +92,11 @@ public final class GerkeDecoder {
     		"pattern matching",
     		"dips finding",
     		"least squares",
-    		"lsq2"};
+    		"lsq2",
+    		"lsq2 plus"};
     
     /**
-     * Numeric decoder index 1..5 maps to these names. Do not reorder.
-     * @author erarafo
-     *
+     * Numeric decoder index 1..6 maps to these names. Do not reorder.
      */
     public enum DecoderIndex {
     	ZERO,
@@ -111,7 +104,8 @@ public final class GerkeDecoder {
         PATTERN_MATCHING,
         DIPS_FINDING,
         LEAST_SQUARES,
-        LSQ2
+        LSQ2,
+        LSQ2_PLUS
     };
     
     public enum DetectorIndex {
@@ -419,6 +413,9 @@ new String[]{
             final int decoder = GerkeLib.getIntOpt(O_DECODER);
             
             final CwDetector detector;
+            
+            final double decoderThreshold = getThreshold(decoder);
+            
             if (DecoderBase.getDetector(decoder) == DetectorIndex.ADAPTIVE_DETECTOR) {
             	
             	// warn if specified frequency .. not expected by this detector
@@ -448,6 +445,7 @@ new String[]{
             else if (DecoderBase.getDetector(decoder) == DetectorIndex.BASIC_DETECTOR) {
             	detector = new CwBasicImpl(
             			decoder,
+            			decoderThreshold,
             			nofSlices,
             			w,
             			tuMillis,
@@ -689,7 +687,37 @@ new String[]{
         }
     }
 
-    private static double[] getPlotLimits(Wav w) {
+    /**
+     * TODO, consider using static array lookup?
+     * @param decoder
+     * @return
+     */
+    public static double getThreshold(int decoder) {
+	
+    	if (decoder == 1) {
+    		return ToneSilenceDecoder.THRESHOLD;
+    	}
+    	else if (decoder == 2) {
+    		return PatternMatchDecoder.THRESHOLD;
+    	}
+    	else if (decoder == 3) {
+    		return DipsFindingDecoder.THRESHOLD;
+    	}
+    	else if (decoder == 4) {
+    		return LeastSquaresDecoder.THRESHOLD;
+    	}
+    	else if (decoder == 5) {
+    		return SlidingLineDecoder.THRESHOLD;
+    	}
+    	else if (decoder == 6) {
+    		return SlidingLinePlus.THRESHOLD;
+    	}
+    	else {
+    		throw new RuntimeException();
+    	}
+}
+
+	private static double[] getPlotLimits(Wav w) {
 
         final double[] result = new double[2];
 

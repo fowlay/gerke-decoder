@@ -22,6 +22,8 @@ import st.foglo.gerke_decoder.wave.Wav;
  * TODO: This decoder does not produce a full WPM report.
  */
 public final class PatternMatchDecoder extends DecoderBase {
+	
+	public static final double THRESHOLD = 0.64791;
 
 	final Trans[] trans;
 	final int transIndex;
@@ -66,7 +68,8 @@ public final class PatternMatchDecoder extends DecoderBase {
     			formatter,
     			cei,
     			flo,
-    			ceilingMax
+    			ceilingMax,
+    			THRESHOLD
 				);
 		
 		

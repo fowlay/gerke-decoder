@@ -19,6 +19,8 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLineDecoder extends DecoderBase {
 	
+	public static final double THRESHOLD = 0.524*0.9;
+	
 	final int sigSize;
 	
 	final double level;
@@ -60,7 +62,8 @@ public final class SlidingLineDecoder extends DecoderBase {
     			formatter,
     			cei,
     			flo,
-    			ceilingMax
+    			ceilingMax,
+    			THRESHOLD
 				);
 		
 		this.sigSize = sigSize;
