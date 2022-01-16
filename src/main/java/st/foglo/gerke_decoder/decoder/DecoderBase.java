@@ -430,6 +430,4 @@ public abstract class DecoderBase implements Decoder {
         }
         return k;
     }
-
-    
 }

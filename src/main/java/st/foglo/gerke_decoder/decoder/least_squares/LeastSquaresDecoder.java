@@ -125,9 +125,9 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
         //final WeightBase w2 = new WeightTwoDots(jDash);
         //double prevB = Double.MAX_VALUE;
+        
+    	final int reductionDot = (int) Math.round(80.0*jDot/100);
 
-        
-        
         // scan for candidate dashes
         TwoDoubles prevD = new TwoDoubles(0.0, Double.MAX_VALUE);
         
@@ -270,63 +270,70 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         	if (prevKey == null) {
         		qCharBegin = lsqToneBegin(key, dashes, jDot);
         	}
-            if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) >
-            GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength) {
-            	
-            	//formatter.add(true, p.text, -1);
-            	final int ts =
-                        GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
-                        offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
-                formatter.add(true, p.text, ts);
-                chCus += p.nTus;
-                spCusW += 7;
-                spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
-                
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
+
+
+        	
+        	
+        	if (prevKey == null) {
+				final ToneBase tb = dashes.get(key);
+				p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+				lsqPlotHelper(key, tb, jDot);
+
+        	}
+        	else if (prevKey != null) {
+        		
+        		final int toneDistSlices =
+        				toneDist(prevKey, key, dashes, jDash, jDot, reductionDot);
+        		
+                if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength) {
+                	
+                	//formatter.add(true, p.text, -1);
+                	final int ts =
+                            GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
+                            offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
+                    formatter.add(true, p.text, ts);
+                    chCus += p.nTus;
+                    spCusW += 7;
+                    spTicksW += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+                    
+                    p = Node.tree;
+                    final ToneBase tb = dashes.get(key);
+                    if (tb instanceof Dash) {
+                    	p = p.newNode("-");
+                    }
+                    else {
+                    	p = p.newNode(".");
+                    }
+                    chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+                    qCharBegin = lsqToneBegin(key, dashes, jDot);
+                    lsqPlotHelper(key, tb, jDot);
+                }
+                else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
+                    formatter.add(false, p.text, -1);
+                    chCus += p.nTus;
+                    spCusC += 3;
+                    
+                    spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+
+                    p = Node.tree;
+                    final ToneBase tb = dashes.get(key);
+                    if (tb instanceof Dash) {
+                    	p = p.newNode("-");
+                    }
+                    else {
+                    	p = p.newNode(".");
+                    }
+                    chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
+                    qCharBegin = lsqToneBegin(key, dashes, jDot);
+                    lsqPlotHelper(key, tb, jDot);
                 }
                 else {
-                	p = p.newNode(".");
+                	final ToneBase tb = dashes.get(key);
+                	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
+                	lsqPlotHelper(key, tb, jDot);
                 }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(key, tb, jDot);
-            }
-            else if (prevKey != null && toneDist(prevKey, key, dashes, jDash, jDot) > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
-                formatter.add(false, p.text, -1);
-                chCus += p.nTus;
-                spCusC += 3;
-                
-                spTicksC += lsqToneBegin(key, dashes, jDot) - lsqToneEnd(prevKey, dashes, jDot);
+        	}
 
-//                if (p.text.equals("+")) {
-//                    new Info("\n    adding a '+'");
-//
-//                    ToneBase uu = dashes.get(prevKey);
-//                    ToneBase vv = dashes.get(key);
-//
-//                    new Info("dist: %d, %d, %f", uu.k, vv.k, (vv.k-uu.k - jDash -jDot)*tsLength);
-//                }
-
-                p = Node.tree;
-                final ToneBase tb = dashes.get(key);
-                if (tb instanceof Dash) {
-                	p = p.newNode("-");
-                }
-                else {
-                	p = p.newNode(".");
-                }
-                chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
-                qCharBegin = lsqToneBegin(key, dashes, jDot);
-                lsqPlotHelper(key, tb, jDot);
-            }
-            else {
-            	final ToneBase tb = dashes.get(key);
-            	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-            	lsqPlotHelper(key, tb, jDot);
-            }
             prevKey = key;
         }
 
@@ -380,7 +387,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
                 for (Integer kk : c.members) {
                 	
-                	final ToneBase tone =tones.get(kk); 
+                	final ToneBase tone = tones.get(kk);
                 	if (tone instanceof Dot) {
                 		isDot = true;
                 	}
@@ -410,39 +417,38 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             }
         }
     }
+
+    private double relStrength(double x, double ceiling, double floor) {
+    	return (x - floor)/(ceiling - floor);
+    }
     
     private int toneDist(
             Integer k1,
             Integer k2,
             NavigableMap<Integer, ToneBase> tones,
             int jDash,
-            int jDot) {
+            int jDot,
+            int reductionDot) {
 
         final ToneBase t1 = tones.get(k1);
         final ToneBase t2 = tones.get(k2);
 
         int reduction = 0;
 
-        final int dotReduction = (int) Math.round(80.0*jDot/100);
-        
         if (t1 instanceof Dot) {
-        	reduction += dotReduction;
+        	reduction += reductionDot;
         }
         else if (t1 instanceof Dash) {
         	reduction += ((Dash) t1).drop - ((Dash) t1).k;
         }
         
         if (t2 instanceof Dot) {
-        	reduction += dotReduction;
+        	reduction += reductionDot;
         }
         else if (t2 instanceof Dash) {
         	reduction += ((Dash) t2).k - ((Dash) t2).rise;
         }
 
         return k2 - k1 - reduction;
-    }
-    
-    private double relStrength(double x, double ceiling, double floor) {
-    	return (x - floor)/(ceiling - floor);
     }
 }
