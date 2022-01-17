@@ -42,6 +42,7 @@ import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.plot.PlotEntryBase;
 import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.plot.PlotEntrySig;
+import st.foglo.gerke_decoder.plot.PlotEntrySigPlus;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
@@ -118,21 +119,21 @@ public final class GerkeDecoder {
      * Model value: sqrt(3*7) = 4.58
      * words break <---------+---------> words stick
      */
-    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.5, 5.6};
+    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.5, 5.6, 5.6};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 1.9};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 2.1, 1.9, 1.9};  // 2.3??
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.9};
+    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.9, 1.9};
 
     /**
      * Tones longer than this are interpreted as two dashes
@@ -291,12 +292,13 @@ new String[]{
         String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault(O_FRANGE)),
         String.format("  -f FREQ            Audio frequency, bypassing search"),
         String.format("  -c CLIPLEVEL       Clipping level, optional"),
-        String.format("  -D DECODER         1: %s, 2: %s, 3: %s, 4: %s, defaults to %s",
+        String.format("  -D DECODER         1: %s, 2: %s, 3: %s, 4: %s, 5: %s, 6: %s, defaults to %s",
         		DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()],
         		DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()],
         		DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()],
         		DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()],
         		DECODER_NAME[DecoderIndex.LSQ2.ordinal()],
+        		DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()],
                 GerkeLib.getDefault(O_DECODER)),
         String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
 
@@ -644,6 +646,26 @@ new String[]{
             			
             			);
             }
+            else if (decoder == DecoderIndex.LSQ2_PLUS.ordinal()) {
+            	dec = new SlidingLinePlus(
+            			tuMillis,
+            			framesPerSlice,
+            			tsLength,
+            			offset,
+            			w,
+            			sig,
+            		    plotEntries,
+            			plotLimits,
+            			formatter,
+            			
+            			sigSize,
+            			cei,
+            			flo,
+            			level,
+            		    ceilingMax
+            			
+            			);
+            }
             else {
             	dec = null;
                 new Death("no such decoder: '%d'", decoder);
@@ -659,12 +681,21 @@ new String[]{
                 double thresha = 0.0;
                 double ceiling = 0.0;
                 double floor = 0.0;
+                double sigavg = 0.0;
                 double digitizedSignal = initDigitizedSignal;
                 for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entries.entrySet()) {
 
                     for (PlotEntryBase peb : e.getValue()) {
                         if (peb instanceof PlotEntryDecode) {
                             digitizedSignal = ((PlotEntryDecode)peb).dec;
+                        }
+                        else if (peb instanceof PlotEntrySigPlus) {
+                        	signa = ((PlotEntrySigPlus)peb).sig;
+                            thresha = ((PlotEntrySigPlus)peb).threshold;
+                            ceiling = ((PlotEntrySigPlus)peb).ceiling;
+                            floor = ((PlotEntrySigPlus)peb).floor;
+                            sigavg = ((PlotEntrySigPlus)peb).sigAvg;
+                        	
                         }
                         else if (peb instanceof PlotEntrySig) {
                             signa = ((PlotEntrySig)peb).sig;
@@ -674,11 +705,24 @@ new String[]{
                         }
                     }
 
-                    pc.ps.println(String.format("%f %f %f %f %f %f",
-                            e.getKey().doubleValue(), signa, thresha, ceiling, floor, digitizedSignal));
+                    pc.ps.println(String.format("%f %f %f %f %f %f %f",
+                            e.getKey().doubleValue(),
+                            signa,
+                            sigavg,
+                            thresha,
+                            ceiling,
+                            floor,
+                            digitizedSignal));
                 }
 
-                pc.plot(new Mode[] {Mode.LINES_PURPLE, Mode.LINES_RED, Mode.LINES_GREEN, Mode.LINES_GREEN, Mode.LINES_CYAN}, 5);
+                // TODO, call either 6 or 5 variety, depending on the given entries
+                pc.plot(new Mode[] {
+                		Mode.LINES_PURPLE,
+                		Mode.LINES_RED,
+                		Mode.LINES_BLACK,
+                		Mode.LINES_GREEN,
+                		Mode.LINES_GREEN,
+                		Mode.LINES_CYAN}, 6);
             }
 
         }

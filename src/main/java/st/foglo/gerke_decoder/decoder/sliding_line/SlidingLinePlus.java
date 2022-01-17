@@ -31,7 +31,7 @@ public final class SlidingLinePlus extends DecoderBase {
 	 * 
 	 * This parameter is quite sensitive!
 	 */
-	final int halfWidth = (int) Math.round( ((double)8/8) *  0.40/tsLength);
+	final int halfWidth = (int) Math.round( ((double)7/8) *  0.40/tsLength);
 
 	public SlidingLinePlus(
 			double tuMillis,
@@ -100,19 +100,31 @@ public final class SlidingLinePlus extends DecoderBase {
     	double accSpike = 0.0;
     	int nSpike = 0;
     	double accCrack = 0.0;
+    	double nominalCrack = 0.0;
     	int nCrack = 0;
     	
-    	int maxSpike = 4;      // to be computed
-    	int maxCrack = 4;
+    	// PARA 0.25
+    	int maxSpike = (int) Math.round(0.35*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+    	int maxCrack = (int) Math.round(0.15*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+    	new Info("max nof. slices in spike: %d", maxSpike);
+    	new Info("max nof. slices in crack: %d", maxCrack);
+    	
+    	double[] cra = new double[50];
+    	double[] nom = new double[50];
+    	int jj = 0;
     	
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
         	
         	final double thr = threshold(decoder, level, flo[k], cei[k]);
         	final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
+        	
+        	
+        	
         	final boolean high = r.a > thr;
         	final boolean low = !high;
         	
-        	//final double tSec = timeSeconds(k);
+        	final double tSec = timeSeconds(k);
+        	plotEntries.updateAmplitudes(tSec, r.a);
 
         	if (state == States.LOW) {
         		if (low) {
@@ -131,7 +143,7 @@ public final class SlidingLinePlus extends DecoderBase {
         			state = States.LOW;
         		}
         		else if (high) {
-        			if (k - kRaise > maxSpike) {
+        			if (k - kRaise >= maxSpike) {
         				state = States.HIGH;
         			}
         			nSpike++;
@@ -142,6 +154,14 @@ public final class SlidingLinePlus extends DecoderBase {
         		if (low) {
         			kDrop = k;
         			state = States.M_LOW;
+        			nCrack = 1;
+        			accCrack = thr - r.a;
+        			nominalCrack = thr - flo[k];
+        			
+        			jj = 0;
+        			cra[jj] = thr - r.a;
+        			nom[jj] = thr - flo[k];
+        			
         		}
         		else if (high) {
         			nSpike++;
@@ -150,7 +170,7 @@ public final class SlidingLinePlus extends DecoderBase {
         	}
         	else if (state == States.M_LOW) {
         		if (low) {
-        			if (k - kDrop > maxCrack) {
+        			if (k - kDrop >= maxCrack) {
         				state = States.LOW;
 						final boolean createDot =
 								(kDrop - kRaise)*tsLength <
@@ -166,14 +186,53 @@ public final class SlidingLinePlus extends DecoderBase {
 						}
         			}
         			else {
-        				continue;
+        				nCrack++;
+        				accCrack += thr - r.a;
+        				nominalCrack += thr - flo[k];
+        				
+        				
+        				jj++;
+            			cra[jj] = thr - r.a;
+            			nom[jj] = thr - flo[k];
         			}
         		}
         		else if (high) {
-        			// ignore a crack
-        			state = States.HIGH;
-        			nSpike++;
-    				accSpike += r.a - thr;
+        			// ignore a crack, but only if weak
+        			
+        			if (tSec > 174.25 && tSec < 174.5) {
+        				new Info(",,, crack strength: %f", accCrack/nominalCrack);
+        				new Info(",,, jj: %d", jj);
+        				for (int kk = 0; kk <=jj; kk++) {
+        					new Info(",,,   %d %f", kk, cra[kk]);
+        					new Info(",,,   %d %f", kk, nom[kk]);
+        				}
+        				
+        			}
+        			
+        			if (accCrack/nominalCrack < 0.1) {
+        				// weak
+            			state = States.HIGH;
+            			nSpike++;
+        				accSpike += r.a - thr;
+        			}
+        			else {
+        				// not weak; generate a tone after all
+        				final boolean createDot =
+								(kDrop - kRaise)*tsLength <
+								GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
+						final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
+						if (createDot) {
+							tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+						} else {
+							tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+						}
+						
+						state = States.M_HIGH;
+						nSpike = 1;
+	        			accSpike = r.a - thr;
+						kRaise = k;
+        			}
+
         		}
         	}
         	
