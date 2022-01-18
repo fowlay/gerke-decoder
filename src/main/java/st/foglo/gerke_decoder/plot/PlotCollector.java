@@ -46,9 +46,9 @@ public final class PlotCollector {
                 new File(fileNameWin != null ? fileNameWin : fileName));
     }
 
-    public void plot(Mode mode[], int nofCurves) throws IOException, InterruptedException {
+    public void plot(Mode mode[]) throws IOException, InterruptedException {
         ps.close();
-        doGnuplot(fileName, nofCurves, mode);
+        doGnuplot(fileName, mode);
         Files.delete(
                 (new File(fileNameWin != null ? fileNameWin : fileName)).toPath());
     }
@@ -64,8 +64,9 @@ public final class PlotCollector {
      */
     void doGnuplot(
             String tempFileName,
-            int nofCurves,
-            Mode[] mode) throws IOException, InterruptedException {
+            Mode[] mode
+            ) throws IOException, InterruptedException {
+    	final int nofCurves = mode.length;
         final ProcessBuilder pb =
                 new ProcessBuilder(
                         isWindows() ? "gnuplot-X11" : "gnuplot",

@@ -683,6 +683,9 @@ new String[]{
                 double floor = 0.0;
                 double sigavg = 0.0;
                 double digitizedSignal = initDigitizedSignal;
+                
+                final boolean hasSigPlus = plotEntries.hasSigPLus();
+                
                 for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entries.entrySet()) {
 
                     for (PlotEntryBase peb : e.getValue()) {
@@ -705,24 +708,44 @@ new String[]{
                         }
                     }
 
-                    pc.ps.println(String.format("%f %f %f %f %f %f %f",
-                            e.getKey().doubleValue(),
-                            signa,
-                            sigavg,
-                            thresha,
-                            ceiling,
-                            floor,
-                            digitizedSignal));
+                    if (hasSigPlus) {
+                    	pc.ps.println(String.format("%f %f %f %f %f %f %f",
+                    			e.getKey().doubleValue(),
+                    			signa,
+                    			sigavg,
+                    			thresha,
+                    			ceiling,
+                    			floor,
+                    			digitizedSignal));
+                    }
+                    else {
+                    	pc.ps.println(String.format("%f %f %f %f %f %f",
+                    			e.getKey().doubleValue(),
+                    			signa,
+                    			thresha,
+                    			ceiling,
+                    			floor,
+                    			digitizedSignal));
+                    }
                 }
 
-                // TODO, call either 6 or 5 variety, depending on the given entries
-                pc.plot(new Mode[] {
-                		Mode.LINES_PURPLE,
-                		Mode.LINES_RED,
-                		Mode.LINES_BLACK,
-                		Mode.LINES_GREEN,
-                		Mode.LINES_GREEN,
-                		Mode.LINES_CYAN}, 6);
+                if (hasSigPlus) {
+                	pc.plot(new Mode[] {
+                			Mode.LINES_PURPLE,
+                			Mode.LINES_RED,
+                			Mode.LINES_CYAN,
+                			Mode.LINES_GREEN,
+                			Mode.LINES_GREEN,
+                			Mode.LINES_CYAN});
+                }
+                else {
+                	pc.plot(new Mode[] {
+                			Mode.LINES_PURPLE,
+                			Mode.LINES_RED,
+                			Mode.LINES_GREEN,
+                			Mode.LINES_GREEN,
+                			Mode.LINES_CYAN});
+                }
             }
 
         }

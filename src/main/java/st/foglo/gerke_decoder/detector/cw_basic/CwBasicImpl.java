@@ -297,7 +297,7 @@ public class CwBasicImpl extends DetectorBase {
                 }
             }
         }
-        pcPhase.plot(new Mode[] {Mode.POINTS}, 1);
+        pcPhase.plot(new Mode[] {Mode.POINTS});
 	}
 	
 
@@ -363,7 +363,7 @@ public class CwBasicImpl extends DetectorBase {
             for(Entry<Integer, Double> e : pairs.entrySet()) {
                 fPlot.ps.println(String.format("%d %f", e.getKey().intValue(), e.getValue()));
             }
-            fPlot.plot(new Mode[] {Mode.POINTS}, 1);
+            fPlot.plot(new Mode[] {Mode.POINTS});
         }
 
         return fBest;

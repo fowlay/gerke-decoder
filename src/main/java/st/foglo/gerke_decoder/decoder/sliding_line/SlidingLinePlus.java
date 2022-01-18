@@ -14,12 +14,13 @@ import st.foglo.gerke_decoder.decoder.Node;
 import st.foglo.gerke_decoder.decoder.ToneBase;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
 import st.foglo.gerke_decoder.format.Formatter;
+import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLinePlus extends DecoderBase {
 	
-	public static final double THRESHOLD = 0.524*0.9;
+	public static final double THRESHOLD = 0.55; // 0.524*0.9;
 	
 	final int sigSize;
 	
@@ -97,29 +98,23 @@ public final class SlidingLinePlus extends DecoderBase {
         
     	int kRaise = 0;
     	int kDrop = 0;
-    	double accSpike = 0.0;
-    	int nSpike = 0;
-    	double accCrack = 0.0;
-    	double nominalCrack = 0.0;
-    	int nCrack = 0;
+    	double accSpike = 0.0;        // accumulate squared actual signal
+    	double nominalSpike = 0.0;    // accumulate squared possible full signal
+    	
+    	double accCrack = 0.0;        // accumulate squared actual signal
+    	double nominalCrack = 0.0;    // accumulate squared possible full signal
     	
     	// PARA 0.25
     	int maxSpike = (int) Math.round(0.35*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
     	int maxCrack = (int) Math.round(0.15*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
     	new Info("max nof. slices in spike: %d", maxSpike);
     	new Info("max nof. slices in crack: %d", maxCrack);
-    	
-    	double[] cra = new double[50];
-    	double[] nom = new double[50];
-    	int jj = 0;
-    	
+
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
         	
         	final double thr = threshold(decoder, level, flo[k], cei[k]);
         	final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
-        	
-        	
-        	
+
         	final boolean high = r.a > thr;
         	final boolean low = !high;
         	
@@ -132,8 +127,8 @@ public final class SlidingLinePlus extends DecoderBase {
         		}
         		else if (high) {
         			kRaise = k;
-        			nSpike = 1;
-        			accSpike = r.a - thr;
+        			accSpike = Compute.squared(r.a - flo[k]);
+        			nominalSpike = Compute.squared(cei[k] - flo[k]);
         			state = States.M_HIGH;
         		}
         	}
@@ -146,26 +141,20 @@ public final class SlidingLinePlus extends DecoderBase {
         			if (k - kRaise >= maxSpike) {
         				state = States.HIGH;
         			}
-        			nSpike++;
-    				accSpike += r.a - thr;
+    				accSpike += Compute.squared(r.a - flo[k]);
+    				nominalSpike += Compute.squared(cei[k] - flo[k]);
         		}
         	}
         	else if (state == States.HIGH) {
         		if (low) {
         			kDrop = k;
         			state = States.M_LOW;
-        			nCrack = 1;
-        			accCrack = thr - r.a;
-        			nominalCrack = thr - flo[k];
-        			
-        			jj = 0;
-        			cra[jj] = thr - r.a;
-        			nom[jj] = thr - flo[k];
-        			
+        			accCrack = Compute.squared(r.a - flo[k]);
+        			nominalCrack = Compute.squared(cei[k] - flo[k]);
         		}
         		else if (high) {
-        			nSpike++;
-    				accSpike += r.a - thr;
+    				accSpike += Compute.squared(r.a - flo[k]);
+    				nominalSpike += Compute.squared(cei[k] - flo[k]);
         		}
         	}
         	else if (state == States.M_LOW) {
@@ -186,34 +175,16 @@ public final class SlidingLinePlus extends DecoderBase {
 						}
         			}
         			else {
-        				nCrack++;
-        				accCrack += thr - r.a;
-        				nominalCrack += thr - flo[k];
-        				
-        				
-        				jj++;
-            			cra[jj] = thr - r.a;
-            			nom[jj] = thr - flo[k];
+        				accCrack += Compute.squared(r.a - flo[k]);
+        				nominalCrack += Compute.squared(cei[k] - flo[k]);
         			}
         		}
         		else if (high) {
-        			// ignore a crack, but only if weak
-        			
-        			if (tSec > 174.25 && tSec < 174.5) {
-        				new Info(",,, crack strength: %f", accCrack/nominalCrack);
-        				new Info(",,, jj: %d", jj);
-        				for (int kk = 0; kk <=jj; kk++) {
-        					new Info(",,,   %d %f", kk, cra[kk]);
-        					new Info(",,,   %d %f", kk, nom[kk]);
-        				}
-        				
-        			}
-        			
-        			if (accCrack/nominalCrack < 0.1) {
-        				// weak
+        			if (accCrack/nominalCrack > 0.5) {   // PARA
+        				// just a weak crack, ignore it
             			state = States.HIGH;
-            			nSpike++;
-        				accSpike += r.a - thr;
+        				accSpike += Compute.squared(r.a - flo[k]);
+        				nominalSpike += Compute.squared(cei[k] - flo[k]);
         			}
         			else {
         				// not weak; generate a tone after all
@@ -228,56 +199,14 @@ public final class SlidingLinePlus extends DecoderBase {
 						}
 						
 						state = States.M_HIGH;
-						nSpike = 1;
-	        			accSpike = r.a - thr;
+	        			accSpike = Compute.squared(r.a - flo[k]);
+	        			nominalSpike = Compute.squared(cei[k] - flo[k]);
 						kRaise = k;
         			}
 
         		}
         	}
         	
-        	
-
-//
-//        	else if (!isHigh && high) {
-//        		highBegin = k;
-//        		acc = r.a - thr;
-//        		accMax = cei[k] - thr;
-//        		isHigh = true;
-//        	}
-//        	else if (isHigh && high) {
-//        		acc += r.a - thr;
-//        		accMax += cei[k] - thr;
-//        	}
-//        	else if (isHigh && !high && ((double)(framesPerSlice*(k - highBegin)))/w.frameRate < 0.10*tuMillis/1000) {  // PARA PARA
-//        		new Info("ignoring very thin dot: %d, %f", k, timeSeconds(k));
-//        		isHigh = false;
-//        	}
-//        	else if (isHigh && !high && acc < 0.03*accMax) {  // PARA PARA
-//        		// ignore very weak dot
-//        		new Info("ignoring very weak dot: %d, %f", k, timeSeconds(k));
-//        		isHigh = false;
-//        	}
-//        	else if (isHigh && !high &&
-//        			(k - highBegin)*tsLength < GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()]) {
-//        		// create Dot
-//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-//        		tones.put(Integer.valueOf(kMiddle),
-//        				new Dot(kMiddle, highBegin, k));
-//
-//        		isHigh = false;
-//        	}
-//        	else if (isHigh && !high) {
-//        		// create Dash
-//        		final int kMiddle = (int) Math.round((highBegin + k)/2.0);
-//        		tones.put(Integer.valueOf(kMiddle),
-//        				new Dash(kMiddle, highBegin, k));
-//
-//        		isHigh = false;
-//        	}
-//        	else if (!isHigh && !high) {
-//        		if (tSec > 458 && tSec < 458.7) { new Info("_   %d, %f", k, tSec); }
-//        	}
         }
 
         Node p = Node.tree;
@@ -355,7 +284,5 @@ public final class SlidingLinePlus extends DecoderBase {
         }
 
         wpm.report();
-
 	}
-
 }

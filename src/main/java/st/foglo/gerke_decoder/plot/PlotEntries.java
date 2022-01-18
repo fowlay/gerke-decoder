@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 
 /**
  * Collection of plot entries.
@@ -60,6 +61,23 @@ public class PlotEntries {
 			}
 			entries.put(dKey, newList);
 		}
+	}
+
+	public boolean hasSigPLus() {
+		for (Entry<Double, List<PlotEntryBase>> e : entries.entrySet()) {
+            for (PlotEntryBase peb : e.getValue()) {
+                if (peb instanceof PlotEntrySigPlus) {
+                	return true;
+                }
+                else if (peb instanceof PlotEntrySig) {
+                    continue;
+                }
+                else if (peb instanceof PlotEntryDecode) {
+                    continue;
+                }
+            }
+		}
+		return false;
 	}
 }
 
