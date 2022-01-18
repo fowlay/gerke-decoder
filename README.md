@@ -160,13 +160,13 @@ presence of fading it may thus be that clipping is not effective in
 faded parts of the recording. To process different parts of the
 recording differently the -o and -l options can be used.
 
-### Sample period
+### Time slice period
 
-For accurate decoding the signal amplitude should be sampled with a
-period of about 0.1 TU. A non-default sampling period of 0.15 TU can
-be given like this:
+The signal is estimated at points that are of the order 0.1 TU apart.
+This time slice period is decoder dependent. To decrease the time
+slice period to 80% of the default value, use
 
-    -u 0.15
+    -q 0.8
 
 ### Gaussian sigma
 

@@ -20,7 +20,18 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLinePlus extends DecoderBase {
 	
+	/**
+	 * Unit is TU.
+	 */
+	public static final double TS_LENGTH = 0.06;
+	
 	public static final double THRESHOLD = 0.55; // 0.524*0.9;
+	
+	/**
+	 * If the amplitude at a crack doesn't drop more than this,
+	 * the crack can be ignored.
+	 */
+	private static final double crackDipLimit = 0.5;
 	
 	final int sigSize;
 	
@@ -106,7 +117,7 @@ public final class SlidingLinePlus extends DecoderBase {
     	
     	// PARA 0.25
     	int maxSpike = (int) Math.round(0.35*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
-    	int maxCrack = (int) Math.round(0.15*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+    	int maxCrack = (int) Math.round(0.33*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
     	new Info("max nof. slices in spike: %d", maxSpike);
     	new Info("max nof. slices in crack: %d", maxCrack);
 
@@ -119,7 +130,9 @@ public final class SlidingLinePlus extends DecoderBase {
         	final boolean low = !high;
         	
         	final double tSec = timeSeconds(k);
-        	plotEntries.updateAmplitudes(tSec, r.a);
+        	if (plotEntries != null) {
+        		plotEntries.updateAmplitudes(tSec, r.a);
+        	}
 
         	if (state == States.LOW) {
         		if (low) {
@@ -180,7 +193,7 @@ public final class SlidingLinePlus extends DecoderBase {
         			}
         		}
         		else if (high) {
-        			if (accCrack/nominalCrack > 0.5) {   // PARA
+        			if (accCrack/nominalCrack > Compute.squared(crackDipLimit)) {
         				// just a weak crack, ignore it
             			state = States.HIGH;
         				accSpike += Compute.squared(r.a - flo[k]);

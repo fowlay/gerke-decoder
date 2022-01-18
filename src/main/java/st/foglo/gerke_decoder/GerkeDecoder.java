@@ -46,11 +46,13 @@ import st.foglo.gerke_decoder.plot.PlotEntrySigPlus;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
-
-
-
-
+	
     static final double IGNORE = 0.0;
+    
+    private static final double[] TS_LENGTH =
+    		new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
+
+
 
     static final String O_VERSION = "version";
     public static final String O_OFFSET = "offset";
@@ -246,7 +248,7 @@ public final class GerkeDecoder {
         new SingleValueOption("W", O_SPACE_EXP, "1.0");
 
         new SingleValueOption("c", O_CLIPPING, "-1");
-        new SingleValueOption("q", O_STIME, STIME_DEFAULT);
+        new SingleValueOption("q", O_STIME, "1.0");
         new SingleValueOption("s", O_SIGMA, "0.18");
         
         new SingleValueOption("C", O_COHSIZE, "0.8");
@@ -302,7 +304,7 @@ new String[]{
                 GerkeLib.getDefault(O_DECODER)),
         String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
 
-        String.format("  -q SAMPLE_PERIOD   sample period, defaults to %s TU", GerkeLib.getDefault(O_STIME)),
+        String.format("  -q TS_STRETCH      time slice stretch, defaults to %s", GerkeLib.getDefault(O_STIME)),
         String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
         
         String.format("  -C COHERENCE_SIZE  coherence size, defaults to %s TU", GerkeLib.getDefault(O_COHSIZE)),
@@ -393,7 +395,15 @@ new String[]{
             // TS length in ms is: tsLength*tuMillis
             // Number of TU covered by N time slices is N/(1.0/tsLength) = N*tsLength
 
-            final double tsLengthGiven = GerkeLib.getDoubleOpt(O_STIME);
+            
+            final int decoder = GerkeLib.getIntOpt(O_DECODER);
+            
+            //final double tsLengthGiven = GerkeLib.getDoubleOpt(O_STIME);
+
+            
+            final double tsStretch = GerkeLib.getDoubleOpt(O_STIME);
+            final double tsLengthGiven = tsStretch*TS_LENGTH[decoder];
+            
 
             final int framesPerSlice = (int) Math.round(tsLengthGiven*w.frameRate*tuMillis/1000.0);
 
@@ -412,7 +422,7 @@ new String[]{
 
             final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
             
-            final int decoder = GerkeLib.getIntOpt(O_DECODER);
+            
             
             final CwDetector detector;
             
