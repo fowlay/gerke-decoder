@@ -6,7 +6,7 @@ import java.util.TreeMap;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
-import st.foglo.gerke_decoder.GerkeLib.Info;
+import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.Dot;
@@ -32,6 +32,23 @@ public final class SlidingLinePlus extends DecoderBase {
 	 * the crack can be ignored.
 	 */
 	private static final double crackDipLimit = 0.5;
+	
+	
+	/**
+	 * If the relative amplitude of a spike is not more than this
+	 * then it can be ignored.
+	 */
+	private static final double spikeLimit = 0.548;
+	
+	/**
+	 * Maximum width of a spike; unit is TU
+	 */
+	private static final double spikeWidth = 0.35;
+
+	/**
+	 * Maximum width of a crack; unit is TU
+	 */
+	private static final double crackWidth = 0.33;
 	
 	final int sigSize;
 	
@@ -91,22 +108,15 @@ public final class SlidingLinePlus extends DecoderBase {
 
         final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
 
-        // in theory, 0.50 .. 0.40 works better .. quite sensitive, TODO, PARAMETER
-        final int jDotSmall = (int) Math.round(0.40/tsLength);
-        final int jDot = jDotSmall;
+        // in theory: 0.5, whereas 0.40 works better .. quite sensitive
+        final int jDot = (int) Math.round(0.40/tsLength);
 
         final int jDash = (int) Math.round(1.5/tsLength);
 
         final WeightBase wDot = new WeightDot(jDot);  // arg ignored really
 
-        
         States state = States.LOW;
-        
-//        double acc = 0.0;
-//        double accMax = 0.0;
-//        int maybeCount = 0;
-//        double accHigh = 0.0;
-        
+
     	int kRaise = 0;
     	int kDrop = 0;
     	double accSpike = 0.0;        // accumulate squared actual signal
@@ -116,10 +126,10 @@ public final class SlidingLinePlus extends DecoderBase {
     	double nominalCrack = 0.0;    // accumulate squared possible full signal
     	
     	// PARA 0.25
-    	int maxSpike = (int) Math.round(0.35*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
-    	int maxCrack = (int) Math.round(0.33*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
-    	new Info("max nof. slices in spike: %d", maxSpike);
-    	new Info("max nof. slices in crack: %d", maxCrack);
+    	int maxSpike = (int) Math.round(spikeWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+    	int maxCrack = (int) Math.round(crackWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+    	new Debug("max nof. slices in spike: %d", maxSpike);
+    	new Debug("max nof. slices in crack: %d", maxCrack);
 
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
         	
@@ -177,14 +187,17 @@ public final class SlidingLinePlus extends DecoderBase {
 						final boolean createDot =
 								(kDrop - kRaise)*tsLength <
 								GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
-
-						// possibly reject a dot or dash with too little energy
-
-						final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
-						if (createDot) {
-							tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
-						} else {
-							tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+						if (accSpike/nominalSpike < Compute.squared(spikeLimit)) {
+							// reject a tone with too little energy
+							continue;
+						}
+						else {
+							final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
+							if (createDot) {
+								tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+							} else {
+								tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+							}
 						}
         			}
         			else {
