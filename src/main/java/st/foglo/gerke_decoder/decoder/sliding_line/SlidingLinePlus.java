@@ -241,7 +241,7 @@ public final class SlidingLinePlus extends DecoderBase {
         for (Integer key : tones.navigableKeySet()) {
 
         	if (prevKey == null) {
-        		qCharBegin = lsqToneBegin(key, tones, jDot);
+        		qCharBegin = toneBegin(key, tones);
         	}
         	
 			if (prevKey == null) {
@@ -250,10 +250,7 @@ public final class SlidingLinePlus extends DecoderBase {
 				lsqPlotHelper(key, tb, jDot);
 				
 			} else if (prevKey != null) {
-				
-	            final ToneBase t1 = tones.get(prevKey);
-	            final ToneBase t2 = tones.get(key);
-	        	final int toneDistSlices = t2.rise - t1.drop;
+	        	final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
 	        	
 				if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
 					final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
@@ -262,7 +259,7 @@ public final class SlidingLinePlus extends DecoderBase {
 					formatter.add(true, p.text, ts);
 					wpm.chCus += p.nTus;
 					wpm.spCusW += 7;
-					wpm.spTicksW += lsqToneBegin(key, tones, jDot) - lsqToneEnd(prevKey, tones, jDot);
+					wpm.spTicksW += toneBegin(key, tones) - toneEnd(prevKey, tones);
 
 					p = Node.tree;
 					final ToneBase tb = tones.get(key);
@@ -271,8 +268,8 @@ public final class SlidingLinePlus extends DecoderBase {
 					} else {
 						p = p.newNode(".");
 					}
-					wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
-					qCharBegin = lsqToneBegin(key, tones, jDot);
+					wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
+					qCharBegin = toneBegin(key, tones);
 					lsqPlotHelper(key, tb, jDot);
 					
 				} else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
@@ -280,7 +277,7 @@ public final class SlidingLinePlus extends DecoderBase {
 					wpm.chCus += p.nTus;
 					wpm.spCusC += 3;
 
-					wpm.spTicksC += lsqToneBegin(key, tones, jDot) - lsqToneEnd(prevKey, tones, jDot);
+					wpm.spTicksC += toneBegin(key, tones) - toneEnd(prevKey, tones);
 
 					p = Node.tree;
 					final ToneBase tb = tones.get(key);
@@ -289,8 +286,8 @@ public final class SlidingLinePlus extends DecoderBase {
 					} else {
 						p = p.newNode(".");
 					}
-					wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
-					qCharBegin = lsqToneBegin(key, tones, jDot);
+					wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
+					qCharBegin = toneBegin(key, tones);
 					lsqPlotHelper(key, tb, jDot);
 				} else {
 					final ToneBase tb = tones.get(key);
@@ -306,9 +303,19 @@ public final class SlidingLinePlus extends DecoderBase {
             formatter.add(true, p.text, -1);
             formatter.newLine();
             wpm.chCus += p.nTus;
-            wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
+            wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
         }
 
         wpm.report();
 	}
+	
+    private int toneBegin(Integer key, NavigableMap<Integer, ToneBase> tones) {
+    	ToneBase tone = tones.get(key);
+    	return tone.rise;
+    }
+    
+    private int toneEnd(Integer key, NavigableMap<Integer, ToneBase> tones) {
+    	ToneBase tone = tones.get(key);
+    	return tone.drop;
+    }
 }
