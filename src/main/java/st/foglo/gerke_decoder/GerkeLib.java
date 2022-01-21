@@ -331,6 +331,10 @@ public final class GerkeLib {
         public Info(String format, int i, int j, double v, double w) {
             this(String.format(format, i, j, v, w));
         }
+        
+        public Info(String format, double x, double y, int j) {
+            this(String.format(format, x, y, j));
+        }
 
         public Info(String format, double x, double y, double z) {
             this(String.format(format, x, y, z));

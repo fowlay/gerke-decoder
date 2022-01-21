@@ -22,6 +22,8 @@ public interface CwDetector {
 			double[] cei
 			) throws IOException, InterruptedException;
 	
+    public void frequencyStabilityPlot() throws IOException, InterruptedException;
+	
 	public double threshold(
 			double level,
 			double flo,

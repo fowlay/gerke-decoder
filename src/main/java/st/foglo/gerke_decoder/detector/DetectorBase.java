@@ -1,6 +1,9 @@
 package st.foglo.gerke_decoder.detector;
 
+import java.io.IOException;
+
 import st.foglo.gerke_decoder.GerkeDecoder;
+import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public abstract class DetectorBase implements CwDetector {
@@ -35,5 +38,9 @@ public abstract class DetectorBase implements CwDetector {
     	
     	final double thr = GerkeDecoder.getThreshold(decoder);
         return floor + level*thr*(ceiling - floor);
+    }
+    
+    public void frequencyStabilityPlot() throws IOException, InterruptedException {
+    	new Death("frequency stability plot not supported with this detector");
     }
 }

@@ -14,7 +14,7 @@ final class Segment {
 	
 	final Wav w;
 	
-	final int base;
+	final int base;                // index into wave file
 	final int midpoint;
 	
 	final int framesPerSlice;

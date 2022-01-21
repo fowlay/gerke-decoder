@@ -71,6 +71,7 @@ public final class GerkeDecoder {
     public static final String O_PLINT = "plot-interval";
     public static final String O_PLOT = "plot";
     public static final String O_PPLOT = "phase-plot";
+    public static final String O_FSPLOT = "frequency-stability-plot";
     public static final String O_VERBOSE = "verbose";
     
     public static final String O_COHSIZE = "coherence-size";
@@ -265,6 +266,8 @@ public final class GerkeDecoder {
         new SingleValueOption("Z", O_PLINT, "0,-1");
         new Flag("A", O_PLOT);
         new Flag("P", O_PPLOT);
+        
+        new Flag("Y", O_FSPLOT);
 
         new SteppingOption("v", O_VERBOSE);
 
@@ -315,6 +318,7 @@ new String[]{
         String.format("  -S                 Generate frequency spectrum plot"),
         String.format("  -A                 Generate amplitude plot"),
         String.format("  -P                 Generate phase angle plot"),
+        String.format("  -Y                 Generate frequency stability plot"),
 
         String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
         String.format("  -t                 Insert timestamps in decoded text"),
@@ -469,6 +473,8 @@ new String[]{
             else {
             	throw new RuntimeException();
             }
+            
+
 
             final Signal signal = detector.getSignal();
             final double[] sig = signal.sig;
@@ -477,6 +483,10 @@ new String[]{
             if (detector instanceof CwAdaptiveImpl) {
             	// diagnostic only
             	((CwAdaptiveImpl)detector).trigTableReport();
+            }
+            
+            if (GerkeLib.getFlag(O_FSPLOT)) {
+            	detector.frequencyStabilityPlot();
             }
 
             if (sigSize != nofSlices) {
@@ -844,7 +854,16 @@ new String[]{
 
 
 
-    private static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
+	/**
+	 * Returns time in seconds, relative to beginning of wave file.
+	 * 
+	 * @param q
+	 * @param framesPerSlice
+	 * @param frameRate
+	 * @param offsetFrames
+	 * @return
+	 */
+    public static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }
 

@@ -1,5 +1,6 @@
 package st.foglo.gerke_decoder.detector.adaptive;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -16,9 +17,15 @@ import st.foglo.gerke_decoder.detector.DetectorBase;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.PlotCollector;
+import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class CwAdaptiveImpl extends DetectorBase {
+	
+//	final int frameRate;
+//	
+//	final int offsetFrames;
 
 	final int cohFactor;              // coherence chunk size is cohFactor*framesPerSlice
 	
@@ -116,9 +123,7 @@ public final class CwAdaptiveImpl extends DetectorBase {
 			double[] flo,
 			double[] cei) {
 		new Warning("phase plot not yet supported by this detector");
-		
 	}
-
 
 	/**
 	 * Return interpolated best frequency
@@ -383,5 +388,21 @@ public final class CwAdaptiveImpl extends DetectorBase {
 	public void trigTableReport() {
 		new Info("nof. frequencies considered: %d", frequencies.size());
 		new Info("nof. trig tables: %d", trigTableMap.size());
+	}
+	
+	public void frequencyStabilityPlot() throws IOException, InterruptedException {
+		final PlotCollector pc = new PlotCollector();
+		
+		for (int t = 0; true; t++) {
+			int wavIndex = t*w.frameRate;
+			if (wavIndex >= w.wav.length) {
+				break;
+			}
+			double frequency = getFreq(wavIndex);
+			pc.ps.println(String.format("%d %f", t, frequency));
+			//new Info("time: %d, freq: %f", t, frequency);
+			
+		}
+		pc.plot(new Mode[]{Mode.LINES_PURPLE});
 	}
 }
