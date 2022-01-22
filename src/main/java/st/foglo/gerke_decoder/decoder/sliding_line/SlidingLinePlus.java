@@ -70,7 +70,6 @@ public final class SlidingLinePlus extends DecoderBase {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			
 			int sigSize,
@@ -87,7 +86,6 @@ public final class SlidingLinePlus extends DecoderBase {
     			w,
     			sig,
     		    plotEntries,
-    			plotLimits,
     			formatter,
     			cei,
     			flo,

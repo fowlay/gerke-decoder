@@ -3,6 +3,8 @@ package st.foglo.gerke_decoder.detector.cw_basic;
 import java.io.IOException;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CountDownLatch;
 
@@ -26,6 +28,9 @@ import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotCollector;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
+import st.foglo.gerke_decoder.plot.PlotEntries;
+import st.foglo.gerke_decoder.plot.PlotEntryBase;
+import st.foglo.gerke_decoder.plot.PlotEntryPhase;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public class CwBasicImpl extends DetectorBase {
@@ -242,8 +247,6 @@ public class CwBasicImpl extends DetectorBase {
 			double[] cei) throws IOException, InterruptedException {
 		
         final boolean phasePlot = GerkeLib.getFlag(GerkeDecoder.O_PPLOT);
-        final double[] plotLimits = w.getPlotLimits();
-
 
         final double[] cosSum = new double[nofSlices];
         final double[] sinSum = new double[nofSlices];
@@ -284,19 +287,28 @@ public class CwBasicImpl extends DetectorBase {
         }
 
         final PlotCollector pcPhase = new PlotCollector();
+        
+        final PlotEntries pEnt = new PlotEntries(w);
+        
         for (int q = 0; q < wphi.length; q++) {
             
          // TODO, duplication, this code is also in DecoderBase
             final double seconds =
             		(((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
 
-            if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+            if (pEnt.plotBegin <= seconds && seconds <= pEnt.plotEnd) {
                 final double phase = wphi[q];
                 if (phase != 0.0) {
-                    pcPhase.ps.println(String.format("%f %f", seconds, phase));
+                    pEnt.addPhase(seconds, phase);
                 }
-            }
+            }  
         }
+        
+        for (Map.Entry<Double, List<PlotEntryBase>> e : pEnt.entries.entrySet()) {
+        	final PlotEntryPhase p = (PlotEntryPhase) e.getValue().get(0);
+        	pcPhase.ps.println(String.format("%f %f", e.getKey(), p.phase));
+        }
+        
         pcPhase.plot(new Mode[] {Mode.POINTS});
 	}
 	

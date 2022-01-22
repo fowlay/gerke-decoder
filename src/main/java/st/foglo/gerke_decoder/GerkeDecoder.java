@@ -385,8 +385,6 @@ new String[]{
             // ===================================== Wave file
 
             final Wav w = new Wav();
-            final double[] plotLimits = getPlotLimits(w);
-
 
             // ===================================== TU and time slice
 
@@ -542,12 +540,12 @@ new String[]{
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
             final Formatter formatter = new Formatter();
             final PlotEntries plotEntries =
-                    GerkeLib.getFlag(O_PLOT) ? new PlotEntries() : null;
+                    GerkeLib.getFlag(O_PLOT) ? new PlotEntries(w) : null;
 
             if (plotEntries != null) {
                 for (int q = 0; q < sig.length; q++) {
                     final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
-                    if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+                    if (plotEntries.plotBegin <= seconds && seconds <= plotEntries.plotEnd) {
                         final double threshold = detector.threshold(level, flo[q], cei[q], decoder);
                         plotEntries.addAmplitudes(seconds, sig[q], threshold, cei[q], flo[q]);
                     }
@@ -565,7 +563,6 @@ new String[]{
             			w,
             			sig,
             			plotEntries,
-            			plotLimits,
             			formatter,
             			
 //            			trans,
@@ -591,7 +588,6 @@ new String[]{
             			w,
             			sig,
             		    plotEntries,
-            			plotLimits,
             			formatter,
             			
             			ceilingMax,
@@ -613,7 +609,6 @@ new String[]{
             			w,
             			sig,
             			plotEntries,
-            			plotLimits,
             			formatter,
             			
             			ceilingMax,
@@ -636,7 +631,6 @@ new String[]{
             			w,
             			sig,
             			plotEntries,
-            			plotLimits,
             			formatter,
             			
             			sigSize,
@@ -655,7 +649,6 @@ new String[]{
             			w,
             			sig,
             		    plotEntries,
-            			plotLimits,
             			formatter,
             			
             			sigSize,
@@ -675,7 +668,6 @@ new String[]{
             			w,
             			sig,
             		    plotEntries,
-            			plotLimits,
             			formatter,
             			
             			sigSize,
@@ -804,53 +796,7 @@ new String[]{
     	}
 }
 
-	private static double[] getPlotLimits(Wav w) {
 
-        final double[] result = new double[2];
-
-        if (GerkeLib.getFlag(O_PLOT) || GerkeLib.getFlag(O_PPLOT)) {
-
-            if (GerkeLib.getOptMultiLength(O_PLINT) != 2) {
-                new Death("bad plot interval: wrong number of suboptions");
-            }
-
-            final double t1 = ((double) w.frameLength)/w.frameRate;
-
-            final double t2 = (double) (GerkeLib.getIntOpt(O_OFFSET));
-
-            final double t3 =
-                    w.length == -1 ? t1 :
-                        Compute.dMin(t2 + w.length, t1);
-            if (w.length != -1 && t2 + w.length > t1) {
-                new Warning("offset+length exceeds %.1f seconds", t1);
-            }
-
-            final double t4 =
-                    Compute.dMax(GerkeLib.getDoubleOptMulti(O_PLINT)[0], t2);
-            if (t4 >= t3) {
-                new Death("plot interval out of bounds");
-            }
-            else if (GerkeLib.getDoubleOptMulti(O_PLINT)[0] < t2) {
-                new Warning("starting plot interval at: %.1f s", t2);
-            }
-
-            final double t5 =
-                    GerkeLib.getDoubleOptMulti(O_PLINT)[1] == -1.0 ?
-                            t3 :
-                                Compute.dMin(t3, t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1]);
-            if (GerkeLib.getDoubleOptMulti(O_PLINT)[1] != -1.0 &&
-                    t4 + GerkeLib.getDoubleOptMulti(O_PLINT)[1] > t3) {
-                new Warning("ending plot interval at: %.1f s", t3);
-            }
-
-            result[0] = t4;
-            result[1] = t5;
-            if (result[0] >= result[1]) {
-                new Death("bad plot interval");
-            }
-        }
-        return result;
-    }
 
 
 

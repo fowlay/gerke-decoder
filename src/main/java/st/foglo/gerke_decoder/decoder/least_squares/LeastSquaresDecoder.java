@@ -57,7 +57,6 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			
 			int sigSize,
@@ -75,7 +74,6 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 				w,
 				sig,
 				plotEntries,
-				plotLimits,
 				formatter,
 				cei,
 				flo,

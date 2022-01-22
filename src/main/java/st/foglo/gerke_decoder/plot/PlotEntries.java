@@ -6,13 +6,37 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
+import st.foglo.gerke_decoder.GerkeDecoder;
+import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeLib.Death;
+import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.wave.Wav;
+
 /**
  * Collection of plot entries.
  */
 public class PlotEntries {
 	
+	public final double plotBegin;
+	public final double plotEnd;
+	
     public final SortedMap<Double, List<PlotEntryBase>> entries = new TreeMap<Double, List<PlotEntryBase>>();
 
+    public PlotEntries(Wav w) {
+
+		if (GerkeLib.getOptMultiLength(GerkeDecoder.O_PLINT) != 2) {
+			new Death("bad plot interval: wrong number of suboptions");
+		}
+		
+    	plotBegin = getPlotBegin(w);
+    	plotEnd = getPlotEnd(w);
+    	
+		if (plotBegin >= plotEnd) {
+			new Death("bad plot interval");
+		}
+    	
+    }
+    
     public void addAmplitudes(
     		double t,
     		double amp,
@@ -37,6 +61,21 @@ public class PlotEntries {
             list.add(new PlotEntryDecode(y));
         }
     }
+    
+
+    public void addPhase(double t, double y) {
+        final Double tBoxed = Double.valueOf(t);
+        final List<PlotEntryBase> list = entries.get(tBoxed);
+        if (list == null) {
+            final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>();
+            newList.add(new PlotEntryPhase(y));
+            entries.put(tBoxed, newList);
+        }
+        else {
+            list.add(new PlotEntryPhase(y));
+        }
+    }
+
 
 	public void updateAmplitudes(double tSec, double sigAvg) {
 		final Double dKey = Double.valueOf(tSec);
@@ -78,6 +117,38 @@ public class PlotEntries {
             }
 		}
 		return false;
+	}
+	
+	private static double getPlotBegin(Wav w) {
+		final double offsetSec = (double) (GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET));
+		return Compute.dMax(GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[0], offsetSec);
+	}
+	
+	private static double getPlotEnd(Wav w) {
+
+		final double wavLengthSec = ((double) w.frameLength)/w.frameRate;
+		final double offsetSec = (double) (GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET));
+
+		final double maxEndSec;
+		if (w.length == -1) {
+			// length not specified, use all of wav file
+			maxEndSec = wavLengthSec;
+		}
+		else {
+			// use specified length, but not more than file length
+			maxEndSec = Compute.dMin(offsetSec + w.length, wavLengthSec);
+		}
+
+		if (GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1] == -1.0) {
+			// plot length not specified on command line
+			return maxEndSec;
+		}
+		else {
+			// length specified on command line
+			return Compute.dMin(
+					maxEndSec,
+					getPlotBegin(w) + GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1]);
+		}
 	}
 }
 

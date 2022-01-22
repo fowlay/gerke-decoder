@@ -12,8 +12,6 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
-import st.foglo.gerke_decoder.GerkeLib.Warning;
-import st.foglo.gerke_decoder.lib.Compute;
 
 /**
  * Read a WAV file into a short[] array.
@@ -24,7 +22,7 @@ public final class Wav {
 
     final AudioInputStream ais;
     final AudioFormat af;
-    public final long frameLength;
+    public final long frameLength;       // total nof. frames
 
     public final int frameRate;          // frames/s
     private final int offset;            // offset (s)
@@ -145,54 +143,5 @@ public final class Wav {
             new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);
         }
         ais.close();
-    }
-    
-    public double[] getPlotLimits() {
-
-        final double[] result = new double[2];
-
-        if (GerkeLib.getFlag(GerkeDecoder.O_PLOT) || GerkeLib.getFlag(GerkeDecoder.O_PPLOT)) {
-
-            if (GerkeLib.getOptMultiLength(GerkeDecoder.O_PLINT) != 2) {
-                new Death("bad plot interval: wrong number of suboptions");
-            }
-
-            final double t1 = ((double) frameLength)/frameRate;
-
-            final double t2 = (double) (GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET));
-
-            final double t3 =
-                    length == -1 ? t1 :
-                        Compute.dMin(t2 + length, t1);
-            if (length != -1 && t2 + length > t1) {
-                new Warning("offset+length exceeds %.1f seconds", t1);
-            }
-
-            final double t4 =
-                    Compute.dMax(GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[0], t2);
-            if (t4 >= t3) {
-                new Death("plot interval out of bounds");
-            }
-            else if (GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[0] < t2) {
-                new Warning("starting plot interval at: %.1f s", t2);
-            }
-
-            final double t5 =
-                    GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1] == -1.0 ?
-                            t3 :
-                                Compute.dMin(t3, t4 + GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1]);
-            if (GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1] != -1.0 &&
-                    t4 + GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[1] > t3) {
-                new Warning("ending plot interval at: %.1f s", t3);
-            }
-
-            result[0] = t4;
-            result[1] = t5;
-            if (result[0] >= result[1]) {
-                new Death("bad plot interval");
-            }
-        }
-        return result;
-
     }
 }

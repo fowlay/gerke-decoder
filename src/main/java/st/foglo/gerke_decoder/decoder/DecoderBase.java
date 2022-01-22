@@ -27,7 +27,6 @@ public abstract class DecoderBase implements Decoder {
 	protected double[] sig;
 	
 	protected PlotEntries plotEntries;
-	protected double[] plotLimits;
 	
 	protected Formatter formatter;
 	
@@ -87,7 +86,6 @@ public abstract class DecoderBase implements Decoder {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			double[] cei,
 			double[] flo,
@@ -101,7 +99,6 @@ public abstract class DecoderBase implements Decoder {
 		this.w = w;
 		this.sig = sig;
 		this.plotEntries = plotEntries;
-		this.plotLimits = plotLimits;
 		this.formatter = formatter;
 		this.cei = cei;
 		this.flo = flo;
@@ -200,7 +197,7 @@ public abstract class DecoderBase implements Decoder {
     			final double secRise2 = timeSeconds(kRise+1);
     			final double secDrop1 = timeSeconds(kDrop);
     			final double secDrop2 = timeSeconds(kDrop+1);
-    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
+    			if (plotEntries.plotBegin < secRise1 && secDrop2 < plotEntries.plotEnd) {
     				plotEntries.addDecoded(secRise1, ceilingMax/20);
     				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
     				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
@@ -214,7 +211,7 @@ public abstract class DecoderBase implements Decoder {
     			final double secRise2 = timeSeconds(kRise+1);
     			final double secDrop1 = timeSeconds(kDrop);
     			final double secDrop2 = timeSeconds(kDrop+1);
-    			if (plotLimits[0] < secRise1 && secDrop2 < plotLimits[1]) {
+    			if (plotEntries.plotBegin < secRise1 && secDrop2 < plotEntries.plotEnd) {
     				plotEntries.addDecoded(secRise1, ceilingMax/20);
     				plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
     				plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);

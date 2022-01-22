@@ -46,7 +46,6 @@ public final class PatternMatchDecoder extends DecoderBase {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			
 			double ceilingMax,
@@ -64,7 +63,6 @@ public final class PatternMatchDecoder extends DecoderBase {
     			w,
     			sig,
     		    plotEntries,
-    			plotLimits,
     			formatter,
     			cei,
     			flo,
@@ -94,7 +92,8 @@ public final class PatternMatchDecoder extends DecoderBase {
 		
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
-            plotEntries.addDecoded(plotLimits[0], PlotEntryDecode.height*ceilingMax);
+            plotEntries.addDecoded(
+            		plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
         }
 
         final List<CharData> cdList = new ArrayList<CharData>();
@@ -169,7 +168,7 @@ public final class PatternMatchDecoder extends DecoderBase {
                         // if we are plotting, then collect some things here
                         if (plotEntries != null && ct != null) {
                             final double seconds = offset + timeSeconds(cd.transes.get(0).q);
-                            if (plotLimits[0] <= seconds && seconds <= plotLimits[1]) {
+                            if (plotEntries.plotBegin <= seconds && seconds <= plotEntries.plotEnd) {
                                 plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax);
                             }
                         }

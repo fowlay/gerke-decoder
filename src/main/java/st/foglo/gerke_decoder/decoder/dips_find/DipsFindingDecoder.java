@@ -43,7 +43,6 @@ public final class DipsFindingDecoder extends DecoderBase {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			
 			double ceilingMax,
@@ -62,7 +61,6 @@ public final class DipsFindingDecoder extends DecoderBase {
     			w,
     			sig,
     		    plotEntries,
-    			plotLimits,
     			formatter,
     			cei,
     			flo,
@@ -101,7 +99,8 @@ public final class DipsFindingDecoder extends DecoderBase {
 
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
-            plotEntries.addDecoded(plotLimits[0], PlotEntryDecode.height*ceilingMax);
+            plotEntries.addDecoded(
+            		plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
         }
 
         int charNo = 0;
@@ -127,8 +126,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
-                            formatter, plotEntries, ceilingMax,
-                            plotLimits);
+                            formatter, plotEntries, ceilingMax);
                     wpm.chTicks += trans[t-1].q - beginChar;
                     final int ts =
                             GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
@@ -142,8 +140,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
-                            formatter, plotEntries, ceilingMax,
-                            plotLimits);
+                            formatter, plotEntries, ceilingMax);
                     wpm.chTicks += trans[t-1].q - beginChar;
                     beginChar = trans[t].q;
                     wpm.spCusC += 3;
@@ -159,8 +156,7 @@ public final class DipsFindingDecoder extends DecoderBase {
             decodeGapChar(beginChar, trans[transIndex-1].q, sig, cei, flo, tsLength,
                     dipMergeLim, dipStrengthMin,
                     charNo++,
-                    formatter, plotEntries, ceilingMax,
-                    plotLimits);
+                    formatter, plotEntries, ceilingMax);
             wpm.chTicks += trans[transIndex-1].q - beginChar;
         }
 
@@ -184,12 +180,11 @@ private void decodeGapChar(
         int charNo,
         Formatter formatter,
         PlotEntries plotEntries,
-        double ceilingMax,
-        double[] plotLimits) throws IOException, InterruptedException {
+        double ceilingMax) throws IOException, InterruptedException {
 
     final boolean inView = plotEntries != null &&
-            timeSeconds(q1) >= plotLimits[0] &&
-            timeSeconds(q2) <= plotLimits[1];
+            timeSeconds(q1) >= plotEntries.plotBegin &&
+            timeSeconds(q2) <= plotEntries.plotEnd;
 
     final double decodeLo = ceilingMax*PlotEntryDecode.height;
     final double decodeHi = ceilingMax*2*PlotEntryDecode.height;

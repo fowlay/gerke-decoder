@@ -37,7 +37,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
 			Wav w,
 			double[] sig,
 			PlotEntries plotEntries,
-			double[] plotLimits,
 			Formatter formatter,
 			
 			double ceilingMax,
@@ -54,7 +53,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
     			w,
     			sig,
     		    plotEntries,
-    			plotLimits,
     			formatter,
     			cei,
     			flo,
@@ -88,13 +86,13 @@ public final class ToneSilenceDecoder extends DecoderBase {
 
                 final double sec = timeSeconds(trans[t].q);
 
-                if (plotLimits[0] <= sec && sec <= plotLimits[1]) {
+                if (plotEntries.plotBegin <= sec && sec <= plotEntries.plotEnd) {
                     plotEntries.addDecoded(sec, (trans[t].rise ? 2 : 1)*ceilingMax/20);
                 }
 
                 // initial point on the decoded curve
                 if (firstLap) {
-                    plotEntries.addDecoded(plotLimits[0], (trans[t].rise ? 1 : 2)*ceilingMax/20);
+                    plotEntries.addDecoded(plotEntries.plotBegin, (trans[t].rise ? 1 : 2)*ceilingMax/20);
                     firstLap = false;
                 }
             }
