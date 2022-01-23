@@ -3,6 +3,7 @@ package st.foglo.gerke_decoder.detector.adaptive;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
@@ -12,12 +13,14 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
-import st.foglo.gerke_decoder.GerkeLib.Warning;
 import st.foglo.gerke_decoder.detector.DetectorBase;
 import st.foglo.gerke_decoder.detector.Signal;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotCollector;
+import st.foglo.gerke_decoder.plot.PlotEntries;
+import st.foglo.gerke_decoder.plot.PlotEntryBase;
+import st.foglo.gerke_decoder.plot.PlotEntryPhase;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.wave.Wav;
 
@@ -115,14 +118,71 @@ public final class CwAdaptiveImpl extends DetectorBase {
 		return new Signal(sig, 0, 0);
 	}
 
-
 	@Override
 	public void phasePlot(
 			double[] sig,
 			double level,
 			double[] flo,
-			double[] cei) {
-		new Warning("phase plot not yet supported by this detector");
+			double[] cei) throws IOException, InterruptedException {
+		
+		final PlotEntries pEnt = new PlotEntries(w);
+		
+		double angleOffsetPrev = 0.0;
+		double angleOffset = 0.0;
+		
+		double tPrev = 0.0;
+		
+		boolean firstLap = true;
+		for (int q = 0; q < sig.length; q += cohFactor) {
+			// iterate over chunks; q is slice index
+			final double timeSeconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+			if (pEnt.plotBegin <= timeSeconds && timeSeconds <= pEnt.plotEnd &&
+					framesPerSlice*cohFactor + q*framesPerSlice + w.offsetFrames < w.wav.length) {
+
+				if (firstLap) {
+					tPrev = timeSeconds;
+					angleOffsetPrev = 0.0;
+					firstLap = false;
+				}
+				else {
+					final double f = getFreq(q*framesPerSlice + w.offsetFrames);
+					
+					angleOffset = angleOffsetPrev + Compute.TWO_PI*f*(timeSeconds - tPrev);
+					angleOffset -= Math.round(angleOffset/Compute.TWO_PI)*Compute.TWO_PI;
+					if (angleOffset < 0.0) {
+						angleOffset += Compute.TWO_PI;
+					}
+
+					double sumSin = 0.0;
+					double sumCos = 0.0;
+					for (int k = 0; k < framesPerSlice*cohFactor; k++) {
+						final int wavIndex = k + q*framesPerSlice + w.offsetFrames;
+						final double tIncr = ((double) k)/w.frameRate;
+						sumSin += Math.sin(angleOffset + Compute.TWO_PI*f*tIncr)*w.wav[wavIndex];
+						sumCos += Math.cos(angleOffset + Compute.TWO_PI*f*tIncr)*w.wav[wavIndex];
+					}
+					final double p = Math.atan2(sumSin, sumCos);
+					
+					final double amp = Math.sqrt(Compute.squared(sumSin) + Compute.squared(sumCos));
+					
+					if (amp >= flo[q] + 0.7*(cei[q] - flo[q])) {
+						pEnt.addPhase(timeSeconds, p, amp);
+					}
+
+					angleOffsetPrev = angleOffset;
+					tPrev = timeSeconds;
+				}
+			}
+		}
+
+		final PlotCollector pc = new PlotCollector();
+        
+        for (Map.Entry<Double, List<PlotEntryBase>> e : pEnt.entries.entrySet()) {
+        	final PlotEntryPhase p = (PlotEntryPhase) e.getValue().get(0);
+        	pc.ps.println(String.format("%f %f", e.getKey(), p.phase));
+        }
+        
+        pc.plot(new Mode[] {Mode.LINES_PURPLE});
 	}
 
 	/**

@@ -246,8 +246,6 @@ public class CwBasicImpl extends DetectorBase {
 			double[] flo,
 			double[] cei) throws IOException, InterruptedException {
 		
-        final boolean phasePlot = GerkeLib.getFlag(GerkeDecoder.O_PPLOT);
-
         final double[] cosSum = new double[nofSlices];
         final double[] sinSum = new double[nofSlices];
         final double[] wphi = new double[nofSlices];
@@ -261,9 +259,7 @@ public class CwBasicImpl extends DetectorBase {
             // TODO, duplication, this code is also in DecoderBase
             final double timeSeconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
 
-            final double angleOffset =
-            		
-                    phasePlot ? Compute.TWO_PI*fBest*timeSeconds : 0.0;
+            final double angleOffset = Compute.TWO_PI*fBest*timeSeconds;
 
                     double sinAcc = 0.0;
                     double cosAcc = 0.0;
@@ -299,7 +295,7 @@ public class CwBasicImpl extends DetectorBase {
             if (pEnt.plotBegin <= seconds && seconds <= pEnt.plotEnd) {
                 final double phase = wphi[q];
                 if (phase != 0.0) {
-                    pEnt.addPhase(seconds, phase);
+                    pEnt.addPhase(seconds, phase, 0.0);
                 }
             }  
         }
@@ -485,7 +481,7 @@ public class CwBasicImpl extends DetectorBase {
      */
     private double wphi(
             int k,
-            double[] x,
+            double[] x,  // cos-sum
             double[] y,
             double[] sig,
             double level,

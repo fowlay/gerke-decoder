@@ -17,8 +17,8 @@ import st.foglo.gerke_decoder.wave.Wav;
  */
 public class PlotEntries {
 	
-	public final double plotBegin;
-	public final double plotEnd;
+	public final double plotBegin;    // beginning of plot, seconds
+	public final double plotEnd;      // end of plot, seconds
 	
     public final SortedMap<Double, List<PlotEntryBase>> entries = new TreeMap<Double, List<PlotEntryBase>>();
 
@@ -63,16 +63,16 @@ public class PlotEntries {
     }
     
 
-    public void addPhase(double t, double y) {
+    public void addPhase(double t, double y, double strength) {
         final Double tBoxed = Double.valueOf(t);
         final List<PlotEntryBase> list = entries.get(tBoxed);
         if (list == null) {
             final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>();
-            newList.add(new PlotEntryPhase(y));
+            newList.add(new PlotEntryPhase(y, strength));
             entries.put(tBoxed, newList);
         }
         else {
-            list.add(new PlotEntryPhase(y));
+            list.add(new PlotEntryPhase(y, strength));
         }
     }
 
