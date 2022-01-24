@@ -22,78 +22,78 @@ import st.foglo.gerke_decoder.wave.Wav;
  * TODO: This decoder does not produce a full WPM report.
  */
 public final class PatternMatchDecoder extends DecoderBase {
-	
-	public static final double THRESHOLD = 0.64791;
+    
+    public static final double THRESHOLD = 0.64791;
 
-	final Trans[] trans;
-	final int transIndex;
-	
-	final int decoder = DecoderIndex.PATTERN_MATCHING.ordinal();
-	
-	final int wordSpaceLimit =
-			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-	
-	final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    final Trans[] trans;
+    final int transIndex;
+    
+    final int decoder = DecoderIndex.PATTERN_MATCHING.ordinal();
+    
+    final int wordSpaceLimit =
+            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    
+    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
-	final double level;
-	
-	public PatternMatchDecoder(
-			
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int offset,
-			Wav w,
-			double[] sig,
-			PlotEntries plotEntries,
-			Formatter formatter,
-			
-			double ceilingMax,
-			double level,
-			
-			int nofSlices,
-			double[] cei,
-			double[] flo
-			) {
-		super(
-				tuMillis,
-    			framesPerSlice,
-    			tsLength,
-    			offset,
-    			w,
-    			sig,
-    		    plotEntries,
-    			formatter,
-    			cei,
-    			flo,
-    			ceilingMax,
-    			THRESHOLD
-				);
-		
-		
-		this.trans = findTransitions(
-//				tuMillis,
-//				tsLength, 
-				nofSlices, 
-//				framesPerSlice, 
-//				w, 
-				decoder,
-				level, 
-//				sig, 
-//				cei, 
-				flo);
-		this.transIndex = trans.length;
-		
-		this.level = level;
-	}
-	
-	@Override
-	public void execute() throws Exception {
-		
+    final double level;
+    
+    public PatternMatchDecoder(
+            
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            Formatter formatter,
+            
+            double ceilingMax,
+            double level,
+            
+            int nofSlices,
+            double[] cei,
+            double[] flo
+            ) {
+        super(
+                tuMillis,
+                framesPerSlice,
+                tsLength,
+                offset,
+                w,
+                sig,
+                plotEntries,
+                formatter,
+                cei,
+                flo,
+                ceilingMax,
+                THRESHOLD
+                );
+        
+        
+        this.trans = findTransitions(
+//                tuMillis,
+//                tsLength, 
+                nofSlices, 
+//                framesPerSlice, 
+//                w, 
+                decoder,
+                level, 
+//                sig, 
+//                cei, 
+                flo);
+        this.transIndex = trans.length;
+        
+        this.level = level;
+    }
+    
+    @Override
+    public void execute() throws Exception {
+        
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
             plotEntries.addDecoded(
-            		plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
+                    plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
         }
 
         final List<CharData> cdList = new ArrayList<CharData>();
@@ -167,7 +167,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
                         // if we are plotting, then collect some things here
                         if (plotEntries != null && ct != null) {
-                            final double seconds = offset + timeSeconds(cd.transes.get(0).q);
+                            final double seconds = offset + w.secondsFromSliceIndex(cd.transes.get(0).q, framesPerSlice);
                             if (plotEntries.plotBegin <= seconds && seconds <= plotEntries.plotEnd) {
                                 plotDecoded(plotEntries, cd, ct, offset, (tsLength*tuMillis)/1000, ceilingMax);
                             }
@@ -185,8 +185,8 @@ public final class PatternMatchDecoder extends DecoderBase {
 
 
 
-	}
-	
+    }
+    
     private CharTemplate decodeCharByPattern(CharData cd) {
 
         final int qSize = cd.getLastAdded().q - cd.transes.get(0).q;
@@ -281,14 +281,14 @@ public final class PatternMatchDecoder extends DecoderBase {
                 // a rise
 
                 final double t1 =
-                        timeSeconds(cd.transes.get(0).q) +
+                        w.secondsFromSliceIndex(cd.transes.get(0).q, framesPerSlice) +
                            i*(tChar/ct.pattern.length);
                 final double t2 = t1 + 0.1*tsSecs;
 
                 // add to plotEntries
 
-//				plotEntries.put(new Double(t1), makeOne(1, ceilingMax));
-//				plotEntries.put(new Double(t2), makeOne(2, ceilingMax));
+//                plotEntries.put(new Double(t1), makeOne(1, ceilingMax));
+//                plotEntries.put(new Double(t2), makeOne(2, ceilingMax));
                 plotEntries.addDecoded(t1, PlotEntryDecode.height*ceilingMax);
                 plotEntries.addDecoded(t2, 2*PlotEntryDecode.height*ceilingMax);
 
@@ -298,24 +298,24 @@ public final class PatternMatchDecoder extends DecoderBase {
 
                 // compute points in time
                 final double t1 =
-                        timeSeconds(cd.transes.get(0).q) +
+                        w.secondsFromSliceIndex(cd.transes.get(0).q, framesPerSlice) +
                            i*(tChar/ct.pattern.length);
                 final double t2 = t1 + 0.1*tsSecs;
 
                 // add to plotEntries
 
-//				plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
-//				plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
+//                plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
+//                plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
                 plotEntries.addDecoded(t1, 2*PlotEntryDecode.height*ceilingMax);
                 plotEntries.addDecoded(t2, PlotEntryDecode.height*ceilingMax);
             }
             prevValue = ct.pattern[i];
         }
 
-        final double t1 = timeSeconds(cd.transes.get(nTranses-1).q);
+        final double t1 = w.secondsFromSliceIndex(cd.transes.get(nTranses-1).q, framesPerSlice);
         final double t2 = t1 + 0.1*tsSecs;
-//		plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
-//		plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
+//        plotEntries.put(new Double(t1), makeOne(2, ceilingMax));
+//        plotEntries.put(new Double(t2), makeOne(1, ceilingMax));
 
         plotEntries.addDecoded(t1, 2*PlotEntryDecode.height*ceilingMax);
         plotEntries.addDecoded(t2, PlotEntryDecode.height*ceilingMax);

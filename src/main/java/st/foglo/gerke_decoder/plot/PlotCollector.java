@@ -66,7 +66,7 @@ public final class PlotCollector {
             String tempFileName,
             Mode[] mode
             ) throws IOException, InterruptedException {
-    	final int nofCurves = mode.length;
+        final int nofCurves = mode.length;
         final ProcessBuilder pb =
                 new ProcessBuilder(
                         isWindows() ? "gnuplot-X11" : "gnuplot",

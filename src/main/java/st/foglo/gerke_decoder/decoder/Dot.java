@@ -5,7 +5,7 @@ package st.foglo.gerke_decoder.decoder;
  */
 public final class Dot extends ToneBase {
 
-	public Dot(int k, int rise, int drop) {
-		super(k, rise, drop);
-	}
+    public Dot(int k, int rise, int drop) {
+        super(k, rise, drop);
+    }
 }

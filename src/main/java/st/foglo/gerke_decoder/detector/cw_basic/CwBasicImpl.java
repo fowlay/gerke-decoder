@@ -34,52 +34,52 @@ import st.foglo.gerke_decoder.plot.PlotEntryPhase;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public class CwBasicImpl extends DetectorBase {
-	
-	final int decoder;
-	final double threshold;
-	
-	final int fBest;
-	
-	final Signal signal;
-	
+    
+    final int decoder;
+    final double threshold;
+    
+    final int fBest;
+    
+    final Signal signal;
+    
 
-	public CwBasicImpl(
-			int decoder,
-			double threshold,
-			int nofSlices,
-			Wav w,
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int fSpecified
-			) throws Exception {
-		
-		super(w, framesPerSlice, nofSlices, tsLength, tuMillis);
-		
-		this.decoder = decoder;
-		this.threshold = threshold;
+    public CwBasicImpl(
+            int decoder,
+            double threshold,
+            int nofSlices,
+            Wav w,
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int fSpecified
+            ) throws Exception {
+        
+        super(w, framesPerSlice, nofSlices, tsLength, tuMillis);
+        
+        this.decoder = decoder;
+        this.threshold = threshold;
 
-		if (fSpecified != -1) {
-			fBest = fSpecified;
-			new Info("specified frequency: %d", fBest);
-			if (GerkeLib.getFlag(GerkeDecoder.O_FPLOT)) {
-				new Warning("frequency plot skipped when -f option given");
-			}
-		}
-		else {
-			fBest = findFrequency();
-			new Info("estimated frequency: %d", fBest);
-		}
-		
-		this.signal = detectSignal();
-	}
+        if (fSpecified != -1) {
+            fBest = fSpecified;
+            new Info("specified frequency: %d", fBest);
+            if (GerkeLib.getFlag(GerkeDecoder.O_FPLOT)) {
+                new Warning("frequency plot skipped when -f option given");
+            }
+        }
+        else {
+            fBest = findFrequency();
+            new Info("estimated frequency: %d", fBest);
+        }
+        
+        this.signal = detectSignal();
+    }
 
-	@Override
-	public Signal getSignal() throws Exception {
-		return signal;
-	}
+    @Override
+    public Signal getSignal() throws Exception {
+        return signal;
+    }
 
-	public Signal detectSignal() throws Exception {
+    public Signal detectSignal() throws Exception {
 
         // ========================== Find clip level
         // TODO, could clipping be applied once and for all, after
@@ -218,15 +218,15 @@ public class CwBasicImpl extends DetectorBase {
                 break;
             }
 
-    		int ringIndex = q % gaussSize;
-    		ringBuffer[ringIndex] = Math.sqrt(outSin[q]*outSin[q] + outCos[q]*outCos[q]);
-    		int rr = ringIndex;
-    		double ss = 0.0;
-    		for (int ii = 0; ii < gaussSize; ii++) {
-    			ss += expTable[ii]*ringBuffer[rr];
-    			rr = rr+1 == gaussSize ? 0 : rr+1;
-    		}
-    		sig[q] = ss/gaussSize;
+            int ringIndex = q % gaussSize;
+            ringBuffer[ringIndex] = Math.sqrt(outSin[q]*outSin[q] + outCos[q]*outCos[q]);
+            int rr = ringIndex;
+            double ss = 0.0;
+            for (int ii = 0; ii < gaussSize; ii++) {
+                ss += expTable[ii]*ringBuffer[rr];
+                rr = rr+1 == gaussSize ? 0 : rr+1;
+            }
+            sig[q] = ss/gaussSize;
         }
         new Info("filtering took ms: %d", System.currentTimeMillis() - tBegin);
         
@@ -236,16 +236,16 @@ public class CwBasicImpl extends DetectorBase {
         final double sa = signalAverage(fBest, clipLevel);
         new Debug("signal average clipped: %f", sa);
 
-		return new Signal(sig, fBest, clipLevel);
-	}
+        return new Signal(sig, fBest, clipLevel);
+    }
 
-	@Override
-	public void phasePlot(
-			double[] sig,
-			double level,
-			double[] flo,
-			double[] cei) throws IOException, InterruptedException {
-		
+    @Override
+    public void phasePlot(
+            double[] sig,
+            double level,
+            double[] flo,
+            double[] cei) throws IOException, InterruptedException {
+        
         final double[] cosSum = new double[nofSlices];
         final double[] sinSum = new double[nofSlices];
         final double[] wphi = new double[nofSlices];
@@ -257,7 +257,7 @@ public class CwBasicImpl extends DetectorBase {
             }
             
             // TODO, duplication, this code is also in DecoderBase
-            final double timeSeconds = (((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+            final double timeSeconds = w.secondsFromSliceIndex(q, framesPerSlice);
 
             final double angleOffset = Compute.TWO_PI*fBest*timeSeconds;
 
@@ -288,9 +288,7 @@ public class CwBasicImpl extends DetectorBase {
         
         for (int q = 0; q < wphi.length; q++) {
             
-         // TODO, duplication, this code is also in DecoderBase
-            final double seconds =
-            		(((double) q)*framesPerSlice + w.offsetFrames)/w.frameRate;
+            final double seconds = w.secondsFromSliceIndex(q, framesPerSlice);
 
             if (pEnt.plotBegin <= seconds && seconds <= pEnt.plotEnd) {
                 final double phase = wphi[q];
@@ -301,13 +299,13 @@ public class CwBasicImpl extends DetectorBase {
         }
         
         for (Map.Entry<Double, List<PlotEntryBase>> e : pEnt.entries.entrySet()) {
-        	final PlotEntryPhase p = (PlotEntryPhase) e.getValue().get(0);
-        	pcPhase.ps.println(String.format("%f %f", e.getKey(), p.phase));
+            final PlotEntryPhase p = (PlotEntryPhase) e.getValue().get(0);
+            pcPhase.ps.println(String.format("%f %f", e.getKey(), p.phase));
         }
         
         pcPhase.plot(new Mode[] {Mode.POINTS});
-	}
-	
+    }
+    
 
     /**
      * Estimate best frequency. Optionally produce a plot.

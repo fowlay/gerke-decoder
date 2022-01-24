@@ -7,22 +7,22 @@ import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public abstract class DetectorBase implements CwDetector {
-	
-	protected final Wav w;
-	protected final int framesPerSlice; // nof. frames in one slice
-	protected final int nofSlices;
-	protected final double tsLength;    // time slice is defined as this fraction of TU
-	protected final double tuMillis;    // length of a dot in milliseconds
+    
+    protected final Wav w;
+    protected final int framesPerSlice; // nof. frames in one slice
+    protected final int nofSlices;
+    protected final double tsLength;    // time slice is defined as this fraction of TU
+    protected final double tuMillis;    // length of a dot in milliseconds
 
-	protected DetectorBase(Wav w, int framesPerSlice, int nofSlices, double tsLength, double tuMillis) {
-		super();
-		this.w = w;
-		this.framesPerSlice = framesPerSlice;
-		this.nofSlices = nofSlices;
-		this.tsLength = tsLength;
-		this.tuMillis = tuMillis;
-	}
-	
+    protected DetectorBase(Wav w, int framesPerSlice, int nofSlices, double tsLength, double tuMillis) {
+        super();
+        this.w = w;
+        this.framesPerSlice = framesPerSlice;
+        this.nofSlices = nofSlices;
+        this.tsLength = tsLength;
+        this.tuMillis = tuMillis;
+    }
+    
     
 
     /**
@@ -35,12 +35,12 @@ public abstract class DetectorBase implements CwDetector {
             double floor,
             double ceiling,
             int decoder) {
-    	
-    	final double thr = GerkeDecoder.getThreshold(decoder);
+        
+        final double thr = GerkeDecoder.getThreshold(decoder);
         return floor + level*thr*(ceiling - floor);
     }
     
     public void frequencyStabilityPlot() throws IOException, InterruptedException {
-    	new Death("frequency stability plot not supported with this detector");
+        new Death("frequency stability plot not supported with this detector");
     }
 }

@@ -3,12 +3,12 @@ package st.foglo.gerke_decoder.decoder;
 import st.foglo.gerke_decoder.lib.Compute;
 
 public final class Node {
-	
-	public static final Node tree = new Node("", "");
-	
-	
-	
-	
+    
+    public static final Node tree = new Node("", "");
+    
+    
+    
+    
 
     final String code;
     public final String text;

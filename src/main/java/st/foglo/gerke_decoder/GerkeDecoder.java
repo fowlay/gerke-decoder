@@ -46,11 +46,11 @@ import st.foglo.gerke_decoder.plot.PlotEntrySigPlus;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
-	
+    
     static final double IGNORE = 0.0;
     
     private static final double[] TS_LENGTH =
-    		new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
+            new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
 
 
 
@@ -92,18 +92,18 @@ public final class GerkeDecoder {
     };
 
     static final String[] DECODER_NAME = new String[] {"",
-    		"tone/silence",
-    		"pattern matching",
-    		"dips finding",
-    		"least squares",
-    		"lsq2",
-    		"lsq2 plus"};
+            "tone/silence",
+            "pattern matching",
+            "dips finding",
+            "least squares",
+            "lsq2",
+            "lsq2 plus"};
     
     /**
      * Numeric decoder index 1..6 maps to these names. Do not reorder.
      */
     public enum DecoderIndex {
-    	ZERO,
+        ZERO,
         TONE_SILENCE,
         PATTERN_MATCHING,
         DIPS_FINDING,
@@ -113,8 +113,8 @@ public final class GerkeDecoder {
     };
     
     public enum DetectorIndex {
-    	BASIC_DETECTOR,
-    	ADAPTIVE_DETECTOR
+        BASIC_DETECTOR,
+        ADAPTIVE_DETECTOR
     }
 
     /**
@@ -298,12 +298,12 @@ new String[]{
         String.format("  -f FREQ            Audio frequency, bypassing search"),
         String.format("  -c CLIPLEVEL       Clipping level, optional"),
         String.format("  -D DECODER         1: %s, 2: %s, 3: %s, 4: %s, 5: %s, 6: %s, defaults to %s",
-        		DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()],
-        		DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()],
-        		DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()],
-        		DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()],
-        		DECODER_NAME[DecoderIndex.LSQ2.ordinal()],
-        		DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()],
+                DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()],
+                DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()],
+                DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()],
+                DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()],
+                DECODER_NAME[DecoderIndex.LSQ2.ordinal()],
+                DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()],
                 GerkeLib.getDefault(O_DECODER)),
         String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
 
@@ -431,45 +431,45 @@ new String[]{
             final double decoderThreshold = getThreshold(decoder);
             
             if (DecoderBase.getDetector(decoder) == DetectorIndex.ADAPTIVE_DETECTOR) {
-            	
-            	// warn if specified frequency .. not expected by this detector
-            	
-            	final double cohSizeGiven = GerkeLib.getDoubleOpt(O_COHSIZE);
-            	final int cohFactor = (int) Math.round(cohSizeGiven/tsLength);
-            	final int segFactor = (int) Math.round(
-            			GerkeLib.getDoubleOpt(O_SEGSIZE)*w.frameRate/
-            			(cohFactor*framesPerSlice));
-            	
-            	detector = new CwAdaptiveImpl(
-            			nofSlices,
-            			w,
-            			tuMillis,
-            			framesPerSlice,
-            			
-            			// TODO, parameter, 4 or 5 seems a reasonable value
-            			cohFactor,   
-            			
-            			// TODO, parameter, unclear if it is very critical
-            			segFactor,
-            			// while trying out, let the product of the two be about 500
-            			
-            			tsLength
-            			);
+                
+                // warn if specified frequency .. not expected by this detector
+                
+                final double cohSizeGiven = GerkeLib.getDoubleOpt(O_COHSIZE);
+                final int cohFactor = (int) Math.round(cohSizeGiven/tsLength);
+                final int segFactor = (int) Math.round(
+                        GerkeLib.getDoubleOpt(O_SEGSIZE)*w.frameRate/
+                        (cohFactor*framesPerSlice));
+                
+                detector = new CwAdaptiveImpl(
+                        nofSlices,
+                        w,
+                        tuMillis,
+                        framesPerSlice,
+                        
+                        // TODO, parameter, 4 or 5 seems a reasonable value
+                        cohFactor,   
+                        
+                        // TODO, parameter, unclear if it is very critical
+                        segFactor,
+                        // while trying out, let the product of the two be about 500
+                        
+                        tsLength
+                        );
             }
             else if (DecoderBase.getDetector(decoder) == DetectorIndex.BASIC_DETECTOR) {
-            	detector = new CwBasicImpl(
-            			decoder,
-            			decoderThreshold,
-            			nofSlices,
-            			w,
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			fSpecified
-            			);
+                detector = new CwBasicImpl(
+                        decoder,
+                        decoderThreshold,
+                        nofSlices,
+                        w,
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        fSpecified
+                        );
             }
             else {
-            	throw new RuntimeException();
+                throw new RuntimeException();
             }
             
 
@@ -479,12 +479,12 @@ new String[]{
             final int sigSize = signal.sig.length;
             
             if (detector instanceof CwAdaptiveImpl) {
-            	// diagnostic only
-            	((CwAdaptiveImpl)detector).trigTableReport();
+                // diagnostic only
+                ((CwAdaptiveImpl)detector).trigTableReport();
             }
             
             if (GerkeLib.getFlag(O_FSPLOT)) {
-            	detector.frequencyStabilityPlot();
+                detector.frequencyStabilityPlot();
             }
 
             if (sigSize != nofSlices) {
@@ -530,11 +530,11 @@ new String[]{
 
             if (GerkeLib.getFlag(O_PPLOT)) {
      
-            	detector.phasePlot(
-            			sig,
-            			level,
-            			flo,
-            			cei);
+                detector.phasePlot(
+                        sig,
+                        level,
+                        flo,
+                        cei);
             }
 
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
@@ -544,7 +544,7 @@ new String[]{
 
             if (plotEntries != null) {
                 for (int q = 0; q < sig.length; q++) {
-                    final double seconds = timeSeconds(q, framesPerSlice, w.frameRate, w.offsetFrames);
+                    final double seconds = w.secondsFromSliceIndex(q, framesPerSlice);
                     if (plotEntries.plotBegin <= seconds && seconds <= plotEntries.plotEnd) {
                         final double threshold = detector.threshold(level, flo[q], cei[q], decoder);
                         plotEntries.addAmplitudes(seconds, sig[q], threshold, cei[q], flo[q]);
@@ -555,131 +555,131 @@ new String[]{
             new Info("decoder: %s (%d)", DECODER_NAME[decoder], decoder);
             final Decoder dec;
             if (decoder == DecoderIndex.TONE_SILENCE.ordinal()) {
-            	dec = new ToneSilenceDecoder(
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            			plotEntries,
-            			formatter,
-            			
-//            			trans,
-//            			transIndex,
-            			ceilingMax,
-            			
-            			nofSlices,
-            			level,
-            			cei,
-            			flo
-            			
-            			);
-            	
+                dec = new ToneSilenceDecoder(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+//                        trans,
+//                        transIndex,
+                        ceilingMax,
+                        
+                        nofSlices,
+                        level,
+                        cei,
+                        flo
+                        
+                        );
+                
             }
 
             else if (decoder == DecoderIndex.PATTERN_MATCHING.ordinal()) {
-            	dec = new PatternMatchDecoder(
-            			
-        				tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            		    plotEntries,
-            			formatter,
-            			
-            			ceilingMax,
-//            			trans,
-//            			transIndex,
-            			level,
-            			
-            			nofSlices,
-            			cei,
-            			flo);
+                dec = new PatternMatchDecoder(
+                        
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+                        ceilingMax,
+//                        trans,
+//                        transIndex,
+                        level,
+                        
+                        nofSlices,
+                        cei,
+                        flo);
             }
 
             else if (decoder == DecoderIndex.DIPS_FINDING.ordinal()) {
-            	dec = new DipsFindingDecoder(
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            			plotEntries,
-            			formatter,
-            			
-            			ceilingMax,
-//            			trans,
-//            			transIndex,
-            			cei,
-            			flo,
-            			nofSlices,
-            			level
-            			);
+                dec = new DipsFindingDecoder(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+                        ceilingMax,
+//                        trans,
+//                        transIndex,
+                        cei,
+                        flo,
+                        nofSlices,
+                        level
+                        );
             }
 
             else if (decoder == DecoderIndex.LEAST_SQUARES.ordinal()) {
-            	dec = new LeastSquaresDecoder(
-            			
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            			plotEntries,
-            			formatter,
-            			
-            			sigSize,
-            			cei,
-            			flo,
-            			ceilingMax
-            			
-            			);
+                dec = new LeastSquaresDecoder(
+                        
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+                        sigSize,
+                        cei,
+                        flo,
+                        ceilingMax
+                        
+                        );
             }
             else if (decoder == DecoderIndex.LSQ2.ordinal()) {
-            	dec = new SlidingLineDecoder(
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            		    plotEntries,
-            			formatter,
-            			
-            			sigSize,
-            			cei,
-            			flo,
-            			level,
-            		    ceilingMax
-            			
-            			);
+                dec = new SlidingLineDecoder(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+                        sigSize,
+                        cei,
+                        flo,
+                        level,
+                        ceilingMax
+                        
+                        );
             }
             else if (decoder == DecoderIndex.LSQ2_PLUS.ordinal()) {
-            	dec = new SlidingLinePlus(
-            			tuMillis,
-            			framesPerSlice,
-            			tsLength,
-            			offset,
-            			w,
-            			sig,
-            		    plotEntries,
-            			formatter,
-            			
-            			sigSize,
-            			cei,
-            			flo,
-            			level,
-            		    ceilingMax
-            			
-            			);
+                dec = new SlidingLinePlus(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        formatter,
+                        
+                        sigSize,
+                        cei,
+                        flo,
+                        level,
+                        ceilingMax
+                        
+                        );
             }
             else {
-            	dec = null;
+                dec = null;
                 new Death("no such decoder: '%d'", decoder);
             }
             dec.execute();
@@ -705,12 +705,12 @@ new String[]{
                             digitizedSignal = ((PlotEntryDecode)peb).dec;
                         }
                         else if (peb instanceof PlotEntrySigPlus) {
-                        	signa = ((PlotEntrySigPlus)peb).sig;
+                            signa = ((PlotEntrySigPlus)peb).sig;
                             thresha = ((PlotEntrySigPlus)peb).threshold;
                             ceiling = ((PlotEntrySigPlus)peb).ceiling;
                             floor = ((PlotEntrySigPlus)peb).floor;
                             sigavg = ((PlotEntrySigPlus)peb).sigAvg;
-                        	
+                            
                         }
                         else if (peb instanceof PlotEntrySig) {
                             signa = ((PlotEntrySig)peb).sig;
@@ -721,42 +721,42 @@ new String[]{
                     }
 
                     if (hasSigPlus) {
-                    	pc.ps.println(String.format("%f %f %f %f %f %f %f",
-                    			e.getKey().doubleValue(),
-                    			signa,
-                    			sigavg,
-                    			thresha,
-                    			ceiling,
-                    			floor,
-                    			digitizedSignal));
+                        pc.ps.println(String.format("%f %f %f %f %f %f %f",
+                                e.getKey().doubleValue(),
+                                signa,
+                                sigavg,
+                                thresha,
+                                ceiling,
+                                floor,
+                                digitizedSignal));
                     }
                     else {
-                    	pc.ps.println(String.format("%f %f %f %f %f %f",
-                    			e.getKey().doubleValue(),
-                    			signa,
-                    			thresha,
-                    			ceiling,
-                    			floor,
-                    			digitizedSignal));
+                        pc.ps.println(String.format("%f %f %f %f %f %f",
+                                e.getKey().doubleValue(),
+                                signa,
+                                thresha,
+                                ceiling,
+                                floor,
+                                digitizedSignal));
                     }
                 }
 
                 if (hasSigPlus) {
-                	pc.plot(new Mode[] {
-                			Mode.LINES_PURPLE,
-                			Mode.LINES_RED,
-                			Mode.LINES_CYAN,
-                			Mode.LINES_GREEN,
-                			Mode.LINES_GREEN,
-                			Mode.LINES_CYAN});
+                    pc.plot(new Mode[] {
+                            Mode.LINES_PURPLE,
+                            Mode.LINES_RED,
+                            Mode.LINES_CYAN,
+                            Mode.LINES_GREEN,
+                            Mode.LINES_GREEN,
+                            Mode.LINES_CYAN});
                 }
                 else {
-                	pc.plot(new Mode[] {
-                			Mode.LINES_PURPLE,
-                			Mode.LINES_RED,
-                			Mode.LINES_GREEN,
-                			Mode.LINES_GREEN,
-                			Mode.LINES_CYAN});
+                    pc.plot(new Mode[] {
+                            Mode.LINES_PURPLE,
+                            Mode.LINES_RED,
+                            Mode.LINES_GREEN,
+                            Mode.LINES_GREEN,
+                            Mode.LINES_CYAN});
                 }
             }
 
@@ -772,43 +772,43 @@ new String[]{
      * @return
      */
     public static double getThreshold(int decoder) {
-	
-    	if (decoder == 1) {
-    		return ToneSilenceDecoder.THRESHOLD;
-    	}
-    	else if (decoder == 2) {
-    		return PatternMatchDecoder.THRESHOLD;
-    	}
-    	else if (decoder == 3) {
-    		return DipsFindingDecoder.THRESHOLD;
-    	}
-    	else if (decoder == 4) {
-    		return LeastSquaresDecoder.THRESHOLD;
-    	}
-    	else if (decoder == 5) {
-    		return SlidingLineDecoder.THRESHOLD;
-    	}
-    	else if (decoder == 6) {
-    		return SlidingLinePlus.THRESHOLD;
-    	}
-    	else {
-    		throw new RuntimeException();
-    	}
+    
+        if (decoder == 1) {
+            return ToneSilenceDecoder.THRESHOLD;
+        }
+        else if (decoder == 2) {
+            return PatternMatchDecoder.THRESHOLD;
+        }
+        else if (decoder == 3) {
+            return DipsFindingDecoder.THRESHOLD;
+        }
+        else if (decoder == 4) {
+            return LeastSquaresDecoder.THRESHOLD;
+        }
+        else if (decoder == 5) {
+            return SlidingLineDecoder.THRESHOLD;
+        }
+        else if (decoder == 6) {
+            return SlidingLinePlus.THRESHOLD;
+        }
+        else {
+            throw new RuntimeException();
+        }
 }
 
 
 
 
 
-	/**
-	 * Returns time in seconds, relative to beginning of wave file.
-	 * 
-	 * @param q
-	 * @param framesPerSlice
-	 * @param frameRate
-	 * @param offsetFrames
-	 * @return
-	 */
+    /**
+     * Returns time in seconds, relative to beginning of wave file.
+     * 
+     * @param q
+     * @param framesPerSlice
+     * @param frameRate
+     * @param offsetFrames
+     * @return
+     */
     public static double timeSeconds(int q, int framesPerSlice, int frameRate, int offsetFrames) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }

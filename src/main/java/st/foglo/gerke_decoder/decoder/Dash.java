@@ -17,63 +17,63 @@ public final class Dash extends ToneBase {
     }
 
     public Dash(
-    		int k,
-    		int jDot,
-    		int jDash,
-    		double sig[],
-    		double ceiling,
-    		boolean improve) {
-    	super(k,
-    			dashRise(k, sig, jDot, jDash, ceiling, improve),
-    			dashDrop(k, sig, jDot, jDash, ceiling, improve));
-    	this.ceiling = ceiling;
+            int k,
+            int jDot,
+            int jDash,
+            double sig[],
+            double ceiling,
+            boolean improve) {
+        super(k,
+                dashRise(k, sig, jDot, jDash, ceiling, improve),
+                dashDrop(k, sig, jDot, jDash, ceiling, improve));
+        this.ceiling = ceiling;
     }
 
 
     private static int dashRise(int k, double[] sig, int jDot, int jDash, double ceiling, boolean improve) {
 
-    	if (!improve) {
-    		return k - jDash;
-    	} 
-    	else {
-    		int bestRise;
-    		try {
-    			final double q = 0.5;
-    			final WeightBase w = new WeightDot(jDot);
-    			final TwoDoubles x = lsq(sig, k - jDash, jDot, w);
-    			final int jx = (int) Math.round((ceiling - q - x.a)/x.b);
-    			// new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
-    			final int jxAbs = jx < 0 ? -jx : jx;
-    			bestRise = jxAbs > 2*jDot ? k - jDash : k - jDash + jx;
-    		}
-    		catch (Exception e) {
-    			bestRise = k - jDash;
-    		}
+        if (!improve) {
+            return k - jDash;
+        } 
+        else {
+            int bestRise;
+            try {
+                final double q = 0.5;
+                final WeightBase w = new WeightDot(jDot);
+                final TwoDoubles x = lsq(sig, k - jDash, jDot, w);
+                final int jx = (int) Math.round((ceiling - q - x.a)/x.b);
+                // new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
+                final int jxAbs = jx < 0 ? -jx : jx;
+                bestRise = jxAbs > 2*jDot ? k - jDash : k - jDash + jx;
+            }
+            catch (Exception e) {
+                bestRise = k - jDash;
+            }
 
-    		return bestRise;
-    	}
+            return bestRise;
+        }
     }
-		
+        
 
     private static int dashDrop(int k, double[] sig, int jDot, int jDash, double ceiling, boolean improve) {
-    	if (!improve) {
-    		return k + jDash;
-    	} 
-    	else {
-    		int bestDrop;
-    		try {
-    			final double q = 0.5;
-    			final WeightBase w = new WeightDot(jDot);
-    			TwoDoubles y = lsq(sig, k + jDash, jDot, w);
-    			final int jy = (int) Math.round((ceiling - q - y.a)/y.b);
-    			// new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
-    			final int jyAbs = jy < 0 ? -jy : jy;
-    			bestDrop = jyAbs > 2*jDot ? k + jDash : k + jDash + jy;
-    		}
-    		catch (Exception e) {
-    			bestDrop = k + jDash;
-    		}
-    		return bestDrop;
-    	}
+        if (!improve) {
+            return k + jDash;
+        } 
+        else {
+            int bestDrop;
+            try {
+                final double q = 0.5;
+                final WeightBase w = new WeightDot(jDot);
+                TwoDoubles y = lsq(sig, k + jDash, jDot, w);
+                final int jy = (int) Math.round((ceiling - q - y.a)/y.b);
+                // new Debug("jDash: %d, jx: %d, jy: %d", jDash, jx, jy);
+                final int jyAbs = jy < 0 ? -jy : jy;
+                bestDrop = jyAbs > 2*jDot ? k + jDash : k + jDash + jy;
+            }
+            catch (Exception e) {
+                bestDrop = k + jDash;
+            }
+            return bestDrop;
+        }
     }
 }

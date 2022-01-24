@@ -33,7 +33,7 @@ public final class CharData {
     }
     
     public Trans getLastAdded() {
-    	return lastAdded;
+        return lastAdded;
     }
 
 }

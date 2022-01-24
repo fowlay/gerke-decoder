@@ -9,10 +9,10 @@ import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.lib.Compute;
 
 public final class CharTemplate {
-	
-	public static Map<Integer, List<CharTemplate>> templs =
-			new TreeMap<Integer, List<CharTemplate>>();
-	
+    
+    public static Map<Integer, List<CharTemplate>> templs =
+            new TreeMap<Integer, List<CharTemplate>>();
+    
     public static final int HI = 10;
     public static final int LO = -35;
     

@@ -31,61 +31,61 @@ import st.foglo.gerke_decoder.wave.Wav;
  */
 public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
-	public static final double THRESHOLD = 0.524;
-	
-	final int sigSize;
-	
-	final class Cluster {
-	    final Integer lowestKey;
-	    final List<Integer> members = new ArrayList<Integer>();
+    public static final double THRESHOLD = 0.524;
+    
+    final int sigSize;
+    
+    final class Cluster {
+        final Integer lowestKey;
+        final List<Integer> members = new ArrayList<Integer>();
 
-	    Cluster(Integer a) {
-	        lowestKey = a;
-	        members.add(a);
-	    }
+        Cluster(Integer a) {
+            lowestKey = a;
+            members.add(a);
+        }
 
-	    void add(Integer b) {
-	        members.add(b);
-	    }
-	}
-	
-	public LeastSquaresDecoder(
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int offset,
-			Wav w,
-			double[] sig,
-			PlotEntries plotEntries,
-			Formatter formatter,
-			
-			int sigSize,
-			double[] cei,
-			double[] flo,
-			double ceilingMax
-			
-			
-			) {
-		super(
-				tuMillis,
-				framesPerSlice,
-				tsLength,
-				offset,
-				w,
-				sig,
-				plotEntries,
-				formatter,
-				cei,
-				flo,
-				ceilingMax,THRESHOLD
-				);
-		this.sigSize = sigSize;
-	};
-	
-	@Override
-	public void execute() {
-		
-    	final int decoder = DecoderIndex.LEAST_SQUARES.ordinal();
+        void add(Integer b) {
+            members.add(b);
+        }
+    }
+    
+    public LeastSquaresDecoder(
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            Formatter formatter,
+            
+            int sigSize,
+            double[] cei,
+            double[] flo,
+            double ceilingMax
+            
+            
+            ) {
+        super(
+                tuMillis,
+                framesPerSlice,
+                tsLength,
+                offset,
+                w,
+                sig,
+                plotEntries,
+                formatter,
+                cei,
+                flo,
+                ceilingMax,THRESHOLD
+                );
+        this.sigSize = sigSize;
+    };
+    
+    @Override
+    public void execute() {
+        
+        final int decoder = DecoderIndex.LEAST_SQUARES.ordinal();
 
         final double level = GerkeLib.getDoubleOpt(GerkeDecoder.O_LEVEL);
 
@@ -119,7 +119,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         //final WeightBase w2 = new WeightTwoDots(jDash);
         //double prevB = Double.MAX_VALUE;
         
-    	final int reductionDot = (int) Math.round(80.0*jDot/100);
+        final int reductionDot = (int) Math.round(80.0*jDot/100);
 
         // scan for candidate dashes
         TwoDoubles prevD = new TwoDoubles(0.0, Double.MAX_VALUE);
@@ -128,46 +128,46 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             final TwoDoubles r = lsq(sig, k, jDash, wDash);
 
             if (prevD.b >= 0.0 && r.b < 0.0) {
-            	// just passed a maximum
+                // just passed a maximum
 
                 final int kBest;
                 //final double ampRange;
                 final double dashStrength;
                 
                 if (prevD.b > -r.b) {
-                	// slope was greater at previous k
-                	kBest = k;
-                	//ampRange = cei[kBest] - flo[kBest];
-                	dashStrength = relStrength(r.a, cei[kBest], flo[kBest]);
+                    // slope was greater at previous k
+                    kBest = k;
+                    //ampRange = cei[kBest] - flo[kBest];
+                    dashStrength = relStrength(r.a, cei[kBest], flo[kBest]);
                 } 
                 else {
-                	// slope is greater at this k
-                	kBest = k-1;
-                	//ampRange = cei[kBest] - flo[kBest];
-                	dashStrength = relStrength(prevD.a, cei[kBest], flo[kBest]);
+                    // slope is greater at this k
+                    kBest = k-1;
+                    //ampRange = cei[kBest] - flo[kBest];
+                    dashStrength = relStrength(prevD.a, cei[kBest], flo[kBest]);
                 }
 
                 if (dashStrength > dashStrengthLimit) {
-                	
+                    
                     final TwoDoubles aa = lsq(sig, kBest-2*jDot, jDot, wDot);
                     final TwoDoubles bb = lsq(sig, kBest, jDot, wDot);
                     final TwoDoubles cc = lsq(sig, kBest+2*jDot, jDot, wDot);
-                	
+                    
                     // protect against dip in the middle
-                	if (bb.a > middleDipLimit*(aa.a + cc.a)/2) {
-                		
-                    	try {
-                    		// index out of bounds can happen, hence try
-                    		// use an average over aa, bb, cc
-                    		dashes.put(Integer.valueOf(kBest),
-                    				new Dash(
-                    						kBest, jDot, jDash, sig,
-                    						r.a, true));
-                    	}
-                    	catch (Exception e) {
-                    		new Info("cannot create dash, k: %d", kBest);
-                    	}
-                	}
+                    if (bb.a > middleDipLimit*(aa.a + cc.a)/2) {
+                        
+                        try {
+                            // index out of bounds can happen, hence try
+                            // use an average over aa, bb, cc
+                            dashes.put(Integer.valueOf(kBest),
+                                    new Dash(
+                                            kBest, jDot, jDash, sig,
+                                            r.a, true));
+                        }
+                        catch (Exception e) {
+                            new Info("cannot create dash, k: %d", kBest);
+                        }
+                    }
                 } 
             }
             prevD = r;
@@ -191,27 +191,27 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             //new Info("%10f %10f", r.a, r.b);
             if (prevDot.b >= 0.0 && r.b < 0.0) {
 
-            	final int kBest;
-            	final double a;
-            	if (prevDot.b > -r.b) {
-            		kBest = k;
-            		a = r.a;
-            		
-            	}
-            	else {
-            		kBest = k-1;
-            		a = prevDot.a;
-            	}
+                final int kBest;
+                final double a;
+                if (prevDot.b > -r.b) {
+                    kBest = k;
+                    a = r.a;
+                    
+                }
+                else {
+                    kBest = k-1;
+                    a = prevDot.a;
+                }
 
                 final double dotStrength = relStrength(a, cei[kBest], flo[kBest]); 
 
                 if (dotStrength > dotStrengthLimit) {
-                	
+                    
                     final TwoDoubles u1 = lsq(sig, kBest - 2*jDot, jDot, wDot);
                     final TwoDoubles u2 = lsq(sig, kBest + 2*jDot, jDot, wDot);
                     
                     if (a/u1.a > dotPeakCrit && a/u2.a > dotPeakCrit) {
-                    	dots.put(Integer.valueOf(kBest), new Dot(kBest, kBest - jDot, kBest + jDot));
+                        dots.put(Integer.valueOf(kBest), new Dot(kBest, kBest - jDot, kBest + jDot));
                     }
                 }
             }
@@ -260,28 +260,28 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         Integer prevKey = null;
         for (Integer key : dashes.navigableKeySet()) {
 
-        	if (prevKey == null) {
-        		qCharBegin = lsqToneBegin(key, dashes, jDot);
-        	}
+            if (prevKey == null) {
+                qCharBegin = lsqToneBegin(key, dashes, jDot);
+            }
 
 
-        	
-        	
-        	if (prevKey == null) {
-				final ToneBase tb = dashes.get(key);
-				p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-				lsqPlotHelper(key, tb, jDot);
+            
+            
+            if (prevKey == null) {
+                final ToneBase tb = dashes.get(key);
+                p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+                lsqPlotHelper(key, tb, jDot);
 
-        	}
-        	else if (prevKey != null) {
-        		
-        		final int toneDistSlices =
-        				toneDist(prevKey, key, dashes, jDash, jDot, reductionDot);
-        		
+            }
+            else if (prevKey != null) {
+                
+                final int toneDistSlices =
+                        toneDist(prevKey, key, dashes, jDash, jDot, reductionDot);
+                
                 if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength) {
-                	
-                	//formatter.add(true, p.text, -1);
-                	final int ts =
+                    
+                    //formatter.add(true, p.text, -1);
+                    final int ts =
                             GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS) ?
                             offset + (int) Math.round(key*tsLength*tuMillis/1000) : -1;
                     formatter.add(true, p.text, ts);
@@ -292,10 +292,10 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     p = Node.tree;
                     final ToneBase tb = dashes.get(key);
                     if (tb instanceof Dash) {
-                    	p = p.newNode("-");
+                        p = p.newNode("-");
                     }
                     else {
-                    	p = p.newNode(".");
+                        p = p.newNode(".");
                     }
                     wpm.chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, dashes, jDot);
@@ -311,21 +311,21 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     p = Node.tree;
                     final ToneBase tb = dashes.get(key);
                     if (tb instanceof Dash) {
-                    	p = p.newNode("-");
+                        p = p.newNode("-");
                     }
                     else {
-                    	p = p.newNode(".");
+                        p = p.newNode(".");
                     }
                     wpm.chTicks += lsqToneEnd(prevKey, dashes, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, dashes, jDot);
                     lsqPlotHelper(key, tb, jDot);
                 }
                 else {
-                	final ToneBase tb = dashes.get(key);
-                	p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-                	lsqPlotHelper(key, tb, jDot);
+                    final ToneBase tb = dashes.get(key);
+                    p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
+                    lsqPlotHelper(key, tb, jDot);
                 }
-        	}
+            }
 
             prevKey = key;
         }
@@ -339,8 +339,8 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
         wpm.report();
 
-	}
-	
+    }
+    
     /**
      * It is trusted that 'tones' is dashes-only or dots-only
      * 
@@ -379,17 +379,17 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 double sumCeiling = 0.0;
 
                 for (Integer kk : c.members) {
-                	
-                	final ToneBase tone = tones.get(kk);
-                	if (tone instanceof Dot) {
-                		isDot = true;
-                	}
-                	else {
-                		final Dash dash = ((Dash) tone);
-                		minRise += Compute.iMin(minRise, dash.rise);
-                		maxDrop += Compute.iMax(maxDrop, dash.drop);
-                		sumCeiling += dash.ceiling;
-                	}
+                    
+                    final ToneBase tone = tones.get(kk);
+                    if (tone instanceof Dot) {
+                        isDot = true;
+                    }
+                    else {
+                        final Dash dash = ((Dash) tone);
+                        minRise += Compute.iMin(minRise, dash.rise);
+                        maxDrop += Compute.iMax(maxDrop, dash.drop);
+                        sumCeiling += dash.ceiling;
+                    }
 
                     tones.remove(kk);
                     kSum += kk.intValue();
@@ -397,22 +397,22 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 final int newK = (int) Math.round(((double) kSum)/c.members.size());
                 
                 if (isDot) {
-                	tones.put(Integer.valueOf(newK), new Dot(newK, newK - jDot, newK + jDot));
+                    tones.put(Integer.valueOf(newK), new Dot(newK, newK - jDot, newK + jDot));
                 }
                 else {
-                	tones.put(Integer.valueOf(newK),
-                			new Dash(newK,
-                					minRise,
-                					maxDrop,
-                					sig,
-                					sumCeiling/c.members.size(), false));
+                    tones.put(Integer.valueOf(newK),
+                            new Dash(newK,
+                                    minRise,
+                                    maxDrop,
+                                    sig,
+                                    sumCeiling/c.members.size(), false));
                 }
             }
         }
     }
 
     private double relStrength(double x, double ceiling, double floor) {
-    	return (x - floor)/(ceiling - floor);
+        return (x - floor)/(ceiling - floor);
     }
     
     private int toneDist(
@@ -429,17 +429,17 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         int reduction = 0;
 
         if (t1 instanceof Dot) {
-        	reduction += reductionDot;
+            reduction += reductionDot;
         }
         else if (t1 instanceof Dash) {
-        	reduction += ((Dash) t1).drop - ((Dash) t1).k;
+            reduction += ((Dash) t1).drop - ((Dash) t1).k;
         }
         
         if (t2 instanceof Dot) {
-        	reduction += reductionDot;
+            reduction += reductionDot;
         }
         else if (t2 instanceof Dash) {
-        	reduction += ((Dash) t2).k - ((Dash) t2).rise;
+            reduction += ((Dash) t2).k - ((Dash) t2).rise;
         }
 
         return k2 - k1 - reduction;

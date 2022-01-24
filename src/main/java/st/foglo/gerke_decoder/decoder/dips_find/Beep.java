@@ -5,9 +5,9 @@ package st.foglo.gerke_decoder.decoder.dips_find;
  */
 public final class Beep {
 
-	public final int extent;
+    public final int extent;
 
-	public Beep(int extent) {
-		this.extent = extent;
-	}
+    public Beep(int extent) {
+        this.extent = extent;
+    }
 }

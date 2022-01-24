@@ -8,7 +8,7 @@ public final class DipByStrength extends Dip {
     }
 
     @Override
-	public int compareTo(Dip o) {
+    public int compareTo(Dip o) {
         // strongest elements at beginning of set
         return this.strength < o.strength ? 1 : this.strength == o.strength ? 0 : -1;
     }

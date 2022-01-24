@@ -11,10 +11,10 @@ public class PlotEntrySig extends PlotEntryBase {
     public final double floor;
 
     public PlotEntrySig(
-    		double sig,
-    		double threshold,
-    		double ceiling,
-    		double floor) {
+            double sig,
+            double threshold,
+            double ceiling,
+            double floor) {
         this.sig = sig;
         this.threshold = threshold;
         this.ceiling = ceiling;

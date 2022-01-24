@@ -1,7 +1,7 @@
 package st.foglo.gerke_decoder.decoder;
 
 public final class TwoDoubles {
-	
+    
     public final double a;
     public final double b;
     

@@ -13,79 +13,79 @@ import st.foglo.gerke_decoder.wave.Wav;
 
 public final class ToneSilenceDecoder extends DecoderBase {
 
-	public static final double THRESHOLD = 0.524;
+    public static final double THRESHOLD = 0.524;
 
-	final Trans[] trans;
-	final int transIndex;
-	
-	
-	final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
-	final int wordSpaceLimit =
-			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-	
-	final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-	
-	final int dashLimit = (int) Math.round(GerkeDecoder.DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
+    final Trans[] trans;
+    final int transIndex;
+    
+    
+    final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
+    final int wordSpaceLimit =
+            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    
+    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    
+    final int dashLimit = (int) Math.round(GerkeDecoder.DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
     
 
-	
-	public ToneSilenceDecoder(
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int offset,
-			Wav w,
-			double[] sig,
-			PlotEntries plotEntries,
-			Formatter formatter,
-			
-			double ceilingMax,
-			int nofSlices,
-			double level,
-			double[] cei,
-			double[] flo
-			) {
-		super(
-				tuMillis,
-    			framesPerSlice,
-    			tsLength,
-    			offset,
-    			w,
-    			sig,
-    		    plotEntries,
-    			formatter,
-    			cei,
-    			flo,
-    			ceilingMax,
-    			THRESHOLD
-				);
-		
-		this.trans = findTransitions(
-//				tuMillis, 
-//				tsLength, 
-				nofSlices, 
-//				framesPerSlice, 
-//				w, 
-				GerkeDecoder.DecoderIndex.TONE_SILENCE.ordinal(),
-				level, 
-//				sig, 
-//				cei, 
-				flo);
-		this.transIndex = trans.length;
-		
-		
-	}
+    
+    public ToneSilenceDecoder(
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            Formatter formatter,
+            
+            double ceilingMax,
+            int nofSlices,
+            double level,
+            double[] cei,
+            double[] flo
+            ) {
+        super(
+                tuMillis,
+                framesPerSlice,
+                tsLength,
+                offset,
+                w,
+                sig,
+                plotEntries,
+                formatter,
+                cei,
+                flo,
+                ceilingMax,
+                THRESHOLD
+                );
+        
+        this.trans = findTransitions(
+//                tuMillis, 
+//                tsLength, 
+                nofSlices, 
+//                framesPerSlice, 
+//                w, 
+                GerkeDecoder.DecoderIndex.TONE_SILENCE.ordinal(),
+                level, 
+//                sig, 
+//                cei, 
+                flo);
+        this.transIndex = trans.length;
+        
+        
+    }
 
-	@Override
-	public void execute() throws Exception {
-		
+    @Override
+    public void execute() throws Exception {
+        
         if (plotEntries != null) {
 
             boolean firstLap = true;
             for (int t = 0; t < transIndex; t++) {
 
-                final double sec = timeSeconds(trans[t].q);
-
+                final double sec = w.secondsFromSliceIndex(trans[t].q, framesPerSlice);
+                
                 if (plotEntries.plotBegin <= sec && sec <= plotEntries.plotEnd) {
                     plotEntries.addDecoded(sec, (trans[t].rise ? 2 : 1)*ceilingMax/20);
                 }
@@ -174,6 +174,6 @@ public final class ToneSilenceDecoder extends DecoderBase {
         }
 
         wpm.report();
-	}
+    }
 
 }

@@ -26,7 +26,7 @@ public final class Wav {
 
     public final int frameRate;          // frames/s
     private final int offset;            // offset (s)
-    public final int offsetFrames;       // offset as nof. frames
+    private final int offsetFrames;      // offset as nof. frames
     public final int length;             // length (s)
     public final short[] wav;            // signal values
     public final int nofFrames;          // nof. frames == length of wav
@@ -36,17 +36,18 @@ public final class Wav {
         if (GerkeLib.nofArguments() != 1) {
             new GerkeLib.Death("expecting one filename argument, try -h for help");
         }
-        file = GerkeLib.getArgument(0);
+        this.file = GerkeLib.getArgument(0);
 
-        ais = AudioSystem.getAudioInputStream(new File(file));
-        af = ais.getFormat();
+        this.ais = AudioSystem.getAudioInputStream(new File(file));
+        this.af = ais.getFormat();
         new Info("audio format: %s", af.toString());
 
-        frameRate = Math.round(af.getFrameRate());
+        this.frameRate = Math.round(af.getFrameRate());
         new Info("frame rate: %d", frameRate);
 
         final int nch = af.getChannels();  // needed in reading, localize?
         new Info("nof. channels: %d", nch);
+        
         final int bpf = af.getFrameSize();
         if (bpf == AudioSystem.NOT_SPECIFIED) {
             new Death("bytes per frame is NOT SPECIFIED");
@@ -59,30 +60,27 @@ public final class Wav {
         }
 
 
-        frameLength = ais.getFrameLength();
+        this.frameLength = ais.getFrameLength();
         new Info(".wav file length: %.1f s", (double)frameLength/frameRate);
         new Info("nof. frames: %d", frameLength);
 
         // find out nof frames to go in array
 
-        offset = GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET);
-        length = GerkeLib.getIntOpt(GerkeDecoder.O_LENGTH);
+        this.offset = GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET);
+        this.length = GerkeLib.getIntOpt(GerkeDecoder.O_LENGTH);
 
         if (offset < 0) {
             new Death("offset cannot be negative");
         }
 
-        offsetFrames = offset*frameRate;
-
-        final int offsetFrames = GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET)*frameRate;
-        nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
+        this.offsetFrames = offset*frameRate;
+        this.nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
 
         if (nofFrames < 0) {
             new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);
         }
 
-
-        wav = new short[nofFrames];
+        this.wav = new short[nofFrames];
 
         int frameCount = 0;
 
@@ -143,5 +141,9 @@ public final class Wav {
             new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);
         }
         ais.close();
+    }
+    
+    public double secondsFromSliceIndex(int q, int framesPerSlice) {
+        return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }
 }

@@ -23,68 +23,68 @@ import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class DipsFindingDecoder extends DecoderBase {
-	
-	public static final double THRESHOLD = 0.524;
+    
+    public static final double THRESHOLD = 0.524;
 
-	final Trans[] trans;
-	final int transIndex;
-	
-	final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
-	final int wordSpaceLimit =
-			(int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-	
-	final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    final Trans[] trans;
+    final int transIndex;
+    
+    final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
+    final int wordSpaceLimit =
+            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    
+    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
-	public DipsFindingDecoder(
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int offset,
-			Wav w,
-			double[] sig,
-			PlotEntries plotEntries,
-			Formatter formatter,
-			
-			double ceilingMax,
-//			Trans[] trans,
-//			int transIndex,
-			double[] cei,
-			double[] flo,
-			int nofSlices,
-			double level
-			) {
-		super(
-				tuMillis,
-    			framesPerSlice,
-    			tsLength,
-    			offset,
-    			w,
-    			sig,
-    		    plotEntries,
-    			formatter,
-    			cei,
-    			flo,
-    			ceilingMax,
-    			THRESHOLD
-				);
-		
-		this.trans = findTransitions(
-//				tuMillis,
-//				tsLength,
-				nofSlices,
-//				framesPerSlice,
-//				w,
-				decoder,
-				level,
-//				sig,
-//				cei,
-				flo);
-		this.transIndex = trans.length;
-		
-	}
+    public DipsFindingDecoder(
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            Formatter formatter,
+            
+            double ceilingMax,
+//            Trans[] trans,
+//            int transIndex,
+            double[] cei,
+            double[] flo,
+            int nofSlices,
+            double level
+            ) {
+        super(
+                tuMillis,
+                framesPerSlice,
+                tsLength,
+                offset,
+                w,
+                sig,
+                plotEntries,
+                formatter,
+                cei,
+                flo,
+                ceilingMax,
+                THRESHOLD
+                );
+        
+        this.trans = findTransitions(
+//                tuMillis,
+//                tsLength,
+                nofSlices,
+//                framesPerSlice,
+//                w,
+                decoder,
+                level,
+//                sig,
+//                cei,
+                flo);
+        this.transIndex = trans.length;
+        
+    }
 
-	@Override
-	public void execute() throws IOException, InterruptedException {
+    @Override
+    public void execute() throws IOException, InterruptedException {
 
         /**
 -        * Merge dips when closer than this distance. Unit is TUs.
@@ -100,7 +100,7 @@ public final class DipsFindingDecoder extends DecoderBase {
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
             plotEntries.addDecoded(
-            		plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
+                    plotEntries.plotBegin, PlotEntryDecode.height*ceilingMax);
         }
 
         int charNo = 0;
@@ -183,17 +183,17 @@ private void decodeGapChar(
         double ceilingMax) throws IOException, InterruptedException {
 
     final boolean inView = plotEntries != null &&
-            timeSeconds(q1) >= plotEntries.plotBegin &&
-            timeSeconds(q2) <= plotEntries.plotEnd;
+            w.secondsFromSliceIndex(q1, framesPerSlice) >= plotEntries.plotBegin &&
+            w.secondsFromSliceIndex(q2, framesPerSlice) <= plotEntries.plotEnd;
 
     final double decodeLo = ceilingMax*PlotEntryDecode.height;
     final double decodeHi = ceilingMax*2*PlotEntryDecode.height;
 
     if (inView) {
-        plotEntries.addDecoded(timeSeconds(q1), decodeLo);
-        plotEntries.addDecoded(timeSeconds(q1+1), decodeHi);
-        plotEntries.addDecoded(timeSeconds(q2-1), decodeHi);
-        plotEntries.addDecoded(timeSeconds(q2), decodeLo);
+        plotEntries.addDecoded(w.secondsFromSliceIndex(q1, framesPerSlice), decodeLo);
+        plotEntries.addDecoded(w.secondsFromSliceIndex(q1+1, framesPerSlice), decodeHi);
+        plotEntries.addDecoded(w.secondsFromSliceIndex(q2-1, framesPerSlice), decodeHi);
+        plotEntries.addDecoded(w.secondsFromSliceIndex(q2, framesPerSlice), decodeLo);
     }
 
     final int halfTu = (int) Math.round(1.0/(2*tau));
@@ -264,10 +264,10 @@ private void decodeGapChar(
         count++;
 
         if (inView && d.strength < 9999.8) {
-            plotEntries.addDecoded(timeSeconds(d.q - halfTu), decodeHi);
-            plotEntries.addDecoded(timeSeconds(d.q - halfTu + 1), decodeLo);
-            plotEntries.addDecoded(timeSeconds(d.q + halfTu - 1), decodeLo);
-            plotEntries.addDecoded(timeSeconds(d.q + halfTu), decodeHi);
+            plotEntries.addDecoded(w.secondsFromSliceIndex(d.q - halfTu, framesPerSlice), decodeHi);
+            plotEntries.addDecoded(w.secondsFromSliceIndex(d.q - halfTu + 1, framesPerSlice), decodeLo);
+            plotEntries.addDecoded(w.secondsFromSliceIndex(d.q + halfTu - 1, framesPerSlice), decodeLo);
+            plotEntries.addDecoded(w.secondsFromSliceIndex(d.q + halfTu, framesPerSlice), decodeHi);
         }
     }
 

@@ -19,90 +19,90 @@ import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLinePlus extends DecoderBase {
-	
-	/**
-	 * Unit is TU.
-	 */
-	public static final double TS_LENGTH = 0.06;
-	
-	public static final double THRESHOLD = 0.55; // 0.524*0.9;
-	
-	/**
-	 * If the amplitude at a crack doesn't drop more than this,
-	 * the crack can be ignored.
-	 */
-	private static final double crackDipLimit = 0.5;
-	
-	
-	/**
-	 * If the relative amplitude of a spike is not more than this
-	 * then it can be ignored.
-	 */
-	private static final double spikeLimit = 0.548;
-	
-	/**
-	 * Maximum width of a spike; unit is TU
-	 */
-	private static final double spikeWidth = 0.35;
+    
+    /**
+     * Unit is TU.
+     */
+    public static final double TS_LENGTH = 0.06;
+    
+    public static final double THRESHOLD = 0.55; // 0.524*0.9;
+    
+    /**
+     * If the amplitude at a crack doesn't drop more than this,
+     * the crack can be ignored.
+     */
+    private static final double crackDipLimit = 0.5;
+    
+    
+    /**
+     * If the relative amplitude of a spike is not more than this
+     * then it can be ignored.
+     */
+    private static final double spikeLimit = 0.548;
+    
+    /**
+     * Maximum width of a spike; unit is TU
+     */
+    private static final double spikeWidth = 0.35;
 
-	/**
-	 * Maximum width of a crack; unit is TU
-	 */
-	private static final double crackWidth = 0.33;
-	
-	final int sigSize;
-	
-	final double level;
-	
-	/**
-	 * Half-width of the sliding line, expressed as nof. slices
-	 * PARAMETER 0.40
-	 * 
-	 * This parameter is quite sensitive!
-	 */
-	final int halfWidth = (int) Math.round( ((double)7/8) *  0.40/tsLength);
+    /**
+     * Maximum width of a crack; unit is TU
+     */
+    private static final double crackWidth = 0.33;
+    
+    final int sigSize;
+    
+    final double level;
+    
+    /**
+     * Half-width of the sliding line, expressed as nof. slices
+     * PARAMETER 0.40
+     * 
+     * This parameter is quite sensitive!
+     */
+    final int halfWidth = (int) Math.round( ((double)7/8) *  0.40/tsLength);
 
-	public SlidingLinePlus(
-			double tuMillis,
-			int framesPerSlice,
-			double tsLength,
-			int offset,
-			Wav w,
-			double[] sig,
-			PlotEntries plotEntries,
-			Formatter formatter,
-			
-			int sigSize,
-			double[] cei,
-			double[] flo,
-			double level,
-			double ceilingMax
-			) {
-		super(
-				tuMillis,
-    			framesPerSlice,
-    			tsLength,
-    			offset,
-    			w,
-    			sig,
-    		    plotEntries,
-    			formatter,
-    			cei,
-    			flo,
-    			ceilingMax,
-    			THRESHOLD
-				);
-		
-		this.sigSize = sigSize;
-		this.level = level;
-	}
-	
-	private enum States {LOW, M_HIGH, HIGH, M_LOW};
+    public SlidingLinePlus(
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            Formatter formatter,
+            
+            int sigSize,
+            double[] cei,
+            double[] flo,
+            double level,
+            double ceilingMax
+            ) {
+        super(
+                tuMillis,
+                framesPerSlice,
+                tsLength,
+                offset,
+                w,
+                sig,
+                plotEntries,
+                formatter,
+                cei,
+                flo,
+                ceilingMax,
+                THRESHOLD
+                );
+        
+        this.sigSize = sigSize;
+        this.level = level;
+    }
+    
+    private enum States {LOW, M_HIGH, HIGH, M_LOW};
 
-	@Override
-	public void execute() {
+    @Override
+    public void execute() {
 
-    	final int decoder = DecoderIndex.LSQ2_PLUS.ordinal();
+        final int decoder = DecoderIndex.LSQ2_PLUS.ordinal();
 
         final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
 
@@ -115,122 +115,122 @@ public final class SlidingLinePlus extends DecoderBase {
 
         States state = States.LOW;
 
-    	int kRaise = 0;
-    	int kDrop = 0;
-    	double accSpike = 0.0;        // accumulate squared actual signal
-    	double nominalSpike = 0.0;    // accumulate squared possible full signal
-    	
-    	double accCrack = 0.0;        // accumulate squared actual signal
-    	double nominalCrack = 0.0;    // accumulate squared possible full signal
-    	
-    	// PARA 0.25
-    	int maxSpike = (int) Math.round(spikeWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
-    	int maxCrack = (int) Math.round(crackWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
-    	new Debug("max nof. slices in spike: %d", maxSpike);
-    	new Debug("max nof. slices in crack: %d", maxCrack);
+        int kRaise = 0;
+        int kDrop = 0;
+        double accSpike = 0.0;        // accumulate squared actual signal
+        double nominalSpike = 0.0;    // accumulate squared possible full signal
+        
+        double accCrack = 0.0;        // accumulate squared actual signal
+        double nominalCrack = 0.0;    // accumulate squared possible full signal
+        
+        // PARA 0.25
+        int maxSpike = (int) Math.round(spikeWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+        int maxCrack = (int) Math.round(crackWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
+        new Debug("max nof. slices in spike: %d", maxSpike);
+        new Debug("max nof. slices in crack: %d", maxCrack);
 
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-        	
-        	final double thr = threshold(decoder, level, flo[k], cei[k]);
-        	final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
+            
+            final double thr = threshold(decoder, level, flo[k], cei[k]);
+            final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
 
-        	final boolean high = r.a > thr;
-        	final boolean low = !high;
-        	
-        	final double tSec = timeSeconds(k);
-        	if (plotEntries != null) {
-        		plotEntries.updateAmplitudes(tSec, r.a);
-        	}
+            final boolean high = r.a > thr;
+            final boolean low = !high;
+            
+            final double tSec = w.secondsFromSliceIndex(k, framesPerSlice);
+            if (plotEntries != null) {
+                plotEntries.updateAmplitudes(tSec, r.a);
+            }
 
-        	if (state == States.LOW) {
-        		if (low) {
-        			continue;
-        		}
-        		else if (high) {
-        			kRaise = k;
-        			accSpike = Compute.squared(r.a - flo[k]);
-        			nominalSpike = Compute.squared(cei[k] - flo[k]);
-        			state = States.M_HIGH;
-        		}
-        	}
-        	else if (state == States.M_HIGH) {
-        		if (low) {
-        			// thin spike gets ignored
-        			state = States.LOW;
-        		}
-        		else if (high) {
-        			if (k - kRaise >= maxSpike) {
-        				state = States.HIGH;
-        			}
-    				accSpike += Compute.squared(r.a - flo[k]);
-    				nominalSpike += Compute.squared(cei[k] - flo[k]);
-        		}
-        	}
-        	else if (state == States.HIGH) {
-        		if (low) {
-        			kDrop = k;
-        			state = States.M_LOW;
-        			accCrack = Compute.squared(r.a - flo[k]);
-        			nominalCrack = Compute.squared(cei[k] - flo[k]);
-        		}
-        		else if (high) {
-    				accSpike += Compute.squared(r.a - flo[k]);
-    				nominalSpike += Compute.squared(cei[k] - flo[k]);
-        		}
-        	}
-        	else if (state == States.M_LOW) {
-        		if (low) {
-        			if (k - kDrop >= maxCrack) {
-        				state = States.LOW;
-						final boolean createDot =
-								(kDrop - kRaise)*tsLength <
-								GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
-						if (accSpike/nominalSpike < Compute.squared(spikeLimit)) {
-							// reject a tone with too little energy
-							continue;
-						}
-						else {
-							final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
-							if (createDot) {
-								tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
-							} else {
-								tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
-							}
-						}
-        			}
-        			else {
-        				accCrack += Compute.squared(r.a - flo[k]);
-        				nominalCrack += Compute.squared(cei[k] - flo[k]);
-        			}
-        		}
-        		else if (high) {
-        			if (accCrack/nominalCrack > Compute.squared(crackDipLimit)) {
-        				// just a weak crack, ignore it
-            			state = States.HIGH;
-        				accSpike += Compute.squared(r.a - flo[k]);
-        				nominalSpike += Compute.squared(cei[k] - flo[k]);
-        			}
-        			else {
-        				// not weak; generate a tone after all
-        				final boolean createDot =
-								(kDrop - kRaise)*tsLength <
-								GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
-						final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
-						if (createDot) {
-							tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
-						} else {
-							tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
-						}
-						
-						state = States.M_HIGH;
-	        			accSpike = Compute.squared(r.a - flo[k]);
-	        			nominalSpike = Compute.squared(cei[k] - flo[k]);
-						kRaise = k;
-        			}
+            if (state == States.LOW) {
+                if (low) {
+                    continue;
+                }
+                else if (high) {
+                    kRaise = k;
+                    accSpike = Compute.squared(r.a - flo[k]);
+                    nominalSpike = Compute.squared(cei[k] - flo[k]);
+                    state = States.M_HIGH;
+                }
+            }
+            else if (state == States.M_HIGH) {
+                if (low) {
+                    // thin spike gets ignored
+                    state = States.LOW;
+                }
+                else if (high) {
+                    if (k - kRaise >= maxSpike) {
+                        state = States.HIGH;
+                    }
+                    accSpike += Compute.squared(r.a - flo[k]);
+                    nominalSpike += Compute.squared(cei[k] - flo[k]);
+                }
+            }
+            else if (state == States.HIGH) {
+                if (low) {
+                    kDrop = k;
+                    state = States.M_LOW;
+                    accCrack = Compute.squared(r.a - flo[k]);
+                    nominalCrack = Compute.squared(cei[k] - flo[k]);
+                }
+                else if (high) {
+                    accSpike += Compute.squared(r.a - flo[k]);
+                    nominalSpike += Compute.squared(cei[k] - flo[k]);
+                }
+            }
+            else if (state == States.M_LOW) {
+                if (low) {
+                    if (k - kDrop >= maxCrack) {
+                        state = States.LOW;
+                        final boolean createDot =
+                                (kDrop - kRaise)*tsLength <
+                                GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
+                        if (accSpike/nominalSpike < Compute.squared(spikeLimit)) {
+                            // reject a tone with too little energy
+                            continue;
+                        }
+                        else {
+                            final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
+                            if (createDot) {
+                                tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+                            } else {
+                                tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+                            }
+                        }
+                    }
+                    else {
+                        accCrack += Compute.squared(r.a - flo[k]);
+                        nominalCrack += Compute.squared(cei[k] - flo[k]);
+                    }
+                }
+                else if (high) {
+                    if (accCrack/nominalCrack > Compute.squared(crackDipLimit)) {
+                        // just a weak crack, ignore it
+                        state = States.HIGH;
+                        accSpike += Compute.squared(r.a - flo[k]);
+                        nominalSpike += Compute.squared(cei[k] - flo[k]);
+                    }
+                    else {
+                        // not weak; generate a tone after all
+                        final boolean createDot =
+                                (kDrop - kRaise)*tsLength <
+                                GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
+                        final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
+                        if (createDot) {
+                            tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+                        } else {
+                            tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+                        }
+                        
+                        state = States.M_HIGH;
+                        accSpike = Compute.squared(r.a - flo[k]);
+                        nominalSpike = Compute.squared(cei[k] - flo[k]);
+                        kRaise = k;
+                    }
 
-        		}
-        	}
-        	
+                }
+            }
+            
         }
 
         Node p = Node.tree;
@@ -238,61 +238,61 @@ public final class SlidingLinePlus extends DecoderBase {
         Integer prevKey = null;
         for (Integer key : tones.navigableKeySet()) {
 
-        	if (prevKey == null) {
-        		qCharBegin = toneBegin(key, tones);
-        	}
-        	
-			if (prevKey == null) {
-				final ToneBase tb = tones.get(key);
-				p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-				lsqPlotHelper(key, tb, jDot);
-				
-			} else if (prevKey != null) {
-	        	final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
-	        	
-				if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
-					final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
-							? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
-							: -1;
-					formatter.add(true, p.text, ts);
-					wpm.chCus += p.nTus;
-					wpm.spCusW += 7;
-					wpm.spTicksW += toneBegin(key, tones) - toneEnd(prevKey, tones);
+            if (prevKey == null) {
+                qCharBegin = toneBegin(key, tones);
+            }
+            
+            if (prevKey == null) {
+                final ToneBase tb = tones.get(key);
+                p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+                lsqPlotHelper(key, tb, jDot);
+                
+            } else if (prevKey != null) {
+                final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
+                
+                if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
+                    final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
+                            ? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
+                            : -1;
+                    formatter.add(true, p.text, ts);
+                    wpm.chCus += p.nTus;
+                    wpm.spCusW += 7;
+                    wpm.spTicksW += toneBegin(key, tones) - toneEnd(prevKey, tones);
 
-					p = Node.tree;
-					final ToneBase tb = tones.get(key);
-					if (tb instanceof Dash) {
-						p = p.newNode("-");
-					} else {
-						p = p.newNode(".");
-					}
-					wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
-					qCharBegin = toneBegin(key, tones);
-					lsqPlotHelper(key, tb, jDot);
-					
-				} else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
-					formatter.add(false, p.text, -1);
-					wpm.chCus += p.nTus;
-					wpm.spCusC += 3;
+                    p = Node.tree;
+                    final ToneBase tb = tones.get(key);
+                    if (tb instanceof Dash) {
+                        p = p.newNode("-");
+                    } else {
+                        p = p.newNode(".");
+                    }
+                    wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
+                    qCharBegin = toneBegin(key, tones);
+                    lsqPlotHelper(key, tb, jDot);
+                    
+                } else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
+                    formatter.add(false, p.text, -1);
+                    wpm.chCus += p.nTus;
+                    wpm.spCusC += 3;
 
-					wpm.spTicksC += toneBegin(key, tones) - toneEnd(prevKey, tones);
+                    wpm.spTicksC += toneBegin(key, tones) - toneEnd(prevKey, tones);
 
-					p = Node.tree;
-					final ToneBase tb = tones.get(key);
-					if (tb instanceof Dash) {
-						p = p.newNode("-");
-					} else {
-						p = p.newNode(".");
-					}
-					wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
-					qCharBegin = toneBegin(key, tones);
-					lsqPlotHelper(key, tb, jDot);
-				} else {
-					final ToneBase tb = tones.get(key);
-					p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-					lsqPlotHelper(key, tb, jDot);
-				}
-			}
+                    p = Node.tree;
+                    final ToneBase tb = tones.get(key);
+                    if (tb instanceof Dash) {
+                        p = p.newNode("-");
+                    } else {
+                        p = p.newNode(".");
+                    }
+                    wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
+                    qCharBegin = toneBegin(key, tones);
+                    lsqPlotHelper(key, tb, jDot);
+                } else {
+                    final ToneBase tb = tones.get(key);
+                    p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
+                    lsqPlotHelper(key, tb, jDot);
+                }
+            }
 
             prevKey = key;
         }
@@ -305,15 +305,15 @@ public final class SlidingLinePlus extends DecoderBase {
         }
 
         wpm.report();
-	}
-	
+    }
+    
     private int toneBegin(Integer key, NavigableMap<Integer, ToneBase> tones) {
-    	ToneBase tone = tones.get(key);
-    	return tone.rise;
+        ToneBase tone = tones.get(key);
+        return tone.rise;
     }
     
     private int toneEnd(Integer key, NavigableMap<Integer, ToneBase> tones) {
-    	ToneBase tone = tones.get(key);
-    	return tone.drop;
+        ToneBase tone = tones.get(key);
+        return tone.drop;
     }
 }
