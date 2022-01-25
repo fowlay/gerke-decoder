@@ -12,6 +12,7 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
+import st.foglo.gerke_decoder.lib.Compute;
 
 /**
  * Read a WAV file into a short[] array.
@@ -145,5 +146,9 @@ public final class Wav {
     
     public double secondsFromSliceIndex(int q, int framesPerSlice) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
+    }
+    
+    public int wavIndexFromSeconds(double t) {
+        return (int) Math.round(t*frameRate - offsetFrames);
     }
 }

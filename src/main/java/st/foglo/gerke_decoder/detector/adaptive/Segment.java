@@ -29,6 +29,16 @@ final class Segment {
     
     final double strength;
     
+    boolean isValid = false;
+    
+    public boolean isValid() {
+        return isValid;
+    }
+
+    public void setValid(boolean isValid) {
+        this.isValid = isValid;
+    }
+
     final int clipLevel;
 
     public Segment(CwAdaptiveImpl parent, int segIndex,

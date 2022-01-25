@@ -20,6 +20,7 @@ import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotCollector;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.plot.PlotEntryBase;
+import st.foglo.gerke_decoder.plot.PlotEntryFreq;
 import st.foglo.gerke_decoder.plot.PlotEntryPhase;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.wave.Wav;
@@ -29,6 +30,8 @@ public final class CwAdaptiveImpl extends DetectorBase {
 //    final int frameRate;
 //    
 //    final int offsetFrames;
+    
+    private static final double STRENGTH_LIMIT = 0.35;
 
     final int cohFactor;              // coherence chunk size is cohFactor*framesPerSlice
     
@@ -86,6 +89,17 @@ public final class CwAdaptiveImpl extends DetectorBase {
             final Segment s = new Segment(this, segIndex, w, base, framesPerSlice, cohFactor, nofChunk);
             segments.addLast(s);
             strengths.add(s.strength);
+        }
+        
+        double strengthMax = -1.0;
+        for (Segment s : segments) {
+            strengthMax = Compute.dMin(strengthMax, s.strength);
+        }
+        for (Segment s : segments) {
+            final double strength = s.strength;
+            if (strength >= STRENGTH_LIMIT*strengthMax) {
+                s.setValid(true);
+            }
         }
 
         // compute signal
@@ -194,17 +208,19 @@ public final class CwAdaptiveImpl extends DetectorBase {
     private double getFreq(int wavIndex) {
         Segment segPrev = null;
         for (Segment seg : segments) {
-            if (wavIndex < seg.midpoint && segPrev != null) {
-                final double uPrev = segPrev.bestFrequency;
-                return uPrev +
-                        (((double) (wavIndex - segPrev.midpoint))/(seg.midpoint - segPrev.midpoint))*
-                        (seg.bestFrequency - uPrev);
-            }
-            else if (wavIndex < seg.midpoint) {
-                return seg.bestFrequency;
-            }
-            else {
-                segPrev = seg;
+            if (seg.isValid()) {
+                if (wavIndex < seg.midpoint && segPrev != null) {
+                    final double uPrev = segPrev.bestFrequency;
+                    return uPrev +
+                            (((double) (wavIndex - segPrev.midpoint))/(seg.midpoint - segPrev.midpoint))*
+                            (seg.bestFrequency - uPrev);
+                }
+                else if (wavIndex < seg.midpoint) {
+                    return seg.bestFrequency;
+                }
+                else {
+                    segPrev = seg;
+                }
             }
         }
         return segPrev.bestFrequency;
@@ -452,18 +468,38 @@ public final class CwAdaptiveImpl extends DetectorBase {
     }
     
     public void frequencyStabilityPlot() throws IOException, InterruptedException {
-        final PlotCollector pc = new PlotCollector();
         
+        final PlotEntries pEnt = new PlotEntries(w);
+        
+        final PlotCollector pc = new PlotCollector();
+
         for (int t = 0; true; t++) {
-            int wavIndex = t*w.frameRate;
-            if (wavIndex >= w.wav.length) {
+            // stepping is one second
+            
+            if (t > pEnt.plotEnd) {
                 break;
             }
-            double frequency = getFreq(wavIndex);
-            pc.ps.println(String.format("%d %f", t, frequency));
-            //new Info("time: %d, freq: %f", t, frequency);
+            else if (t >= pEnt.plotBegin && t <= pEnt.plotEnd) {
+                int wavIndex = w.wavIndexFromSeconds(t);
+                if (wavIndex >= w.wav.length) {
+                    break;
+                }
+                double frequency = getFreq(wavIndex);
+                
+                pEnt.addFrequency(t, frequency);
+                
+                //new Info("time: %d, freq: %f", t, frequency);
+            }
+        }
+        
+        for (Map.Entry<Double, List<PlotEntryBase>> e : pEnt.entries.entrySet()) {
+            pc.ps.println(
+                    String.format("%d %f",
+                            (int) Math.round(e.getKey()),
+                            ((PlotEntryFreq)e.getValue().get(0)).freq));
             
         }
+
         pc.plot(new Mode[]{Mode.LINES_PURPLE});
     }
 }

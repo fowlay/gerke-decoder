@@ -63,6 +63,19 @@ public class PlotEntries {
     }
     
 
+    public void addFrequency(double t, double y) {
+        final Double tBoxed = Double.valueOf(t);
+        final List<PlotEntryBase> list = entries.get(tBoxed);
+        if (list == null) {
+            final List<PlotEntryBase> newList = new ArrayList<PlotEntryBase>();
+            newList.add(new PlotEntryFreq(y));
+            entries.put(tBoxed, newList);
+        }
+        else {
+            list.add(new PlotEntryFreq(y));
+        }
+    }
+    
     public void addPhase(double t, double y, double strength) {
         final Double tBoxed = Double.valueOf(t);
         final List<PlotEntryBase> list = entries.get(tBoxed);
