@@ -12,7 +12,6 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.GerkeLib.Info;
-import st.foglo.gerke_decoder.lib.Compute;
 
 /**
  * Read a WAV file into a short[] array.

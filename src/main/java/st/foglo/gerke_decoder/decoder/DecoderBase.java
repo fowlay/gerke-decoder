@@ -11,11 +11,16 @@ import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
 import st.foglo.gerke_decoder.GerkeLib.Trace;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
+import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
+/**
+ * @author erarafo
+ *
+ */
 public abstract class DecoderBase implements Decoder {
 
     protected double tuMillis;
@@ -38,14 +43,38 @@ public abstract class DecoderBase implements Decoder {
     public final double threshold;
     
     public class Wpm {
-        public int chCus = 0;       // character
+        
+        /**
+         * Nominal nof. in-character TUs
+         */
+        public int chCus = 0;
+        
+        /**
+         * Actual nof. in-character ticks (slices)
+         */
         public int chTicks = 0;
         
-        public int spCusW = 0;      // word space
+        /**
+         *  Nominal nof. in-char-space TUs
+         */
+        public int spCusC = 0;
+        
+        /**
+         * Actual nof. in-word-space ticks (slices)
+         */
+        public int spTicksC = 0;
+        
+        /**
+         *  Nominal nof. in-word-space TUs
+         */
+        public int spCusW = 0;
+        
+        /**
+         * Actual nof. in-word-space ticks (slices)
+         */
         public int spTicksW = 0;
         
-        public int spCusC = 0;      // char space
-        public int spTicksC = 0;
+
         
         /**
          * Report WPM estimates
@@ -114,10 +143,10 @@ public abstract class DecoderBase implements Decoder {
      * @return
      */
     public static DetectorIndex getDetector(int decoder) {
-        if (decoder == 5 || decoder == 6) {
+        if (decoder == 4 || decoder == 5 || decoder == 6) {
             return DetectorIndex.ADAPTIVE_DETECTOR;
         }
-        else if (decoder == 4 || decoder == 3 || decoder == 2 || decoder == 1) {
+        else if (decoder == 3 || decoder == 2 || decoder == 1) {
             return DetectorIndex.BASIC_DETECTOR;
         }
         else {
@@ -142,7 +171,7 @@ public abstract class DecoderBase implements Decoder {
     protected TwoDoubles lsq(
             double[] sig,
             int k,
-            int jMax,
+            int kWidth,
             WeightBase weight
             ) {
 
@@ -151,7 +180,7 @@ public abstract class DecoderBase implements Decoder {
         double sumJJW = 0.0;
         double r1 = 0.0;
         double r2 = 0.0;
-        for (int j = -jMax; j <= jMax; j++) {
+        for (int j = -kWidth; j <= kWidth; j++) {
             final double w = weight.w(j);
             sumW += w;
             sumJW += j*w;
@@ -162,6 +191,33 @@ public abstract class DecoderBase implements Decoder {
         double det = sumW*sumJJW - sumJW*sumJW;
 
         return new TwoDoubles((r1*sumJJW - r2*sumJW)/det, (sumW*r2 - sumJW*r1)/det);
+    }
+    
+    
+    
+
+    /**
+     * No weighting, provide summation limits as arguments
+     * @param sig
+     * @param k1
+     * @param k2
+     * @return
+     */
+    protected TwoDoubles lsq(
+            double[] sig,
+            int k1,
+            int k2
+            ) {
+        
+        final int k = (k1+k2)/2;
+        final WeightBase w = new WeightDot(0);
+        
+        if (2*k == k1+k2) {
+            return lsq(sig, k, k-k1, w);
+        }
+        else {
+            return lsq(sig, k, k2-k, w);
+        }
     }
     
     protected int lsqToneBegin(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
@@ -186,37 +242,19 @@ public abstract class DecoderBase implements Decoder {
         }    
     }
 
-    protected void lsqPlotHelper(Integer key, ToneBase tb,
-            int jDot) {
-        final int dotReduction = (int) Math.round(80.0*jDot/100);
+    protected void lsqPlotHelper(Integer key, ToneBase tb, int jDot) {
         if (plotEntries != null) {
-            if (tb instanceof Dot) {
-                final int kRise = key - dotReduction;
-                final int kDrop = key + dotReduction;
-                final double secRise1 = w.secondsFromSliceIndex(kRise, framesPerSlice);
-                final double secRise2 = w.secondsFromSliceIndex(kRise+1, framesPerSlice);
-                final double secDrop1 = w.secondsFromSliceIndex(kDrop, framesPerSlice);
-                final double secDrop2 = w.secondsFromSliceIndex(kDrop+1, framesPerSlice);
-                if (plotEntries.plotBegin < secRise1 && secDrop2 < plotEntries.plotEnd) {
-                    plotEntries.addDecoded(secRise1, ceilingMax/20);
-                    plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
-                    plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
-                    plotEntries.addDecoded(secDrop2, ceilingMax/20);
-                }
-            }
-            else if (tb instanceof Dash) {
-                final int kRise = ((Dash) tb).rise;
-                final int kDrop = ((Dash) tb).drop;
-                final double secRise1 = w.secondsFromSliceIndex(kRise, framesPerSlice);
-                final double secRise2 = w.secondsFromSliceIndex(kRise+1, framesPerSlice);
-                final double secDrop1 = w.secondsFromSliceIndex(kDrop, framesPerSlice);
-                final double secDrop2 = w.secondsFromSliceIndex(kDrop+1, framesPerSlice);
-                if (plotEntries.plotBegin < secRise1 && secDrop2 < plotEntries.plotEnd) {
-                    plotEntries.addDecoded(secRise1, ceilingMax/20);
-                    plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
-                    plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
-                    plotEntries.addDecoded(secDrop2, ceilingMax/20);
-                }
+            final int kRise = tb.rise;
+            final int kDrop = tb.drop;
+            final double secRise1 = w.secondsFromSliceIndex(kRise, framesPerSlice);
+            final double secRise2 = w.secondsFromSliceIndex(kRise+1, framesPerSlice);
+            final double secDrop1 = w.secondsFromSliceIndex(kDrop, framesPerSlice);
+            final double secDrop2 = w.secondsFromSliceIndex(kDrop+1, framesPerSlice);
+            if (plotEntries.plotBegin < secRise1 && secDrop2 < plotEntries.plotEnd) {
+                plotEntries.addDecoded(secRise1, ceilingMax/20);
+                plotEntries.addDecoded(secRise2, 2*ceilingMax/20);
+                plotEntries.addDecoded(secDrop1, 2*ceilingMax/20);
+                plotEntries.addDecoded(secDrop2, ceilingMax/20);
             }
         }
     }

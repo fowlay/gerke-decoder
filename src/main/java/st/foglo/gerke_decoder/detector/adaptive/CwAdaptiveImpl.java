@@ -124,8 +124,6 @@ public final class CwAdaptiveImpl extends DetectorBase {
         for (int i = 0; i < sigSize; i++) {
             sigSum += sig[i];
         }
-        new GerkeLib.Info("+++ signal average: %f", sigSum/sigSize);
-        
         return new Signal(sig, 0, 0);
     }
 

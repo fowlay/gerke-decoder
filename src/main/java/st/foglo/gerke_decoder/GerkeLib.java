@@ -271,6 +271,85 @@ public final class GerkeLib {
         public Info(String format, int value) {
             this(String.format(format, value));
         }
+        
+        public Info(String format, int v1, int v2) {
+            this(String.format(format, v1, v2));
+        }
+        
+        public Info(String format, int i, int j, int k) {
+            this(String.format(format, i, j, k));
+        }
+
+        public Info(String format, int v1, int v2, double v) {
+            this(String.format(format, v1, v2, v));
+        }
+        
+        public Info(String format, int i, int j, double v, double w) {
+            this(String.format(format, i, j, v, w));
+        }
+
+        public Info(String format, int k, double v) {
+            this(String.format(format, k, v));
+        }
+
+        public Info(String format, int k, double u, double v) {
+            this(String.format(format, k, u, v));
+        }
+        
+
+
+        public Info(String format, int v, String s) {
+            this(String.format(format, v, s));
+        }
+        
+
+        
+        public Info(String format, long value) {
+            this(String.format(format, value));
+        }
+
+        public Info(String format, long v1, long v2) {
+            this(String.format(format, v1, v2));
+        }
+        public Info(String format, double value) {
+            this(String.format(format, value));
+        }
+        
+        public Info(String format, double x, int k, double y) {
+            this(String.format(format, x, k, y));
+        }
+
+        public Info(String format, double x, int k, double y, double z) {
+            this(String.format(format, x, k, y, z));
+        }
+
+        public Info(String format, double x, double y) {
+            this(String.format(format, x, y));
+        }
+
+
+        
+        public Info(String format, double x, double y, int j) {
+            this(String.format(format, x, y, j));
+        }
+
+        public Info(String format, double x, double y, double z) {
+            this(String.format(format, x, y, z));
+        }
+        
+        public Info(String format, double t, double x, double y, double z) {
+            this(String.format(format, t, x, y, z));
+        }
+
+
+        
+        public Info(String format, boolean value) {
+            this(String.format(format, value));
+        }
+
+        public Info(String format, boolean value, String s) {
+            this(String.format(format, value, s));
+        }
 
         public Info(String format, String value) {
             this(String.format(format, value));
@@ -284,73 +363,15 @@ public final class GerkeLib {
             this(String.format(format, s, value));
         }
 
-        public Info(String format, boolean value) {
-            this(String.format(format, value));
-        }
 
-        public Info(String format, boolean value, String s) {
-            this(String.format(format, value, s));
-        }
 
-        public Info(String format, int v1, int v2) {
-            this(String.format(format, v1, v2));
-        }
 
-        public Info(String format, int v1, int v2, double v) {
-            this(String.format(format, v1, v2, v));
-        }
 
-        public Info(String format, int k, double v) {
-            this(String.format(format, k, v));
-        }
 
-        public Info(String format, int k, double u, double v) {
-            this(String.format(format, k, u, v));
-        }
 
-        public Info(String format, int v, String s) {
-            this(String.format(format, v, s));
-        }
+ 
 
-        public Info(String format, long value) {
-            this(String.format(format, value));
-        }
 
-        public Info(String format, long v1, long v2) {
-            this(String.format(format, v1, v2));
-        }
-
-        public Info(String format, double value) {
-            this(String.format(format, value));
-        }
-
-        public Info(String format, double x, double y) {
-            this(String.format(format, x, y));
-        }
-
-        public Info(String format, int i, int j, double v, double w) {
-            this(String.format(format, i, j, v, w));
-        }
-        
-        public Info(String format, double x, double y, int j) {
-            this(String.format(format, x, y, j));
-        }
-
-        public Info(String format, double x, double y, double z) {
-            this(String.format(format, x, y, z));
-        }
-
-        public Info(String format, double x, int k, double y) {
-            this(String.format(format, x, k, y));
-        }
-
-        public Info(String format, double x, int k, double y, double z) {
-            this(String.format(format, x, k, y, z));
-        }
-
-        public Info(String format, int i, int j, int k) {
-            this(String.format(format, i, j, k));
-        }
 
     }
 

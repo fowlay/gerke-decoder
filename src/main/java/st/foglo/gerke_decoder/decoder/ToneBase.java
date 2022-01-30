@@ -12,6 +12,9 @@ public abstract class ToneBase {
         this.k = k;
         this.rise = rise;
         this.drop = drop;
+        if (k < rise || k > drop) {
+            throw new RuntimeException();
+        }
     }
     
     protected static TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
