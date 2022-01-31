@@ -26,11 +26,7 @@ public final class Dash extends ToneBase {
             double[] sig,
             double ceiling,
             NavigableMap<Integer, ToneBase> tones) {
-        // TODO, inefficient recalculation
-        super((findRise(k, sig, jDash, jDot) + findDrop(k, sig, jDash, jDot))/2,
-                findRise(k, sig, jDash, jDot),
-                findDrop(k, sig, jDash, jDot))
-        ;
+        super(findRise(k, sig, jDash, jDot), findDrop(k, sig, jDash, jDot));
         this.ceiling = ceiling;
         if (tones != null) {
             tones.put(Integer.valueOf(this.k), this);

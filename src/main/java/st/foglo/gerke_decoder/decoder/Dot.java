@@ -32,11 +32,7 @@ public final class Dot extends ToneBase {
             int jDot,
             int jDotSmall,
             double[] sig) {
-        // TODO, inefficient recalculation
-        super((findRise(k, sig, jDot) + findDrop(k, sig, jDot))/2,
-                findRise(k, sig, jDot),
-                findDrop(k, sig, jDot));
-
+        super(findRise(k, sig, jDot), findDrop(k, sig, jDot));
     }
     
     private static int findRise(int k, double[] sig, int jDot) {
