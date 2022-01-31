@@ -49,13 +49,13 @@ public final class Dash extends ToneBase {
     }
     
     
-
+    // TODO, the factor 2 in 2*jDot SEEMS beneficial .... analysis needed though
 
     private static int findDrop(int k, double[] sig, int jDash, int jDot) {
         WeightBase w = new WeightDot(0);
         double uMin = 0.0;
         int qBest = k + jDash;
-        for (int q = k + jDash - jDot; q < k + jDash + jDot; q++) {    // q is slice index
+        for (int q = k + jDash - jDot; q < k + jDash + 2*jDot; q++) {    // q is slice index
             
             final TwoDoubles u = lsq(sig, q, jDot, w);
             if (u.b < uMin) {
@@ -70,7 +70,7 @@ public final class Dash extends ToneBase {
         WeightBase w = new WeightDot(0);
         double uMax = 0.0;
         int qBest = k - jDash;
-        for (int q = k - jDash - jDot; q < k - jDash + jDot; q++) {    // q is slice index
+        for (int q = k - jDash - 2*jDot; q < k - jDash + jDot; q++) {    // q is slice index
             
             final TwoDoubles u = lsq(sig, q, jDot, w);
             if (u.b > uMax) {

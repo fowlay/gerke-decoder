@@ -122,21 +122,21 @@ public final class GerkeDecoder {
      * Model value: sqrt(3*7) = 4.58
      * words break <---------+---------> words stick
      */
-    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.5, 5.6, 5.6};
+    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 1.8, 1.9, 1.9};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9};  // 2.3??
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.7, 1.9, 1.9};
+    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.745, 1.9, 1.9};
 
     /**
      * Tones longer than this are interpreted as two dashes

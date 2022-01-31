@@ -101,8 +101,9 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         final double dashStrengthLimit = level*0.6;
                 //level*0.77;
         
-        // i becomes t  <---------------------------> i becomes i 
-        final double middleDipLimit = 0.8;
+        // two dots may become a dash  <------|------> dots survive  
+        final double middleDipLimit = 0.85; 
+                // 0.8;
         
         final double dotStrengthLimit = level*0.55; 
                 //level*0.495;
