@@ -11,6 +11,12 @@ import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
  */
 public final class Dash extends ToneBase {
 
+    /**
+     * When fitting a dash to the signal, allow some additional stretch
+     * TODO: PARA
+     */
+    private static final double STRETCH_FACTOR = 1.767;
+
     public final double ceiling;
     
     public Dash(int k, int rise, int drop) {
@@ -21,7 +27,6 @@ public final class Dash extends ToneBase {
     public Dash(
             int k,
             int jDot,
-            int jDotSmall,
             int jDash,
             double[] sig,
             double ceiling,
@@ -36,7 +41,6 @@ public final class Dash extends ToneBase {
     public Dash(
             int k,
             int jDot,
-            int jDotSmall,
             int jDash,
             double[] sig,
             double ceiling,
@@ -51,30 +55,32 @@ public final class Dash extends ToneBase {
     
     // TODO, the factor 2 in 2*jDot SEEMS beneficial .... analysis needed though
 
-    private static int findDrop(int k, double[] sig, int jDash, int jDot) {
-        WeightBase w = new WeightDot(0);
-        double uMin = 0.0;
-        int qBest = k + jDash;
-        for (int q = k + jDash - jDot; q < k + jDash + 2*jDot; q++) {    // q is slice index
+    private static int findRise(int k, double[] sig, int jDash, int jDot) {
+        final WeightBase w = new WeightDot(0);
+        final int stretchedDash = (int) Math.round(STRETCH_FACTOR*jDash);
+        double uMax = 0.0;
+        int qBest = k - jDash;
+        for (int q = k - stretchedDash; q < k - jDash + jDot; q++) {    // q is slice index
             
             final TwoDoubles u = lsq(sig, q, jDot, w);
-            if (u.b < uMin) {
-                uMin = u.b;
+            if (u.b > uMax) {
+                uMax = u.b;
                 qBest = q;
             }
         }
         return qBest;
     }
     
-    private static int findRise(int k, double[] sig, int jDash, int jDot) {
-        WeightBase w = new WeightDot(0);
-        double uMax = 0.0;
-        int qBest = k - jDash;
-        for (int q = k - jDash - 2*jDot; q < k - jDash + jDot; q++) {    // q is slice index
+    private static int findDrop(int k, double[] sig, int jDash, int jDot) {
+        final WeightBase w = new WeightDot(0);
+        final int stretchedDash = (int) Math.round(STRETCH_FACTOR*jDash);
+        double uMin = 0.0;
+        int qBest = k + jDash;
+        for (int q = k + jDash - jDot; q < k + stretchedDash; q++) {    // q is slice index
             
             final TwoDoubles u = lsq(sig, q, jDot, w);
-            if (u.b > uMax) {
-                uMax = u.b;
+            if (u.b < uMin) {
+                uMin = u.b;
                 qBest = q;
             }
         }

@@ -152,7 +152,7 @@ public final class Node {
 
         new Node("'", ".----.");
 
-        new Node(null, "..--.");
+        new Node(Compute.encodeLetter(240), "..--.");
         new Node("?", "..--..");
 
         new Node(null, ".-..-");

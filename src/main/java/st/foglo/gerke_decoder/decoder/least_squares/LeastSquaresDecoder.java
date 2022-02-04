@@ -10,6 +10,7 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.GerkeLib.Info;
+import st.foglo.gerke_decoder.GerkeLib.Warning;
 import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.Decoder;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
@@ -102,7 +103,8 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 //level*0.77;
         
         // two dots may become a dash  <------|------> dots survive  
-        final double middleDipLimit = 0.85; 
+        final double middleDipLimit = 0.85;
+                // 0.85*1.05; 
                 // 0.8;
         
         final double dotStrengthLimit = level*0.55; 
@@ -160,36 +162,95 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 try {
                     // index out of bounds can happen?
                     if (dashStrength > dashStrengthLimit) {
+                        
+                        final double t = w.secondsFromSliceIndex(kBest, framesPerSlice);
+                        final boolean talk = t > 130.2 && t < 130.7;
 
-                        final Dash candidate = new Dash(kBest, jDot, jDotSmall, jDash, sig, r.a, null);
+                        final Dash candidate = new Dash(kBest, jDot, jDash, sig, r.a, null);
+                        
+                        if (talk) {
+                            new Info("candidate at: %f", t);
+                        }
 
-                        final int i4 = candidate.drop;
+                        final int i99 = candidate.drop;
                         final int i1 = candidate.rise;
-                        final int i2 = i1 + (i4-i1)/3;
-                        final int i3 = i2 + (i4-i1)/3 + (i4-i1)%3;
+                        final int i2 = i1 + (i99-i1)/3;
+                        final int i3 = i2 + (i99-i1)/3 + (i99-i1)%3;
 
                         final TwoDoubles aa = lsq(sig, i1, i2);
                         final TwoDoubles bb = lsq(sig, i2, i3);
-                        final TwoDoubles cc = lsq(sig, i3, i4);
-
-                        // protect against dip in the middle
-//                        final double t = w.secondsFromSliceIndex(kBest, framesPerSlice);
-//                        if (t >= 81.6 && t <= 82) {
-//                            new Info("@@@ %f: %f %f %f", t, aa.a, bb.a, cc.a);
-//                        }
+                        final TwoDoubles cc = lsq(sig, i3, i99);
 
                         if (bb.a > middleDipLimit*(aa.a + cc.a)/2) {
-                            dashes.put(Integer.valueOf(candidate.k), candidate);
-                            prevDash = candidate;
+                            
+                            // do a 4-segments check too
+                            
+                            final int mm = (i99-i1)%4;
+                            final int j2 = i1 + (i99-i1)/4;
+                            final int j3 = j2 + (i99-i1)/4 + (mm+1)/2;
+                            final int j4 = j3 + (i99-i1)/4 + mm/2;
+                            
+                            final TwoDoubles xa = lsq(sig, i1, j2);
+                            final TwoDoubles xb = lsq(sig, j2, j3);
+                            final TwoDoubles xc = lsq(sig, j3, j4);
+                            final TwoDoubles xd = lsq(sig, j4, i99);
+                            
+                            // PARA
+                            // dash likely <------------------|-----------------> dots likely
+                            final double quadDipLimit = 0.75;
+                            
+                            if (xc.a > quadDipLimit*(xa.a + xb.a + xd.a)/3 && xb.a > quadDipLimit*(xa.a + xc.a + xd.a)/3) {
+
+                                if (talk) {
+                                    new Info("candidate accepted, %f, %f", bb.a, middleDipLimit*(aa.a + cc.a)/2);
+                                    new Info("relative width: %f", ((double) candidate.drop - candidate.rise)/(2*jDash));
+                                    new Info("spacing: %f", ((double) candidate.rise - prevDash.drop)/(2*jDot));
+                                }
+                                dashes.put(Integer.valueOf(candidate.k), candidate);
+                                prevDash = candidate;
+                            }
+                            else {
+                                new Info("dropping dash after 4-segment analysis, t: %f", t);
+                            }
+                        }
+                        else {
+                            new Info("dropping dash after 3-segment analysis, t: %f", t);
                         }
                     }
                 } 
                 catch (Exception e) {
-                    new Info("cannot create dash, k: %d", kBest);
+                    new Warning("cannot create dash, k: %d", kBest);
                 }
             }
             prevD = r;
         }
+        
+        final List<Integer> removals = new ArrayList<Integer>();
+        
+        // check against overlapping dashes
+        Dash pre = null;
+        for (Integer k : dashes.navigableKeySet()) {
+            final Dash dd = (Dash) dashes.get(k);
+            if (pre != null && pre.drop >= dd.rise) {
+                final TwoDoubles s1 = lsq(sig, pre.rise, pre.drop);
+                final TwoDoubles s2 = lsq(sig, dd.rise, dd.drop);
+                if (s1.a < s2.a) {
+                    removals.add(Integer.valueOf(pre.k));
+                }
+                else {
+                    removals.add(k);
+                }
+            }
+            pre = dd;
+        }
+        for (Integer k : removals) {
+            new Debug("overlapping dash removed at: %f", w.secondsFromSliceIndex(k, framesPerSlice));
+            final ToneBase tb = dashes.remove(k);
+            if (tb == null) {
+                new Warning("removal unsuccessful, %f", w.secondsFromSliceIndex(k, framesPerSlice));
+            }
+        }
+        removals.clear();
 
         // check for clustering, merge doublets
 
@@ -200,10 +261,19 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
         TwoDoubles prevDot = new TwoDoubles(0.0,  Double.MAX_VALUE);
 
+        Dot previousDot = null;
+        
         final NavigableMap<Integer, ToneBase> dots = new TreeMap<Integer, ToneBase>();
 
         // TODO: the exact calculation of limits can be refined maybe
         for (int k = 0 + 3*jDotSmall; k < sigSize - 3*jDotSmall; k++) {
+
+            if (previousDot != null && k < previousDot.drop + (int) Math.round(0.6*jDash)) {
+                // don't consider a dot that would almost overlap with the previous
+                // PARA 0.6
+                continue;
+            }
+
             final TwoDoubles r = lsq(sig, k, jDotSmall, wDot);
 
             //new Info("%10f %10f", r.a, r.b);
@@ -228,8 +298,24 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     final TwoDoubles u2 = lsq(sig, kBest + jDot, jDot, wDot);
                     
                     if (u1.b > 0 && u2.b < 0) {
-                        dots.put(Integer.valueOf(kBest), new Dot(k, jDot, jDotSmall, sig)); 
+                        final Dot newDot = new Dot(k, jDot, sig);
+                        dots.put(Integer.valueOf(kBest), newDot); 
                                 //new Dot(kBest, kBest - jDot, kBest + jDot));
+                        previousDot = newDot;
+                    }
+                    else {
+                        // try to rescue a fatter dot
+                        final int jDotFat = (int) Math.round(1.3*jDot);
+                        
+                        final TwoDoubles uu1 = lsq(sig, kBest - jDotFat, jDot, wDot);
+                        final TwoDoubles uu2 = lsq(sig, kBest + jDotFat, jDot, wDot);
+                        
+                        if (uu1.b > 0 && uu2.b < 0) {
+                            final Dot newDot = new Dot(k, jDotFat, sig);
+                            dots.put(Integer.valueOf(kBest), newDot); 
+                                    //new Dot(kBest, kBest - jDot, kBest + jDot));
+                            previousDot = newDot;
+                        }
                     }
                 }
             }
@@ -241,7 +327,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         // remove dashes if there are two competing dots
 
         // TODO --- THIS IS NOT DONE AT ALL
-        final List<Integer> removals = new ArrayList<Integer>();
+        
 //        for (Integer key : dashes.navigableKeySet()) {
 //
 //            final Integer k1 = dots.lowerKey(key);
@@ -272,12 +358,12 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         for (Integer m : removals) {
             dots.remove(m);
         }
+        removals.clear();
 
         // merge the dots to the dashes
         for (Integer key : dots.keySet()) {
             dashes.put(key, dots.get(key));
         }
-
 
         Node p = Node.tree;
         int qCharBegin = -999999;
@@ -291,12 +377,14 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             if (prevKey == null) {
                 final ToneBase tb = dashes.get(key);
                 p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-                lsqPlotHelper(key, tb, jDotSmall);
+                lsqPlotHelper(tb);
 
             }
             else if (prevKey != null) {
                 
                 final int toneDistSlices = toneDistSimple(prevKey, key, dashes);
+                
+                // TODO, fetch tb outside the if/else
                 
                 if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength) {
                     
@@ -319,7 +407,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     }
                     wpm.chTicks += dashes.get(prevKey).drop - qCharBegin;
                     qCharBegin = dashes.get(key).rise;
-                    lsqPlotHelper(key, tb, jDotSmall);
+                    lsqPlotHelper(tb);
                 }
                 else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
                     formatter.add(false, p.text, -1);
@@ -337,13 +425,14 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     }
                     wpm.chTicks += dashes.get(prevKey).drop - qCharBegin;
                     qCharBegin = dashes.get(key).rise;
-                    lsqPlotHelper(key, tb, jDotSmall);
+                    lsqPlotHelper(tb);
                 }
                 else {
                     final ToneBase tb = dashes.get(key);
                     p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");  
-                    lsqPlotHelper(key, tb, jDotSmall);
+                    lsqPlotHelper(tb);
                 }
+               
             }
 
             prevKey = key;
@@ -423,7 +512,6 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                 else {
                     tones.put(Integer.valueOf(newK),
                             new Dash(newK,
-                                    minRise,
                                     minRise,
                                     maxDrop,
                                     sig,

@@ -129,7 +129,9 @@ public final class GerkeDecoder {
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73,
+            1.85,
+            1.9, 1.9};  // 2.3??
 
     /**
      * Tones longer than this are interpreted as a dash

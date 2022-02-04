@@ -157,7 +157,7 @@ public final class SlidingLineDecoder extends DecoderBase {
             if (prevKey == null) {
                 final ToneBase tb = tones.get(key);
                 p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-                lsqPlotHelper(key, tb, jDot);
+                lsqPlotHelper(tb);
                 
             } else if (prevKey != null) {
                 
@@ -183,7 +183,7 @@ public final class SlidingLineDecoder extends DecoderBase {
                     }
                     wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, tones, jDot);
-                    lsqPlotHelper(key, tb, jDot);
+                    lsqPlotHelper(tb);
                     
                 } else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
                     formatter.add(false, p.text, -1);
@@ -201,11 +201,11 @@ public final class SlidingLineDecoder extends DecoderBase {
                     }
                     wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, tones, jDot);
-                    lsqPlotHelper(key, tb, jDot);
+                    lsqPlotHelper(tb);
                 } else {
                     final ToneBase tb = tones.get(key);
                     p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
-                    lsqPlotHelper(key, tb, jDot);
+                    lsqPlotHelper(tb);
                 }
             }
 

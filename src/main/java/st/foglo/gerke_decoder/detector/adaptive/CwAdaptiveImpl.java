@@ -120,10 +120,6 @@ public final class CwAdaptiveImpl extends DetectorBase {
 
         }
 
-        double sigSum = 0.0;
-        for (int i = 0; i < sigSize; i++) {
-            sigSum += sig[i];
-        }
         return new Signal(sig, 0, 0);
     }
 

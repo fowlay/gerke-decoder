@@ -30,7 +30,6 @@ public final class Dot extends ToneBase {
     public Dot(
             int k,
             int jDot,
-            int jDotSmall,
             double[] sig) {
         super(findRise(k, sig, jDot), findDrop(k, sig, jDot));
     }

@@ -242,7 +242,7 @@ public abstract class DecoderBase implements Decoder {
         }    
     }
 
-    protected void lsqPlotHelper(Integer key, ToneBase tb, int jDot) {
+    protected void lsqPlotHelper(ToneBase tb) {
         if (plotEntries != null) {
             final int kRise = tb.rise;
             final int kDrop = tb.drop;
