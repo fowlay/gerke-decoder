@@ -129,7 +129,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         TwoDoubles prevD = new TwoDoubles(0.0, Double.MAX_VALUE);
         
         Dash prevDash = null;
-        for (int k = 0 + jDash; k < sigSize - jDash; k++) {
+        for (int k = 0 + jDash + jDot; k < sigSize - jDash - jDot; k++) {
 
             if (prevDash != null && k < prevDash.drop + 2*jDot) {
                 // don't consider a dash that would clearly overlap with the previous
@@ -219,6 +219,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     }
                 } 
                 catch (Exception e) {
+                    new Warning("caught: %s", e.getMessage());
                     new Warning("cannot create dash, k: %d", kBest);
                 }
             }

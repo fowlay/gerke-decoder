@@ -379,6 +379,10 @@ public final class GerkeLib {
         public Warning(String message) {
             super("WARNING", message, true);
         }
+        
+        public Warning(String format, int j) {
+            this(String.format(format, j));
+        }
 
         public Warning(String message, int i, int j, int k) {
             this(String.format(message, i, j, k));
@@ -386,6 +390,10 @@ public final class GerkeLib {
 
         public Warning(String format, double x) {
             this(String.format(format, x));
+        }
+        
+        public Warning(String format, String s) {
+            this(String.format(format, s));
         }
     }
 
