@@ -1,6 +1,6 @@
 ## gerke-decoder - translates Morse code audio to text
 ##
-## Copyright (C) 2020-2021 Rabbe Fogelholm
+## Copyright (C) 2020-2022 Rabbe Fogelholm
 ##
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ APACHE_MIRROR = https://dlcdn.apache.org/
 SRC = $(shell find src/main/java/st/foglo/gerke_decoder -name '*.java')
 
 bin/gerke-decoder: lib/gerke-decoder.template pom.xml target/gerke_decoder-$(GERKE_DECODER_REL).jar
+	mkdir --parents $$(dirname $@)
 	sed -e 's|@GERKE_DECODER_REL@|$(GERKE_DECODER_REL)|' $< >$@
 	chmod a+x $@
 
@@ -57,7 +58,7 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 	sed -i -e "/<!-- localRepository/s|.*|<localRepository>m2</localRepository> <!--|" $@
 
 
-.PHONY: test
+.PHONY: test clean
 .SILENT: test
 
 test: target/gerke_decoder-$(GERKE_DECODER_REL).jar grimeton-clip.wav
@@ -91,3 +92,6 @@ gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
 	rm -rf META-INF
 	jar cfe $@ st.foglo.gerke_decoder.GerkeDecoder -C standalone-classes .
 	rm -rf standalone-classes
+
+clean:
+	rm -rf bin target apache-maven-$(APACHE_REL) m2
