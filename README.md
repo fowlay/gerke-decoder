@@ -4,24 +4,25 @@ A decoder that translates Morse code audio to text.
 
 ## Version history
 
-|Version|What|
-|-------|----|
-|1.3|Cygwin/Windows version|
-|1.4|Linux support|
-|1.5|Optional phase angle plot|
-|1.6|Spikes suppression, selectable plot interval|
-|1.7|Gaussian blur, frequency plot|
-|1.8|Dropouts and spikes removal, improved plot|
-|2.0|Selectable decoders and filtering|
-|2.0.1|Corrections|
-|2.0.2|Corrected default dips-merge limit parameter|
-|2.0.2.1|Least-squares decoding, first version|
-|2.0.2.2|Include decoded signal in plot|
-|2.0.2.3|Support option -t with decoder -D4|
-|2.0.2.4|Candidate for 2.1.0 on master branch|
-|2.1.0|Least-squares decoding|
-|2.1.1|Various corrections|
-|2.1.1.1|Refactoring|
+<table>
+<tr><th>Version</th><th>What</th></tr>
+<tr><td>1.3</td><td>Cygwin/Windows version</td></tr>
+<tr><td>1.4</td><td>Linux support</td></tr>
+<tr><td>1.5</td><td>Optional phase angle plot</td></tr>
+<tr><td>1.6</td><td>Spikes suppression, selectable plot interval</td></tr>
+<tr><td>1.7</td><td>Gaussian blur, frequency plot</td></tr>
+<tr><td>1.8</td><td>Dropouts and spikes removal, improved plot</td></tr>
+<tr><td>2.0</td><td>Selectable decoders and filtering</td></tr>
+<tr><td>2.0.1</td><td>Corrections</td></tr>
+<tr><td>2.0.2</td><td>Corrected default dips-merge limit parameter</td></tr>
+<tr><td>2.0.2.1</td><td>Least-squares decoding, first version</td></tr>
+<tr><td>2.0.2.2</td><td>Include decoded signal in plot</td></tr>
+<tr><td>2.0.2.3</td><td>Support option -t with decoder -D4</td></tr>
+<tr><td>2.0.2.4</td><td>Candidate for 2.1.0 on master branch</td></tr>
+<tr><td>2.1.0</td><td>Least-squares decoding</td></tr>
+<tr><td>2.1.1</td><td>Various corrections</td></tr>
+<tr><td>2.1.1.1</td><td>Refactoring</td></tr>
+</table>
 
 ## Platforms
 
