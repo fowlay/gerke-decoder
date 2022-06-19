@@ -1,6 +1,6 @@
 ## gerke-decoder - translates Morse code audio to text
 ##
-## Copyright (C) 2020-2021 Rabbe Fogelholm
+## Copyright (C) 2020-2022 Rabbe Fogelholm
 ##
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by
@@ -31,48 +31,25 @@ GERKE_DECODER_REL = $(shell sed -e 's|^  <version>\(.*\)</version>|\1|p' -e d po
 APACHE_REL = 3.6.3
 
 ## For alternative mirrors, see https://www.apache.org/mirrors/
-APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/
+## APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/ .. defunct since autumn 2021
+APACHE_MIRROR = https://dlcdn.apache.org/
 
+
+.PHONY: test clean realclean
+.SILENT: test
 
 
 ## Make gerke-decoder and dependencies
 
-SRC = $(wildcard src/main/java/st/foglo/gerke_decoder/*.java)
+SRC = $(shell find src/main/java/st/foglo/gerke_decoder -name '*.java')
 
 bin/gerke-decoder: lib/gerke-decoder.template pom.xml target/gerke_decoder-$(GERKE_DECODER_REL).jar
+	mkdir --parents $$(dirname $@)
 	sed -e 's|@GERKE_DECODER_REL@|$(GERKE_DECODER_REL)|' $< >$@
 	chmod a+x $@
 
 target/gerke_decoder-$(GERKE_DECODER_REL).jar: apache-maven-$(APACHE_REL)/conf/settings.xml $(SRC)
 	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" mvn package
-
-
-## Download Maven to a local directory, define a local path for repository
-
-apache-maven-$(APACHE_REL)/conf/settings.xml:
-	wget $(APACHE_MIRROR)/maven/maven-3/$(APACHE_REL)/binaries/apache-maven-$(APACHE_REL)-bin.tar.gz \
-	  --output-document=- \
-	| tar -xzf -
-	sed -i -e "/<!-- localRepository/s|.*|<localRepository>m2</localRepository> <!--|" $@
-
-
-.PHONY: test
-.SILENT: test
-
-test: target/gerke_decoder-$(GERKE_DECODER_REL).jar grimeton-clip.wav
-	declare cmd="bin/gerke-decoder -D5 -v -o1 -l87 -w16 grimeton-clip.wav" && \
-	$$cmd && \
-	declare expected=24beebbe5877a225d4ad5c0b75305da6 && \
-	declare md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
-	if [ $$md5 = $$expected ]; then \
-             echo test successful; \
-	else \
-             echo test failed, expected: $$expected, actual: $$md5; \
-        fi
-
-grimeton-clip.wav:
-	rm -f $@
-	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
 
 
 ## Make executable jar
@@ -90,3 +67,39 @@ gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
 	rm -rf META-INF
 	jar cfe $@ st.foglo.gerke_decoder.GerkeDecoder -C standalone-classes .
 	rm -rf standalone-classes
+
+
+## Download Maven to a local directory, define a local path for repository
+
+apache-maven-$(APACHE_REL)/conf/settings.xml:
+	wget $(APACHE_MIRROR)/maven/maven-3/$(APACHE_REL)/binaries/apache-maven-$(APACHE_REL)-bin.tar.gz \
+	  --output-document=- \
+	| tar -xzf -
+	sed -i -e "/<!-- localRepository/s|.*|<localRepository>m2</localRepository> <!--|" $@
+
+
+## Quick test
+
+test: gerke-decoder.jar bin/gerke-decoder grimeton-clip.wav
+	cmd="bin/gerke-decoder -v -o1 -l87 -w16 grimeton-clip.wav" && \
+	$$cmd && \
+	expected=fffe9b72b43f4fe65953565afd4d87c3 && \
+	md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
+	if [ $$md5 = $$expected ]; then echo first test successful; \
+	else echo test failed, expected: $$expected, actual: $$md5; fi && \
+	cmd="java -jar gerke-decoder.jar -v -o1 -l87 -w16 grimeton-clip.wav" && \
+	md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
+	if [ $$md5 = $$expected ]; then echo second test successful; \
+	else echo test failed, expected: $$expected, actual: $$md5; fi
+
+grimeton-clip.wav:
+	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
+
+
+## Removal
+
+clean:
+	rm -rf bin target apache-maven-$(APACHE_REL) gerke-decoder.jar grimeton-clip.wav
+
+realclean: clean
+	rm -rf m2

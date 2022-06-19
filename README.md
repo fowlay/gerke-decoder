@@ -4,23 +4,26 @@ A decoder that translates Morse code audio to text.
 
 ## Version history
 
-|Version|What|
-|-------|----|
-|1.3|Cygwin/Windows version|
-|1.4|Linux support|
-|1.5|Optional phase angle plot|
-|1.6|Spikes suppression, selectable plot interval|
-|1.7|Gaussian blur, frequency plot|
-|1.8|Dropouts and spikes removal, improved plot|
-|2.0|Selectable decoders and filtering|
-|2.0.1|Corrections|
-|2.0.2|Corrected default dips-merge limit parameter|
-|2.0.2.1|Least-squares decoding, first version|
-|2.0.2.2|Include decoded signal in plot|
-|2.0.2.3|Support option -t with decoder -D4|
-|2.0.2.4|Candidate for 2.1.0 on master branch|
-|2.1.0|Least-squares decoding|
-|2.1.1|Various corrections|
+<table>
+<tr><th>Version</th><th style="text-align:left">What</th></tr>
+<tr><td>1.3</td><td>Cygwin/Windows version</td></tr>
+<tr><td>1.4</td><td>Linux support</td></tr>
+<tr><td>1.5</td><td>Optional phase angle plot</td></tr>
+<tr><td>1.6</td><td>Spikes suppression, selectable plot interval</td></tr>
+<tr><td>1.7</td><td>Gaussian blur, frequency plot</td></tr>
+<tr><td>1.8</td><td>Dropouts and spikes removal, improved plot</td></tr>
+<tr><td>2.0</td><td>Selectable decoders and filtering</td></tr>
+<tr><td>2.0.1</td><td>Corrections</td></tr>
+<tr><td>2.0.2</td><td>Corrected default dips-merge limit parameter</td></tr>
+<tr><td>2.0.2.1</td><td>Least-squares decoding, first version</td></tr>
+<tr><td>2.0.2.2</td><td>Include decoded signal in plot</td></tr>
+<tr><td>2.0.2.3</td><td>Support option -t with decoder -D4</td></tr>
+<tr><td>2.0.2.4</td><td>Candidate for 2.1.0 on master branch</td></tr>
+<tr><td>2.1.0</td><td>Least-squares decoding</td></tr>
+<tr><td>2.1.1</td><td>Various corrections</td></tr>
+<tr><td>2.1.1.1</td><td>Refactoring</td></tr>
+<tr><td>3.0.0</td><td>Adapting to frequency drift and fading</td></tr>
+</table>
 
 ## Platforms
 
@@ -31,9 +34,8 @@ A decoder that translates Morse code audio to text.
 
 ### Java
 
-The current version has been tested with OpenJDK 17.0.1. Earlier
-versions were developed using Oracle JDK 1.8 version 202 and OpenJDK
-version 1.8.0_262. Other versions of Java may work as well.
+The current version was developed using OpenJDK version 11. Other JDK
+versions may work also.
 
 ### Optional: Gnuplot
 
@@ -67,12 +69,25 @@ local directory. This installation will not interfere with possible
 other use of Maven on the same host. For licensing info, read here:
 <http://maven.apache.org/#>
 
+Building an executable jar (optional) can be done with
+
+    make gerke-decoder.jar
+
+Removing downloaded and built objects can be done with
+
+    make clean
+
 ## Running
 
 Invoke the program as follows:
 
-    bin/gerke-decoder -h                for built-in help
-    bin/gerke-decoder WAV_FILE          to decode a .wav file
+    bin/gerke-decoder -h                   for built-in help
+    bin/gerke-decoder WAV_FILE             to decode a .wav file
+
+The executable jar is similarly invoked:
+
+    java -jar gerke-decoder.jar -h         for built-in help
+    java -jar gerke-decoder.jar WAV_FILE   to decode a .wav file
 
 ## Assumptions
 
@@ -90,6 +105,40 @@ word breaks.
 
 ## Options
 
+### Decoding method
+
+Six different decoding methods are provided, selectable with the -D option:
+
+1: Tone/silence: Dots and dashes are recognized as the
+signal amplitude raises above and falls below a threshold level. The
+level is adjustable with the -u option.
+
+2: Patterns: The signal is multiplied with a rectangular wave
+function representing a character. The product is integrated over the
+extent of the character and the best matching character is chosen. The
+beginning and end of a character is still based on tone/silence
+crossings.
+
+3: Dips: The extent of a character is determined from level
+crossings, as in method 1.  Within the character a search is made for
+dips, by matching against a negative gaussian function with a width of
+about 1 TU. Dashes and dots are then identified from the positions of
+the dips.
+
+4: Prototype segments: Dashes are recognized by
+least-squares fitting a straight line to dash-length time
+intervals. Dots are then recognized by trying dot-length time
+intervals that don't clash with the dashes. This decoding method
+is of a prototype nature.
+
+5: Sliding segments: Line segments are fitted to the signal data,
+thereby locating dashes and dots.
+
+6: Adaptive segments: Similar to the no. 5 method, except that it
+adapts to frequency drift and fading.
+<span style="font-weight: bold;">This is the default decoding
+method</span>.
+
 ### Verbosity
 
 Add the -v option to have some diagnostics printed. To get even more
@@ -103,7 +152,7 @@ By default a search for tone signals in the range 400..1200 Hz is
 made. The decoder will choose the best frequency in that range.  A
 non-default search range may be set with the -F option, e.g.:
 
-    -F 3000,6000
+    -F 16900,17500
 
 Add the -S option to get a plot of average signal amplitude versus
 frequency. There should be a maximum somewhere in the frequency range.
@@ -131,19 +180,23 @@ many tones as dashes. A too low value will cause tones to be
 interpreted as dots. When a reasonable setting has been found the
 decoder will distinguish dashes and dots properly.
 
-When the -v option is given the effective WPM, as calculated from the
-timing of dots and dashes in decoded characters, will be
-reported. Re-running with the -w option set to this value may result
-in somewhat improved decoding.
+The effective WPM, as calculated from the timing of dots and dashes in
+decoded characters, will be reported when the -v option is used.
+Re-running with the -w option set to this value may result in somewhat
+improved decoding.
 
-### Expanded spaces
+### Compensating for expanded spaces
 
-If spaces between characters and words are expanded, this can be
-compensated for by specifying e.g:
+(This option is only effective with the "dips" decoder.)
+
+If silent spaces between characters and words are exaggerated, this can
+be compensated for by specifying e.g:
 
     -W 1.2
 
 ### Clipping level
+
+(This option is ignored by the "adaptive line segments" decoder)
 
 By default the decoder will apply a small degree of clipping, with
 intention to reduce the impact of spiky noise. With the -v option the
@@ -159,55 +212,26 @@ presence of fading it may thus be that clipping is not effective in
 faded parts of the recording. To process different parts of the
 recording differently the -o and -l options can be used.
 
-### Sample period
+### Time slice period
 
-For accurate decoding the signal amplitude should be sampled with a
-period of about 0.1 TU. A non-default sampling period of 0.15 TU can
-be given like this:
+The signal is estimated at points that are of the order 0.1 TU apart.
+This time slice period is decoder dependent. To decrease the time
+slice period to 80% of the default value, use
 
-    -u 0.15
+    -q 0.8
 
 ### Gaussian sigma
 
 To further reduce signal fluctuations a Gaussian average of samples is
-taken.  A sigma value of about 0.25 TU is used by default. To specify
-a non-default sigma value, add
+taken.  A sigma value of about 0.18 TU is used by default. To specify
+a non-default sigma value, use
 
     -s 0.35
-
-### Decoding method
-
-Three different decoding methods are provided:
-
-1: Tone/silence crossings based: Dots and dashes are recognized as the
-signal amplitude raises above and falls below a threshold level. The
-level is adjustable with the -u option.
-
-2: Pattern matching: The signal is multiplied with a rectangular wave
-function representing a character. The product is integrated over the
-extent of the character and the best matching character is chosen. The
-beginning and end of a character is still based on tone/silence
-crossings.
-
-3: Dips based: The extent of a character is determined from level
-crossings, as in method 1.  Within the character a search is made for
-dips, by matching against a negative gaussian function with a width of
-about 1 TU. Dashes and dots are then identified from the positions of
-the dips.
-
-4: Least-squares fitted line segments: Dashes are recognized by
-least-squares fitting a straight line to dash-length time
-intervals. Dots are then recognized by trying dot-length time
-intervals that don't clash with the dashes. This decoding method is
-experimental as of now.
-
-The dips based method is enabled by default. Another method can be
-requested with the -D option.
 
 ### Threshold level
 
 The threshold between tone and silence is determined
-automatically. The threshold level will be proportional to the signal
+automatically. The threshold level will follow the signal
 level, so modest fading will not be an issue.
 
 In noisy conditions some improvement may be obtained by setting the
@@ -229,7 +253,8 @@ plotting with the -A option:
 
 To get a good view it may be necessary to select a sufficiently short
 time interval. For WPM around 15 a 10 s interval may be convenient. To
-specify a 10 s interval starting at 55 s into the recording, use
+specify an interval starting at 55 s into the recording and lasting for
+10 s, use
 
     -Z 55,10
 
@@ -247,6 +272,8 @@ should wander only slowly.
 ### Frequency plot
 
 Signal content versus frequency can be plotted with the -S option.
+This option cannot be used in combination with the -f option, and
+not in combination with the "adaptive segments" decoder.
 
 The signal vs. frequency graph can be made more peaked by increasing
 the -q option value (try -h to see what the default is). Note however
@@ -258,14 +285,14 @@ finding the frequency.
 The -o option specifies an offset, in seconds, into the .wav file. The
 -l option specifies a length in seconds. When processing a large
 recording these options can be used to limit the amount of data to be
-held in RAM. For example, assuming a segment starting at 4200 s and
-extending for 180 s is to be decoded, specify
+held in RAM. For example, assuming that a segment starting at 4200 s and
+extending for 180 s is to be decoded, then specify
 
     -o 4200 -l 180
 
 All options refer to the same time axis, starting at 0 seconds at the
 beginning of the .wav file.  To plot a 10 s interval out of the 180 s
-segment, add
+segment, add e.g.
 
     -A -Z 4300,10
 
