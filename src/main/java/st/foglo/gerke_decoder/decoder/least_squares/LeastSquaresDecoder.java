@@ -210,11 +210,11 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                                 prevDash = candidate;
                             }
                             else {
-                                new Info("dropping dash after 4-segment analysis, t: %f", t);
+                                new Debug("dropping dash after 4-segment analysis, t: %f", t);
                             }
                         }
                         else {
-                            new Info("dropping dash after 3-segment analysis, t: %f", t);
+                            new Debug("dropping dash after 3-segment analysis, t: %f", t);
                         }
                     }
                 } 

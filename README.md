@@ -23,6 +23,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>2.1.1</td><td>Various corrections</td></tr>
 <tr><td>2.1.1.1</td><td>Refactoring</td></tr>
 <tr><td>3.0.0</td><td>Adapting to frequency drift and fading</td></tr>
+<tr><td>3.0.1</td><td>Guard against all-zeroes segments in .wav file</td></tr>
 </table>
 
 ## Platforms
@@ -134,8 +135,8 @@ is of a prototype nature.
 5: Sliding segments: Line segments are fitted to the signal data,
 thereby locating dashes and dots.
 
-6: Adaptive segments: Similar to the no. 5 method, except that it
-adapts to frequency drift and fading.
+6: Adaptive segments: Similar to the no. 5 method, plus it adapts
+to frequency drift and fading.
 <span style="font-weight: bold;">This is the default decoding
 method</span>.
 
@@ -279,6 +280,12 @@ The signal vs. frequency graph can be made more peaked by increasing
 the -q option value (try -h to see what the default is). Note however
 that this may cause decoding to be impaired, so do this only for
 finding the frequency.
+
+### Frequency stability plot
+
+This feature is enabled with option -Y, and is available with decoding
+methods 4, 5 and 6. The signal frequency is plotted as a function of
+time. A time interval can be specified with the -Z option.
 
 ### Offset and length
 

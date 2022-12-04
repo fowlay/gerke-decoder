@@ -295,8 +295,6 @@ public final class GerkeLib {
         public Info(String format, int k, double u, double v) {
             this(String.format(format, k, u, v));
         }
-        
-
 
         public Info(String format, int v, String s) {
             this(String.format(format, v, s));
@@ -326,8 +324,6 @@ public final class GerkeLib {
         public Info(String format, double x, double y) {
             this(String.format(format, x, y));
         }
-
-
         
         public Info(String format, double x, double y, int j) {
             this(String.format(format, x, y, j));

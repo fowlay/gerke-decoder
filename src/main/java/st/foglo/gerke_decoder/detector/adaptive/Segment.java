@@ -3,6 +3,7 @@ package st.foglo.gerke_decoder.detector.adaptive;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
+
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.wave.Wav;
 
@@ -58,18 +59,38 @@ final class Segment {
         
         final double[] f = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_FRANGE);
         
-        // TODO, parameters: what is a reasonable setting?
-        this.bestFrequency = bestFrequency(f[0], f[1], FREQ_PREC);
-        
-        this.strength = sumOverSegment(bestFrequency);
-        
-//        new Info("seg no: %d, f: %f, strength: %f", base/size, bestFrequency, strength);
-        
-        this.clipLevel = clipLevelInSegment();
-        
-        new Debug("clip level in segment: %d", clipLevel);
+        final int maxAbsValue = maxAbsValue();
+        if (maxAbsValue == 0) {
+            this.bestFrequency = 0.5 * (f[0] + f[1]);
+            this.strength = 0.0;
+            this.clipLevel = 1;
+        } else {
+
+            // TODO, parameters: what is a reasonable setting?
+            this.bestFrequency = bestFrequency(f[0], f[1], FREQ_PREC);
+            this.strength = sumOverSegment(bestFrequency);
+            this.clipLevel = clipLevelInSegment(maxAbsValue);
+            new Debug("clip level in segment: %d", clipLevel);
+        }
     }
 
+    /**
+     * Returns the highest absolute wav value in the segment.
+     */
+    private int maxAbsValue() {
+        int result = 0;
+        for (int k = 0; k < size; k++) {
+            final int value = w.wav[base + k];
+
+            if (value > result) {
+                result = value;
+            } else if (value < 0 && -value > result) {
+                result = -value;
+            }
+        }
+        return result;
+    }
+    
     /**
      * Sum signal over entire segment, trying frequency u
      * @param u
@@ -98,10 +119,9 @@ final class Segment {
         return result/nofChunk;
     }
     
-    private int clipLevelInSegment() {
+    private int clipLevelInSegment(int maxAbsValue) {
         
-        // Heuristic parameter 50
-        double clipLevelHigh = 50*strength;
+        final double clipLevelHigh = maxAbsValue;
         
         // Reduce cliplevel until some clipping starts to occur
         
