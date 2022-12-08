@@ -78,6 +78,14 @@ Removing downloaded and built objects can be done with
 
     make clean
 
+## Building version 2.1.1
+
+Version 2.1.1 is not the latest; it is maintained on a branch. To
+build it, do
+
+    git checkout 2.1.1-m1
+    make
+
 ## Running
 
 Invoke the program as follows:
