@@ -31,8 +31,7 @@ GERKE_DECODER_REL = $(shell sed -e 's|^  <version>\(.*\)</version>|\1|p' -e d po
 APACHE_REL = 3.6.3
 
 ## For alternative mirrors, see https://www.apache.org/mirrors/
-APACHE_MIRROR = https://ftp.acc.umu.se/mirror/apache.org/
-
+APACHE_MIRROR = https://archive.apache.org/dist
 
 
 ## Make gerke-decoder and dependencies
