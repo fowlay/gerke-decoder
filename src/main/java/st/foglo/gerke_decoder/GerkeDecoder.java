@@ -88,7 +88,11 @@ public final class GerkeDecoder {
         PHASELOCKED,
         PLWIDTH,
         DIP_MERGE_LIM,
-        DIP_STRENGTH_MIN
+        DIP_STRENGTH_MIN,
+        CLIP_DEPTH,
+        HALF_WIDTH,
+        SPIKE_WIDTH_MAX,
+        CRACK_WIDTH_MAX
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -239,7 +243,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.0.1");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.0.2");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -283,7 +287,11 @@ public final class GerkeDecoder {
                         ",0"+                       // phase-locked: 0=off, 1=on
                         ",0.8"+                     // phase averaging, relative to TU
                         ",0.75"+                    // merge-dips limit
-                        ",0.7"                      // dip strength min                       
+                        ",0.7"+                     // dip strength min
+                        ",0.05"+                    // clipping depth
+                        ",0.40"+                    // sliding line half-width .... maybe lower towards 0.30?
+                        ",0.35"+                    // spike width max         .... maybe lower towards 0.30?
+                        ",0.33"                     // crack width max         .... maybe lower?
                 );
 
         new HelpOption(

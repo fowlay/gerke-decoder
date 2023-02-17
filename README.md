@@ -24,6 +24,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>2.1.1.1</td><td>Refactoring</td></tr>
 <tr><td>3.0.0</td><td>Adapting to frequency drift and fading</td></tr>
 <tr><td>3.0.1</td><td>Guard against all-zeroes segments in .wav file</td></tr>
+<tr><td>3.0.2</td><td>Clipping depth as hidden parameter, default 0.05</td></tr>
 </table>
 
 ## Platforms
@@ -323,15 +324,20 @@ see the default values, use -h. Values must be given as a
 comma-separated space-free string, with no values omitted. The
 parameters are:
 
-    DIP     Threshold for dips removal
-    SPIKE   Threshold for spikes removal
-    BREAK   Break very long dashes in two: 0=disabled, 1=enabled
-    FILTER  Low-pass filter
-    CUTOFF  Low-pass filter cutoff frequency relative to 1/TU
-    ORDER   Filter order
-    PL      Phase locking
-    PLWIDTH Phase locking width
-    DIPM    Dips merge limit
+    DIP              Threshold for dips removal
+    SPIKE            Threshold for spikes removal
+    BREAK_LONG_DASH  Break very long dashes in two: 0=disabled, 1=enabled
+    FILTER           Low-pass filter
+    CUTOFF           Low-pass filter cutoff frequency relative to 1/TU
+    ORDER            Filter order
+    PHASELOCKED      Phase locking
+    PLWIDTH          Phase locking width
+    DIP_MERGE_LIM    Dips merge limit
+    DIP_STRENGTH_MIN Dips strength minimum
+    CLIP_DEPTH       Clipping depth (only with "adaptive segments" decoder)
+    HALF_WIDTH       Sliding line half-width
+    SPIKE_WIDTH_MAX  Maximum width of a spike (unit is TU)
+    CRACK_WIDTH_MAX  Maximum width of a crack (unit is TU)
 
 Valid values for FILTER are:
 

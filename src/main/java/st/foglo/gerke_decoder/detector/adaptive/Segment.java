@@ -2,6 +2,7 @@ package st.foglo.gerke_decoder.detector.adaptive;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
+import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 
 import st.foglo.gerke_decoder.detector.TrigTable;
@@ -125,8 +126,9 @@ final class Segment {
         
         // Reduce cliplevel until some clipping starts to occur
         
-        //final double acceptableLoss = 0.02;   // heuristic parameter, TODO
-        final double acceptableLoss = 0.01;   // heuristic parameter, TODO
+        final double acceptableLoss = 
+                GerkeLib.getDoubleOptMulti(
+                    GerkeDecoder.O_HIDDEN)[HiddenOpts.CLIP_DEPTH.ordinal()];
         
         for (double x = clipLevelHigh; true; x *= 0.7) {
             final double clipAmount = signalLossAmount(x);

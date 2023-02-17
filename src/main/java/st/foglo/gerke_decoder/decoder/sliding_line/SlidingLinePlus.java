@@ -6,6 +6,7 @@ import java.util.TreeMap;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
 import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
@@ -43,12 +44,16 @@ public final class SlidingLinePlus extends DecoderBase {
     /**
      * Maximum width of a spike; unit is TU
      */
-    private static final double spikeWidth = 0.35;
+    private static final double spikeWidth =
+        GerkeLib.getDoubleOptMulti(
+            GerkeDecoder.O_HIDDEN)[HiddenOpts.SPIKE_WIDTH_MAX.ordinal()];
 
     /**
      * Maximum width of a crack; unit is TU
      */
-    private static final double crackWidth = 0.33;
+    private static final double crackWidth =
+        GerkeLib.getDoubleOptMulti(
+            GerkeDecoder.O_HIDDEN)[HiddenOpts.CRACK_WIDTH_MAX.ordinal()];
     
     final int sigSize;
     
@@ -56,11 +61,12 @@ public final class SlidingLinePlus extends DecoderBase {
     
     /**
      * Half-width of the sliding line, expressed as nof. slices
-     * PARAMETER 0.40
-     * 
      * This parameter is quite sensitive!
      */
-    final int halfWidth = (int) Math.round( ((double)7/8) *  0.40/tsLength);
+    final double hw =
+        GerkeLib.getDoubleOptMulti(
+            GerkeDecoder.O_HIDDEN)[HiddenOpts.HALF_WIDTH.ordinal()];
+    final int halfWidth = (int) Math.round( ((double)7/8) * hw/tsLength);
 
     public SlidingLinePlus(
             double tuMillis,
