@@ -2,7 +2,7 @@ package st.foglo.gerke_decoder;
 
 // gerke-decoder - translates Morse code audio to text
 //
-// Copyright (C) 2020-2022 Rabbe Fogelholm
+// Copyright (C) 2020-2023 Rabbe Fogelholm
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -243,7 +243,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.0.2");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.0.3");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -421,15 +421,10 @@ new String[]{
             // TS length in ms is: tsLength*tuMillis
             // Number of TU covered by N time slices is N/(1.0/tsLength) = N*tsLength
 
-            
             final int decoder = GerkeLib.getIntOpt(O_DECODER);
-            
-            //final double tsLengthGiven = GerkeLib.getDoubleOpt(O_STIME);
-
             
             final double tsStretch = GerkeLib.getDoubleOpt(O_STIME);
             final double tsLengthGiven = tsStretch*TS_LENGTH[decoder];
-            
 
             final int framesPerSlice = (int) Math.round(tsLengthGiven*w.frameRate*tuMillis/1000.0);
 
@@ -444,6 +439,8 @@ new String[]{
 
             // ============  Multiply by sine and cosine functions, apply filtering
 
+            // number of slices; this many slices fill the wav array, except for a
+            // possible tail that is less than a complete slice
             final int nofSlices = w.nofFrames/framesPerSlice;
 
             final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);

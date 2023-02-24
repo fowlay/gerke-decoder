@@ -1,6 +1,6 @@
 ## gerke-decoder - translates Morse code audio to text
 ##
-## Copyright (C) 2020-2022 Rabbe Fogelholm
+## Copyright (C) 2020-2023 Rabbe Fogelholm
 ##
 ## This program is free software: you can redistribute it and/or modify
 ## it under the terms of the GNU General Public License as published by

@@ -4,7 +4,7 @@
   <groupId>st.foglo</groupId>
   <artifactId>gerke_decoder</artifactId>
   <packaging>jar</packaging>
-  <version>3.0.2</version>
+  <version>3.0.3</version>
   <name>st.foglo.gerke_decoder</name>
   <url>http://elsewhere.se</url>
   <dependencies>

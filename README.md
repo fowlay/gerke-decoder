@@ -25,6 +25,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>3.0.0</td><td>Adapting to frequency drift and fading</td></tr>
 <tr><td>3.0.1</td><td>Guard against all-zeroes segments in .wav file</td></tr>
 <tr><td>3.0.2</td><td>Clipping depth as hidden parameter, default 0.05</td></tr>
+<tr><td>3.0.3</td><td>Fix coding fault, improve performance</td></tr>
 </table>
 
 ## Platforms
@@ -306,11 +307,11 @@ extending for 180 s is to be decoded, then specify
 
     -o 4200 -l 180
 
-All options refer to the same time axis, starting at 0 seconds at the
-beginning of the .wav file.  To plot a 10 s interval out of the 180 s
-segment, add e.g.
+All options, except for -l, refer to the same time axis, starting at 0
+seconds at the beginning of the .wav file.  To plot a 10 s interval
+within the 180 s segment, add e.g.
 
-    -A -Z 4300,10
+    -o 4200 -l 180 -A -Z 4300,10
 
 ### Timestamps
 
