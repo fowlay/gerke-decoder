@@ -41,9 +41,9 @@ APACHE_MIRROR = https://dlcdn.apache.org/
 
 ## Make gerke-decoder and dependencies
 
-SRC = $(shell find src/main/java/st/foglo/gerke_decoder -name '*.java')
+SRC = pom.xml $(shell find src/main/java/st/foglo/gerke_decoder -name '*.java')
 
-bin/gerke-decoder: lib/gerke-decoder.template pom.xml target/gerke_decoder-$(GERKE_DECODER_REL).jar
+bin/gerke-decoder: lib/gerke-decoder.template target/gerke_decoder-$(GERKE_DECODER_REL).jar
 	mkdir --parents $$(dirname $@)
 	sed -e 's|@GERKE_DECODER_REL@|$(GERKE_DECODER_REL)|' $< >$@
 	chmod a+x $@
@@ -99,7 +99,7 @@ grimeton-clip.wav:
 ## Removal
 
 clean:
-	rm -rf bin target apache-maven-$(APACHE_REL) gerke-decoder.jar grimeton-clip.wav
+	rm -rf bin target gerke-decoder.jar 
 
 realclean: clean
-	rm -rf m2
+	rm -rf m2 apache-maven-$(APACHE_REL) grimeton-clip.wav

@@ -115,7 +115,7 @@ public class PlotEntries {
         }
     }
 
-    public boolean hasSigPLus() {
+    public boolean hasSigPlus() {
         for (Entry<Double, List<PlotEntryBase>> e : entries.entrySet()) {
             for (PlotEntryBase peb : e.getValue()) {
                 if (peb instanceof PlotEntrySigPlus) {

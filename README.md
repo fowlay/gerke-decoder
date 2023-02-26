@@ -26,6 +26,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>3.0.1</td><td>Guard against all-zeroes segments in .wav file</td></tr>
 <tr><td>3.0.2</td><td>Clipping depth as hidden parameter, default 0.05</td></tr>
 <tr><td>3.0.3</td><td>Fix coding fault, improve performance</td></tr>
+<tr><td>3.1.0</td><td>Add tone/space lengths histogram</td></tr>
 </table>
 
 ## Platforms
@@ -37,18 +38,21 @@ A decoder that translates Morse code audio to text.
 
 ### Java
 
-The current version was developed using OpenJDK version 11. Other JDK
-versions may work also.
+OpenJDK version 11 or higher is recommended.
 
 ### Optional: Gnuplot
 
-The -S, -A and -P options, for plotting signal frequency, amplitude
-and phase, invoke the 'gnuplot' program. On Windows with Cygwin/X the
+The -S, -A, -P, -Y and -M options, for plotting various aspects of the
+recorded signal, invoke the 'gnuplot' program. On major Linux
+distributions, if 'gnuplot' is not already installed, use the provided
+package manager to install it.
+
+On Windows with Cygwin/X the
 gnuplot-base and gnuplot-X11 packages are needed.
 
 ### GNU Make
 
-Building requires GNU Make. On Windows with Cygwin/X GNU Make is
+Building requires GNU Make. On Windows with Cygwin/X, GNU Make is
 provided in the 'make' package.
 
 ### The 'iirj' filter package
@@ -79,6 +83,14 @@ Building an executable jar (optional) can be done with
 Removing downloaded and built objects can be done with
 
     make clean
+
+## Upgrading
+
+If the source tree was downloaded using a "git clone" command,
+upgrading to a more recent version can be done with
+
+    git pull --rebase
+    make clean && make
 
 ## Building version 2.1.1
 
@@ -296,6 +308,14 @@ finding the frequency.
 This feature is enabled with option -Y, and is available with decoding
 methods 4, 5 and 6. The signal frequency is plotted as a function of
 time. A time interval can be specified with the -Z option.
+
+### Tone and space lengths histograms
+
+This feature is enabled with option -M:
+
+    -M 1            tone lengths
+    -M 0            space lengths
+    -M 1,0          tone lengths and space lengths
 
 ### Offset and length
 

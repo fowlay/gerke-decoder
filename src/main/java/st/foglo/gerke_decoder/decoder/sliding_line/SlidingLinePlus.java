@@ -16,6 +16,7 @@ import st.foglo.gerke_decoder.decoder.ToneBase;
 import st.foglo.gerke_decoder.decoder.TwoDoubles;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.HistEntries;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
@@ -76,6 +77,7 @@ public final class SlidingLinePlus extends DecoderBase {
             Wav w,
             double[] sig,
             PlotEntries plotEntries,
+            HistEntries histEntries,
             Formatter formatter,
             
             int sigSize,
@@ -92,6 +94,7 @@ public final class SlidingLinePlus extends DecoderBase {
                 w,
                 sig,
                 plotEntries,
+                histEntries,
                 formatter,
                 cei,
                 flo,
@@ -198,9 +201,9 @@ public final class SlidingLinePlus extends DecoderBase {
                         else {
                             final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
                             if (createDot) {
-                                tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+                                tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop, histEntries));
                             } else {
-                                tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+                                tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop, histEntries));
                             }
                         }
                     }
@@ -223,9 +226,9 @@ public final class SlidingLinePlus extends DecoderBase {
                                 GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
                         final int kMiddle = (int) Math.round((kRaise + kDrop) / 2.0);
                         if (createDot) {
-                            tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop));
+                            tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop, histEntries));
                         } else {
-                            tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop));
+                            tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop, histEntries));
                         }
                         
                         state = States.M_HIGH;
@@ -255,6 +258,9 @@ public final class SlidingLinePlus extends DecoderBase {
                 
             } else if (prevKey != null) {
                 final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
+                if (histEntries != null) {
+                    histEntries.addEntry(0, toneDistSlices);
+                }
                 
                 if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)

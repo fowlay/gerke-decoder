@@ -27,7 +27,7 @@ import java.util.StringTokenizer;
  * Static methods and classes for command line handling.
  */
 public final class GerkeLib {
-
+	
     /**
      * Maps full parameter name to value, represented as a string.
      */
@@ -43,6 +43,11 @@ public final class GerkeLib {
      */
     public static Map<String, Option> opts = new HashMap<String, Option>();
 
+    /**
+     * Maps full parameter name to option.
+     */
+    public static Map<String, Option> optionsByFullName = new HashMap<String, Option>();
+    
     /**
      * Command-line arguments.
      */
@@ -66,6 +71,7 @@ public final class GerkeLib {
                 new Death("duplicate parameter name: %s", name);
             }
             defaults.put(name, defaultValue);
+            optionsByFullName.put(name, this);
         }
 
         /**
@@ -414,6 +420,10 @@ public final class GerkeLib {
         public Death(String format, String value) {
             this(String.format(format, value));
         }
+        
+        public Death(String format, String s1, String s2, int k) {
+            this(String.format(format, s1, s2, k));
+        }
 
         public Death(String format, int value) {
             this(String.format(format, value));
@@ -469,6 +479,12 @@ public final class GerkeLib {
         }
     }
 
+
+	public static String getOptShortName(String key) {
+		final Option option = optionsByFullName.get(key);
+		return option.shortName;
+	}
+	
     public static String getOpt(String key) {
         final String value = params.get(key);
         final String result = value != null ? value : defaults.get(key);
@@ -574,5 +590,22 @@ public final class GerkeLib {
     public static int nofArguments() {
         return args.size();
     }
-}
 
+	public static boolean validBoundaries(int low, int high, int[] values) {
+		for (int i = 0; i < values.length; i++) {
+			if (values[i] < low || values[i] > high) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+    public static boolean member(int k, int[]a) {
+        for (int i = 0; i < a.length; i++) {
+            if (k == a[i]) {
+                return true;
+            }
+        }
+        return false;
+    }
+}

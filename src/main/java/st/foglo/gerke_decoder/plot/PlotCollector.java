@@ -2,8 +2,6 @@ package st.foglo.gerke_decoder.plot;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
 import java.nio.file.Files;
 
 import st.foglo.gerke_decoder.GerkeLib.Debug;
@@ -14,7 +12,7 @@ import st.foglo.gerke_decoder.GerkeLib.Debug;
  * ps          - a print stream for line-by-line data
  * plot()      - create the diagram
  */
-public final class PlotCollector {
+public final class PlotCollector extends CollectorBase {
 
     public enum Mode {
         LINES_PURPLE("lines ls 1"),
@@ -34,16 +32,10 @@ public final class PlotCollector {
         }
     };
 
-    private String fileName;
-    private String fileNameWin;
-    public final PrintStream ps;
+
 
     public PlotCollector() throws IOException {
-
-        this.fileName = makeTempFile();
-        this.fileNameWin = isWindows() ? toWindows(fileName) : null;
-        this.ps = new PrintStream(
-                new File(fileNameWin != null ? fileNameWin : fileName));
+        super();
     }
 
     public void plot(Mode mode[]) throws IOException, InterruptedException {
@@ -135,45 +127,6 @@ public final class PlotCollector {
         new Debug("gnuplot exited with code: %d", exitCode);
     }
 
-    String toWindows(String tempFileName) throws IOException {
-        final ProcessBuilder pb = new ProcessBuilder("cygpath", "-w", tempFileName);
-        final Process pr = pb.start();
-        final InputStream is = pr.getInputStream();
-        for (StringBuilder sb = new StringBuilder(); true; ) {
-            final int by = is.read();
-            if (by == -1) {
-                return sb.toString();
-            }
-            else {
-                final char c = (char)by;
-                if (c != '\r' && c != '\n') {
-                    sb.append(c);
-                }
-            }
-        }
-    }
 
-
-    String makeTempFile() throws IOException {
-        final ProcessBuilder pb = new ProcessBuilder("mktemp");
-        final Process pr = pb.start();
-        final InputStream is = pr.getInputStream();
-        for (StringBuilder sb = new StringBuilder(); true; ) {
-            final int by = is.read();
-            if (by == -1) {
-                return sb.toString();
-            }
-            else {
-                final char c = (char)by;
-                if (c != '\r' && c != '\n') {
-                    sb.append(c);
-                }
-            }
-        }
-    }
-
-    boolean isWindows() {
-        return System.getProperty("os.name").startsWith("Windows");
-    }
 }
 

@@ -36,6 +36,8 @@ import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
 import st.foglo.gerke_decoder.detector.cw_basic.CwBasicImpl;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.HistCollector;
+import st.foglo.gerke_decoder.plot.HistEntries;
 import st.foglo.gerke_decoder.plot.PlotCollector;
 import st.foglo.gerke_decoder.plot.PlotCollector.Mode;
 import st.foglo.gerke_decoder.plot.PlotEntries;
@@ -67,11 +69,15 @@ public final class GerkeDecoder {
     static final String O_DECODER = "decoder";
     public static final String O_LEVEL = "level";
     public static final String O_TSTAMPS = "timestamps";
-    public static final String O_FPLOT = "frequency-plot";
+    
     public static final String O_PLINT = "plot-interval";
-    public static final String O_PLOT = "plot";
-    public static final String O_PPLOT = "phase-plot";
-    public static final String O_FSPLOT = "frequency-stability-plot";
+    public static final String O_FPLOT = "plot-frequency";
+    public static final String O_APLOT = "plot-amplitude";
+    public static final String O_PPLOT = "plot-phase";
+    public static final String O_FSPLOT = "plot-frequency-stability";
+    
+    public static final String O_HIST_TONE_SPACE = "histogram-tone-space";
+    
     public static final String O_VERBOSE = "verbose";
     
     public static final String O_COHSIZE = "coherence-size";
@@ -243,7 +249,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.0.3");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.0");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -270,10 +276,12 @@ public final class GerkeDecoder {
         new Flag("S", O_FPLOT);
 
         new SingleValueOption("Z", O_PLINT, "0,-1");
-        new Flag("A", O_PLOT);
+        new Flag("A", O_APLOT);
         new Flag("P", O_PPLOT);
         
         new Flag("Y", O_FSPLOT);
+        
+        new SingleValueOption("M", O_HIST_TONE_SPACE, "-1");
 
         new SteppingOption("v", O_VERBOSE);
 
@@ -323,6 +331,7 @@ new String[]{
         String.format("  -A                 Generate amplitude plot"),
         String.format("  -P                 Generate phase angle plot"),
         String.format("  -Y                 Generate frequency stability plot"),
+        String.format("  -M MODES           Generate histograms of tone/space lengths; 1: tone, 0: space"),
 
         String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
         String.format("  -t                 Insert timestamps in decoded text"),
@@ -561,7 +570,7 @@ new String[]{
             final int offset = GerkeLib.getIntOpt(O_OFFSET);
             final Formatter formatter = new Formatter();
             final PlotEntries plotEntries =
-                    GerkeLib.getFlag(O_PLOT) ? new PlotEntries(w) : null;
+                    GerkeLib.getFlag(O_APLOT) ? new PlotEntries(w) : null;
 
             if (plotEntries != null) {
                 for (int q = 0; q < sig.length; q++) {
@@ -571,6 +580,30 @@ new String[]{
                         plotEntries.addAmplitudes(seconds, sig[q], threshold, cei[q], flo[q]);
                     }
                 }
+            }
+
+            /**
+             * The array may contain 1 (tones histogram) or 0 (spaces histogram) or both.
+             */
+            final int[] histRequests = GerkeLib.getIntOptMulti(O_HIST_TONE_SPACE);
+            if (histRequests.length > 0 && decoder != DecoderIndex.LSQ2_PLUS.ordinal()) {
+            	new Death("Option -%s only supported for -%s %d",
+            			GerkeLib.getOptShortName(O_HIST_TONE_SPACE),
+            			GerkeLib.getOptShortName(O_DECODER),
+            			DecoderIndex.LSQ2_PLUS.ordinal());
+            }
+
+            final HistEntries histEntries;
+            if (GerkeLib.member(1, histRequests) ||
+            		GerkeLib.member(0, histRequests)) { // move method to GerkeLib? TODO
+            	if (! GerkeLib.validBoundaries(0, 1, histRequests)) {
+            		new Death("Option -%s values must be 0 or 1",
+            				GerkeLib.getOptShortName(O_HIST_TONE_SPACE));
+            	}
+                histEntries = new HistEntries(tuMillis, tsLength);
+            }
+            else {
+                histEntries = null;
             }
 
             new Info("decoder: %s (%d)", DECODER_NAME[decoder], decoder);
@@ -689,6 +722,7 @@ new String[]{
                         w,
                         sig,
                         plotEntries,
+                        histEntries,
                         formatter,
                         
                         sigSize,
@@ -706,6 +740,30 @@ new String[]{
             dec.execute();
 
             new Info("decoded text MD5 digest: %s", formatter.getDigest());
+            
+            if (GerkeLib.member(1, histRequests)) {
+                final HistCollector hc =
+                        new HistCollector(
+                                histEntries.binWidth,
+                                histEntries.getVerticalRange(1),
+                                histEntries.getHorisontalRange(1));
+                for (Double d : histEntries.widthsOfTones) {
+                    hc.ps.println(String.format("%f", d));
+                }
+                hc.plot(1);
+            }
+            
+            if (GerkeLib.member(0, histRequests)) {
+                final HistCollector hc =
+                        new HistCollector(
+                                histEntries.binWidth,
+                                histEntries.getVerticalRange(0),
+                                histEntries.getHorisontalRange(0));
+                for (Double d : histEntries.widthsOfSpaces) {
+                    hc.ps.println(String.format("%f", d));
+                }
+                hc.plot(0);
+            }
 
             if (plotEntries != null) {
                 final PlotCollector pc = new PlotCollector();
@@ -717,7 +775,7 @@ new String[]{
                 double sigavg = 0.0;
                 double digitizedSignal = initDigitizedSignal;
                 
-                final boolean hasSigPlus = plotEntries.hasSigPLus();
+                final boolean hasSigPlus = plotEntries.hasSigPlus();
                 
                 for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entries.entrySet()) {
 
@@ -869,7 +927,7 @@ new String[]{
 
             new Info("level: %f", GerkeLib.getDoubleOpt(O_LEVEL));
             new Info("frequency plot: %b", GerkeLib.getFlag(O_FPLOT));
-            new Info("signal plot: %b", GerkeLib.getFlag(O_PLOT));
+            new Info("signal plot: %b", GerkeLib.getFlag(O_APLOT));
             new Info("phase plot: %b", GerkeLib.getFlag(O_PPLOT));
             new Info("plot interval: %s", GerkeLib.getOpt(O_PLINT));
             new Info("timestamps: %b", GerkeLib.getFlag(O_TSTAMPS));

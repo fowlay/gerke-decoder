@@ -14,6 +14,7 @@ import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.HistEntries;
 import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
@@ -32,6 +33,8 @@ public abstract class DecoderBase implements Decoder {
     protected double[] sig;
     
     protected PlotEntries plotEntries;
+    
+    protected HistEntries histEntries = null;  // may be reassigned in constructor
     
     protected Formatter formatter;
     
@@ -128,6 +131,37 @@ public abstract class DecoderBase implements Decoder {
         this.w = w;
         this.sig = sig;
         this.plotEntries = plotEntries;
+        this.formatter = formatter;
+        this.cei = cei;
+        this.flo = flo;
+        this.ceilingMax = ceilingMax;
+        
+        this.threshold = threshold;
+    }
+    
+    protected DecoderBase(
+            double tuMillis,
+            int framesPerSlice,
+            double tsLength,
+            int offset,
+            Wav w,
+            double[] sig,
+            PlotEntries plotEntries,
+            HistEntries histEntries,
+            Formatter formatter,
+            double[] cei,
+            double[] flo,
+            double ceilingMax,
+            double threshold) {
+
+        this.tuMillis = tuMillis;
+        this.framesPerSlice = framesPerSlice;
+        this.tsLength = tsLength;
+        this.offset = offset;
+        this.w = w;
+        this.sig = sig;
+        this.plotEntries = plotEntries;
+        this.histEntries = histEntries;
         this.formatter = formatter;
         this.cei = cei;
         this.flo = flo;

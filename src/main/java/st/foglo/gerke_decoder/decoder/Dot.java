@@ -2,6 +2,7 @@ package st.foglo.gerke_decoder.decoder;
 
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
+import st.foglo.gerke_decoder.plot.HistEntries;
 
 /**
  * Represents a dot, centered at index k. The extent is implied.
@@ -12,21 +13,13 @@ public final class Dot extends ToneBase {
         super(k, rise, drop);
     }
     
-//    public Dot(
-//            int k,
-//            int jDot,
-//            int jDotSmall,
-//            int jDash,
-//            double[] sig,
-//            double ceiling,
-//            boolean improve) {
-//        super(k,
-//                findRise(k, sig, jDash, jDot),
-//                findDrop(k, sig, jDash, jDot))
-//        ;
-//        this.ceiling = ceiling;
-//    }
-    
+    public Dot(int k, int rise, int drop, HistEntries histEntries) {
+        super(k, rise, drop);
+        if (histEntries != null) {
+            histEntries.addEntry(1, drop-rise);
+        }
+    }
+
     public Dot(
             int k,
             int jDot,
