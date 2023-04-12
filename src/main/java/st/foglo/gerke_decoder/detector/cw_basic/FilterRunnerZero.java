@@ -39,4 +39,3 @@ public final class FilterRunnerZero extends FilterRunnerBase {
         }
     }
 }
-

@@ -31,7 +31,7 @@ public final class CharData {
     public boolean isEmpty() {
         return transes.isEmpty();
     }
-    
+
     public Trans getLastAdded() {
         return lastAdded;
     }

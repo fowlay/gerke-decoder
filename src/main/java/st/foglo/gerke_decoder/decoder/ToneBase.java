@@ -7,7 +7,7 @@ public abstract class ToneBase {
     public final int k;
     public final int rise;
     public final int drop;
-    
+
     public ToneBase(int k, int rise, int drop) {
         this.k = k;
         this.rise = rise;
@@ -16,13 +16,13 @@ public abstract class ToneBase {
             throw new IllegalArgumentException();
         }
     }
-    
+
     public ToneBase(int rise, int drop) {
         this.rise = rise;
         this.drop = drop;
         this.k = (rise + drop)/2;
     }
-    
+
     protected static TwoDoubles lsq(double[] sig, int k, int jMax, WeightBase weight) {
         double sumW = 0.0;
         double sumJW = 0.0;

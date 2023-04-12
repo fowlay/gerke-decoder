@@ -9,14 +9,14 @@ import java.util.Map.Entry;
 import st.foglo.gerke_decoder.lib.Compute;
 
 public final class HistEntries {
-    
+
     public final int binWidth;   // ms
     final Map<Integer, Integer> binsTones = new HashMap<Integer, Integer>();
     final Map<Integer, Integer> binsSpaces = new HashMap<Integer, Integer>();
-    
+
     final double tuMillis;
     final double tsLength;
-    
+
     public final List<Double> widthsOfTones = new ArrayList<Double>();
     public final List<Double> widthsOfSpaces = new ArrayList<Double>();
 
@@ -25,35 +25,35 @@ public final class HistEntries {
         this.tsLength = tsLength;
         this.binWidth = Compute.ensureEven((int)Math.round(tsLength*tuMillis));
     }
-    
+
     public void addEntry(int mode, int slices) {
         double width = slices*tsLength*tuMillis;
         if (mode == 1) {
             widthsOfTones.add(Double.valueOf(width));
-            
+
             final Integer index = Integer.valueOf(((int)Math.round(width))/binWidth);
             Integer current = binsTones.get(index);
             if (current == null) {
                 binsTones.put(index, Integer.valueOf(1));
-            } 
+            }
             else {
                 binsTones.put(index, Integer.valueOf(current.intValue()+1));
             }
         }
         else if (mode == 0) {
             widthsOfSpaces.add(Double.valueOf(width));
-            
+
             final Integer index = Integer.valueOf(((int)Math.round(width))/binWidth);
             Integer current = binsSpaces.get(index);
             if (current == null) {
                 binsSpaces.put(index, Integer.valueOf(1));
-            } 
+            }
             else {
                 binsSpaces.put(index, Integer.valueOf(current.intValue()+1));
             }
         }
     }
-    
+
     public int getVerticalRange(int mode) {
         int result = 0;
         // TODO, check the mode value much earlier
@@ -62,7 +62,7 @@ public final class HistEntries {
         }
         return result;
     }
-    
+
     public int getHorisontalRange(int mode) {
         int maxBinIndex = 0;
         for (Entry<Integer, Integer> m : mode == 1 ? binsTones.entrySet() : mode == 0 ? binsSpaces.entrySet() : null) {
@@ -71,6 +71,3 @@ public final class HistEntries {
         return maxBinIndex*binWidth;
     }
 }
-
-
-

@@ -52,7 +52,7 @@ target/gerke_decoder-$(GERKE_DECODER_REL).jar: apache-maven-$(APACHE_REL)/conf/s
 	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" mvn package
 
 
-## Make executable jar
+## Make executable jar (this make-target assumes a Linux environment; TODO: fix for Cygwin/X)
 
 gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
 	    m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar \
@@ -60,10 +60,13 @@ gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
 	rm -rf standalone-classes
 	mkdir standalone-classes
 	cd standalone-classes && \
-	ln -s ../target/gerke_decoder-$(GERKE_DECODER_REL).jar && jar xf gerke_decoder-$(GERKE_DECODER_REL).jar && \
-	ln -s ../m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar && jar xf iirj-1.1.jar && \
-	ln -s ../m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar && jar xf commons-math3-3.6.1.jar && \
-	rm -f gerke_decoder-$(GERKE_DECODER_REL).jar iirj-1.1.jar commons-math3-3.6.1.jar && \
+	cp ../target/gerke_decoder-$(GERKE_DECODER_REL).jar ./ && \
+        jar xf gerke_decoder-$(GERKE_DECODER_REL).jar && \
+	cp ../m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar ./ && \
+        jar xf iirj-1.1.jar && \
+	cp ../m2/org/apache/commons/commons-math3/3.6.1/commons-math3-3.6.1.jar ./ && \
+        jar xf commons-math3-3.6.1.jar && \
+	rm gerke_decoder-$(GERKE_DECODER_REL).jar iirj-1.1.jar commons-math3-3.6.1.jar && \
 	rm -rf META-INF
 	jar cfe $@ st.foglo.gerke_decoder.GerkeDecoder -C standalone-classes .
 	rm -rf standalone-classes
@@ -99,7 +102,7 @@ grimeton-clip.wav:
 ## Removal
 
 clean:
-	rm -rf bin target gerke-decoder.jar 
+	rm -rf bin target gerke-decoder.jar
 
 realclean: clean
 	rm -rf m2 apache-maven-$(APACHE_REL) grimeton-clip.wav

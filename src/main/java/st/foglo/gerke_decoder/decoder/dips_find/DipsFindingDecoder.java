@@ -23,16 +23,16 @@ import st.foglo.gerke_decoder.plot.PlotEntryDecode;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class DipsFindingDecoder extends DecoderBase {
-    
+
     public static final double THRESHOLD = 0.524;
 
     final Trans[] trans;
     final int transIndex;
-    
+
     final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
     final int wordSpaceLimit =
             (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-    
+
     final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
     public DipsFindingDecoder(
@@ -44,7 +44,7 @@ public final class DipsFindingDecoder extends DecoderBase {
             double[] sig,
             PlotEntries plotEntries,
             Formatter formatter,
-            
+
             double ceilingMax,
 //            Trans[] trans,
 //            int transIndex,
@@ -67,7 +67,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                 ceilingMax,
                 THRESHOLD
                 );
-        
+
         this.trans = findTransitions(
 //                tuMillis,
 //                tsLength,
@@ -80,7 +80,7 @@ public final class DipsFindingDecoder extends DecoderBase {
 //                cei,
                 flo);
         this.transIndex = trans.length;
-        
+
     }
 
     @Override

@@ -16,10 +16,10 @@ import st.foglo.gerke_decoder.wave.Wav;
  * Collection of plot entries.
  */
 public class PlotEntries {
-    
+
     public final double plotBegin;    // beginning of plot, seconds
     public final double plotEnd;      // end of plot, seconds
-    
+
     public final SortedMap<Double, List<PlotEntryBase>> entries = new TreeMap<Double, List<PlotEntryBase>>();
 
     public PlotEntries(Wav w) {
@@ -27,16 +27,16 @@ public class PlotEntries {
         if (GerkeLib.getOptMultiLength(GerkeDecoder.O_PLINT) != 2) {
             new Death("bad plot interval: wrong number of suboptions");
         }
-        
+
         plotBegin = getPlotBegin(w);
         plotEnd = getPlotEnd(w);
-        
+
         if (plotBegin >= plotEnd) {
             new Death("bad plot interval");
         }
-        
+
     }
-    
+
     public void addAmplitudes(
             double t,
             double amp,
@@ -61,7 +61,7 @@ public class PlotEntries {
             list.add(new PlotEntryDecode(y));
         }
     }
-    
+
 
     public void addFrequency(double t, double y) {
         final Double tBoxed = Double.valueOf(t);
@@ -75,7 +75,7 @@ public class PlotEntries {
             list.add(new PlotEntryFreq(y));
         }
     }
-    
+
     public void addPhase(double t, double y, double strength) {
         final Double tBoxed = Double.valueOf(t);
         final List<PlotEntryBase> list = entries.get(tBoxed);
@@ -131,12 +131,12 @@ public class PlotEntries {
         }
         return false;
     }
-    
+
     private static double getPlotBegin(Wav w) {
         final double offsetSec = (double) (GerkeLib.getIntOpt(GerkeDecoder.O_OFFSET));
         return Compute.dMax(GerkeLib.getDoubleOptMulti(GerkeDecoder.O_PLINT)[0], offsetSec);
     }
-    
+
     private static double getPlotEnd(Wav w) {
 
         final double wavLengthSec = ((double) w.frameLength)/w.frameRate;
@@ -164,4 +164,3 @@ public class PlotEntries {
         }
     }
 }
-

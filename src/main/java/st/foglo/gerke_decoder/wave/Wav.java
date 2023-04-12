@@ -47,7 +47,7 @@ public final class Wav {
 
         final int nch = af.getChannels();  // needed in reading, localize?
         new Info("nof. channels: %d", nch);
-        
+
         final int bpf = af.getFrameSize();
         if (bpf == AudioSystem.NOT_SPECIFIED) {
             new Death("bytes per frame is NOT SPECIFIED");
@@ -142,11 +142,11 @@ public final class Wav {
         }
         ais.close();
     }
-    
+
     public double secondsFromSliceIndex(int q, int framesPerSlice) {
         return (((double) q)*framesPerSlice + offsetFrames)/frameRate;
     }
-    
+
     public int wavIndexFromSeconds(double t) {
         return (int) Math.round(t*frameRate - offsetFrames);
     }

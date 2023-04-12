@@ -108,4 +108,3 @@ public final class FilterRunnerPhaseLocked extends FilterRunnerBase {
         return Math.atan2(-cosSum, sinSum);
     }
 }
-

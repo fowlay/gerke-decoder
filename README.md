@@ -27,6 +27,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>3.0.2</td><td>Clipping depth as hidden parameter, default 0.05</td></tr>
 <tr><td>3.0.3</td><td>Fix coding fault, improve performance</td></tr>
 <tr><td>3.1.0</td><td>Add tone/space lengths histogram</td></tr>
+<tr><td>3.1.1</td><td>Support .mp3 input</td></tr>
 </table>
 
 ## Platforms
@@ -39,6 +40,11 @@ A decoder that translates Morse code audio to text.
 ### Java
 
 OpenJDK version 11 or higher is recommended.
+
+### Optional: mpg123
+
+With this conversion utility installed, audio files in .mp3 format can
+be decoded.
 
 ### Optional: Gnuplot
 
@@ -106,11 +112,14 @@ Invoke the program as follows:
 
     bin/gerke-decoder -h                   for built-in help
     bin/gerke-decoder WAV_FILE             to decode a .wav file
+    bin/gerke-decoder MP3_FILE             to decode a .mp3 file
 
 The executable jar is similarly invoked:
 
     java -jar gerke-decoder.jar -h         for built-in help
     java -jar gerke-decoder.jar WAV_FILE   to decode a .wav file
+
+Note: The executable jar requires a .wav input file.
 
 ## Assumptions
 
@@ -337,6 +346,18 @@ within the 180 s segment, add e.g.
 
 The -t option causes a timestamp in seconds to be inserted after every
 decoded word.
+
+### Output text style
+
+The -T option controls casification and line length:
+
+    -T U            upper case
+    -T L            lower case (the default)
+    -T C            capitalized
+
+The default line length is 72; a non-default value may be specified:
+
+    -T U,40
 
 ### Experimental parameters
 

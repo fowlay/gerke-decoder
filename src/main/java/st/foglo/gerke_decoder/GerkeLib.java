@@ -27,7 +27,7 @@ import java.util.StringTokenizer;
  * Static methods and classes for command line handling.
  */
 public final class GerkeLib {
-	
+
     /**
      * Maps full parameter name to value, represented as a string.
      */
@@ -47,7 +47,7 @@ public final class GerkeLib {
      * Maps full parameter name to option.
      */
     public static Map<String, Option> optionsByFullName = new HashMap<String, Option>();
-    
+
     /**
      * Command-line arguments.
      */
@@ -223,7 +223,7 @@ public final class GerkeLib {
         public Debug(String format, int i) {
             this(String.format(format, i));
         }
-        
+
         public Debug(String format, int i, double x, double y) {
             this(String.format(format, i, x, y));
         }
@@ -247,7 +247,7 @@ public final class GerkeLib {
         public Debug(String format, int i, int j, double v, double w, double x) {
             this(String.format(format, i, j, v, w, x));
         }
-        
+
         public Debug(String format, int i, double a, double b, double c, double d, double e, double f) {
             this(String.format(format, i, a, b, c, d, e, f));
         }
@@ -263,11 +263,11 @@ public final class GerkeLib {
         public Debug(String format, double x, double y) {
             this(String.format(format, x, y));
         }
-        
+
         public Debug(String format, double x, int k, double y) {
             this(String.format(format, x, k, y));
         }
-        
+
         public Debug(String format, String s, double x) {
             this(String.format(format, s, x));
         }
@@ -281,11 +281,11 @@ public final class GerkeLib {
         public Info(String format, int value) {
             this(String.format(format, value));
         }
-        
+
         public Info(String format, int v1, int v2) {
             this(String.format(format, v1, v2));
         }
-        
+
         public Info(String format, int i, int j, int k) {
             this(String.format(format, i, j, k));
         }
@@ -293,7 +293,7 @@ public final class GerkeLib {
         public Info(String format, int v1, int v2, double v) {
             this(String.format(format, v1, v2, v));
         }
-        
+
         public Info(String format, int i, int j, double v, double w) {
             this(String.format(format, i, j, v, w));
         }
@@ -309,9 +309,9 @@ public final class GerkeLib {
         public Info(String format, int v, String s) {
             this(String.format(format, v, s));
         }
-        
 
-        
+
+
         public Info(String format, long value) {
             this(String.format(format, value));
         }
@@ -322,7 +322,7 @@ public final class GerkeLib {
         public Info(String format, double value) {
             this(String.format(format, value));
         }
-        
+
         public Info(String format, double x, int k, double y) {
             this(String.format(format, x, k, y));
         }
@@ -334,7 +334,7 @@ public final class GerkeLib {
         public Info(String format, double x, double y) {
             this(String.format(format, x, y));
         }
-        
+
         public Info(String format, double x, double y, int j) {
             this(String.format(format, x, y, j));
         }
@@ -342,13 +342,13 @@ public final class GerkeLib {
         public Info(String format, double x, double y, double z) {
             this(String.format(format, x, y, z));
         }
-        
+
         public Info(String format, double t, double x, double y, double z) {
             this(String.format(format, t, x, y, z));
         }
 
 
-        
+
         public Info(String format, boolean value) {
             this(String.format(format, value));
         }
@@ -360,7 +360,7 @@ public final class GerkeLib {
         public Info(String format, String value) {
             this(String.format(format, value));
         }
-        
+
         public Info(String format, String s, int value) {
             this(String.format(format, s, value));
         }
@@ -375,7 +375,7 @@ public final class GerkeLib {
 
 
 
- 
+
 
 
 
@@ -385,7 +385,7 @@ public final class GerkeLib {
         public Warning(String message) {
             super("WARNING", message, true);
         }
-        
+
         public Warning(String format, int j) {
             this(String.format(format, j));
         }
@@ -397,11 +397,11 @@ public final class GerkeLib {
         public Warning(String format, double x) {
             this(String.format(format, x));
         }
-        
+
         public Warning(String format, double x, double y) {
             this(String.format(format, x, y));
         }
-        
+
         public Warning(String format, String s) {
             this(String.format(format, s));
         }
@@ -420,7 +420,7 @@ public final class GerkeLib {
         public Death(String format, String value) {
             this(String.format(format, value));
         }
-        
+
         public Death(String format, String s1, String s2, int k) {
             this(String.format(format, s1, s2, k));
         }
@@ -432,7 +432,7 @@ public final class GerkeLib {
         public Death(String format, int v1, int v2) {
             this(String.format(format, v1, v2));
         }
-        
+
         public Death(String format, int v1, int v2, int v3) {
             this(String.format(format, v1, v2, v3));
         }
@@ -480,11 +480,11 @@ public final class GerkeLib {
     }
 
 
-	public static String getOptShortName(String key) {
-		final Option option = optionsByFullName.get(key);
-		return option.shortName;
-	}
-	
+    public static String getOptShortName(String key) {
+        final Option option = optionsByFullName.get(key);
+        return option.shortName;
+    }
+
     public static String getOpt(String key) {
         final String value = params.get(key);
         final String result = value != null ? value : defaults.get(key);
@@ -535,6 +535,16 @@ public final class GerkeLib {
             catch (NumberFormatException e) {
                 result[k] = 0.0;
             }
+        }
+        return result;
+    }
+
+    public static String[] getStringOptMulti(String key) {
+        final String multiValue = getOpt(key);
+        final StringTokenizer st = new StringTokenizer(multiValue, ",");
+        final String[] result = new String[st.countTokens()];
+        for (int k = 0; k < result.length; k++) {
+            result[k] = st.nextToken();
         }
         return result;
     }
@@ -591,15 +601,15 @@ public final class GerkeLib {
         return args.size();
     }
 
-	public static boolean validBoundaries(int low, int high, int[] values) {
-		for (int i = 0; i < values.length; i++) {
-			if (values[i] < low || values[i] > high) {
-				return false;
-			}
-		}
-		return true;
-	}
-	
+    public static boolean validBoundaries(int low, int high, int[] values) {
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] < low || values[i] > high) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static boolean member(int k, int[]a) {
         for (int i = 0; i < a.length; i++) {
             if (k == a[i]) {
@@ -607,5 +617,14 @@ public final class GerkeLib {
             }
         }
         return false;
+    }
+
+    public static int parseInt(String s) {
+        try {
+            return Integer.parseInt(s);
+        }
+        catch (NumberFormatException e) {
+            return Integer.MIN_VALUE;
+        }
     }
 }

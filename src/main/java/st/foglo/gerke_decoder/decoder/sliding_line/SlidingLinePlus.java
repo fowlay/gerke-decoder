@@ -21,27 +21,27 @@ import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLinePlus extends DecoderBase {
-    
+
     /**
      * Unit is TU.
      */
     public static final double TS_LENGTH = 0.06;
-    
+
     public static final double THRESHOLD = 0.55; // 0.524*0.9;
-    
+
     /**
      * If the amplitude at a crack doesn't drop more than this,
      * the crack can be ignored.
      */
     private static final double crackDipLimit = 0.5;
-    
-    
+
+
     /**
      * If the relative amplitude of a spike is not more than this
      * then it can be ignored.
      */
     private static final double spikeLimit = 0.548;
-    
+
     /**
      * Maximum width of a spike; unit is TU
      */
@@ -55,11 +55,11 @@ public final class SlidingLinePlus extends DecoderBase {
     private static final double crackWidth =
         GerkeLib.getDoubleOptMulti(
             GerkeDecoder.O_HIDDEN)[HiddenOpts.CRACK_WIDTH_MAX.ordinal()];
-    
+
     final int sigSize;
-    
+
     final double level;
-    
+
     /**
      * Half-width of the sliding line, expressed as nof. slices
      * This parameter is quite sensitive!
@@ -79,7 +79,7 @@ public final class SlidingLinePlus extends DecoderBase {
             PlotEntries plotEntries,
             HistEntries histEntries,
             Formatter formatter,
-            
+
             int sigSize,
             double[] cei,
             double[] flo,
@@ -101,11 +101,11 @@ public final class SlidingLinePlus extends DecoderBase {
                 ceilingMax,
                 THRESHOLD
                 );
-        
+
         this.sigSize = sigSize;
         this.level = level;
     }
-    
+
     private enum States {LOW, M_HIGH, HIGH, M_LOW};
 
     @Override
@@ -128,10 +128,10 @@ public final class SlidingLinePlus extends DecoderBase {
         int kDrop = 0;
         double accSpike = 0.0;        // accumulate squared actual signal
         double nominalSpike = 0.0;    // accumulate squared possible full signal
-        
+
         double accCrack = 0.0;        // accumulate squared actual signal
         double nominalCrack = 0.0;    // accumulate squared possible full signal
-        
+
         // PARA 0.25
         int maxSpike = (int) Math.round(spikeWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
         int maxCrack = (int) Math.round(crackWidth*(tuMillis/1000)*((double) w.frameRate/framesPerSlice));
@@ -139,13 +139,13 @@ public final class SlidingLinePlus extends DecoderBase {
         new Debug("max nof. slices in crack: %d", maxCrack);
 
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-            
+
             final double thr = threshold(decoder, level, flo[k], cei[k]);
             final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
 
             final boolean high = r.a > thr;
             final boolean low = !high;
-            
+
             final double tSec = w.secondsFromSliceIndex(k, framesPerSlice);
             if (plotEntries != null) {
                 plotEntries.updateAmplitudes(tSec, r.a);
@@ -230,7 +230,7 @@ public final class SlidingLinePlus extends DecoderBase {
                         } else {
                             tones.put(Integer.valueOf(kMiddle), new Dash(kMiddle, kRaise, kDrop, histEntries));
                         }
-                        
+
                         state = States.M_HIGH;
                         accSpike = Compute.squared(r.a - flo[k]);
                         nominalSpike = Compute.squared(cei[k] - flo[k]);
@@ -239,7 +239,7 @@ public final class SlidingLinePlus extends DecoderBase {
 
                 }
             }
-            
+
         }
 
         Node p = Node.tree;
@@ -250,18 +250,18 @@ public final class SlidingLinePlus extends DecoderBase {
             if (prevKey == null) {
                 qCharBegin = toneBegin(key, tones);
             }
-            
+
             if (prevKey == null) {
                 final ToneBase tb = tones.get(key);
                 p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
                 lsqPlotHelper(tb);
-                
+
             } else if (prevKey != null) {
                 final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
                 if (histEntries != null) {
                     histEntries.addEntry(0, toneDistSlices);
                 }
-                
+
                 if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
                             ? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
@@ -281,7 +281,7 @@ public final class SlidingLinePlus extends DecoderBase {
                     wpm.chTicks += toneEnd(prevKey, tones) - qCharBegin;
                     qCharBegin = toneBegin(key, tones);
                     lsqPlotHelper(tb);
-                    
+
                 } else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;
@@ -318,12 +318,12 @@ public final class SlidingLinePlus extends DecoderBase {
 
         wpm.report();
     }
-    
+
     private int toneBegin(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
         return tone.rise;
     }
-    
+
     private int toneEnd(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
         return tone.drop;

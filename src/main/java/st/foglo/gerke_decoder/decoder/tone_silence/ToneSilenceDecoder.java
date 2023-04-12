@@ -17,18 +17,18 @@ public final class ToneSilenceDecoder extends DecoderBase {
 
     final Trans[] trans;
     final int transIndex;
-    
-    
+
+
     final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
     final int wordSpaceLimit =
             (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-    
-    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-    
-    final int dashLimit = (int) Math.round(GerkeDecoder.DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
-    
 
-    
+    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+
+    final int dashLimit = (int) Math.round(GerkeDecoder.DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
+
+
+
     public ToneSilenceDecoder(
             double tuMillis,
             int framesPerSlice,
@@ -38,7 +38,7 @@ public final class ToneSilenceDecoder extends DecoderBase {
             double[] sig,
             PlotEntries plotEntries,
             Formatter formatter,
-            
+
             double ceilingMax,
             int nofSlices,
             double level,
@@ -59,33 +59,33 @@ public final class ToneSilenceDecoder extends DecoderBase {
                 ceilingMax,
                 THRESHOLD
                 );
-        
+
         this.trans = findTransitions(
-//                tuMillis, 
-//                tsLength, 
-                nofSlices, 
-//                framesPerSlice, 
-//                w, 
+//                tuMillis,
+//                tsLength,
+                nofSlices,
+//                framesPerSlice,
+//                w,
                 GerkeDecoder.DecoderIndex.TONE_SILENCE.ordinal(),
-                level, 
-//                sig, 
-//                cei, 
+                level,
+//                sig,
+//                cei,
                 flo);
         this.transIndex = trans.length;
-        
-        
+
+
     }
 
     @Override
     public void execute() throws Exception {
-        
+
         if (plotEntries != null) {
 
             boolean firstLap = true;
             for (int t = 0; t < transIndex; t++) {
 
                 final double sec = w.secondsFromSliceIndex(trans[t].q, framesPerSlice);
-                
+
                 if (plotEntries.plotBegin <= sec && sec <= plotEntries.plotEnd) {
                     plotEntries.addDecoded(sec, (trans[t].rise ? 2 : 1)*ceilingMax/20);
                 }

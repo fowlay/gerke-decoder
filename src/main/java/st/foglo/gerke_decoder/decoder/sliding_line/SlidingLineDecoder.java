@@ -18,17 +18,17 @@ import st.foglo.gerke_decoder.plot.PlotEntries;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class SlidingLineDecoder extends DecoderBase {
-    
+
     public static final double THRESHOLD = 0.524*0.9;
-    
+
     final int sigSize;
-    
+
     final double level;
-    
+
     /**
      * Half-width of the sliding line, expressed as nof. slices
      * PARAMETER 0.40
-     * 
+     *
      * This parameter is quite sensitive!
      */
     final int halfWidth = (int) Math.round( ((double)8/8) *  0.40/tsLength);
@@ -42,7 +42,7 @@ public final class SlidingLineDecoder extends DecoderBase {
             double[] sig,
             PlotEntries plotEntries,
             Formatter formatter,
-            
+
             int sigSize,
             double[] cei,
             double[] flo,
@@ -63,13 +63,13 @@ public final class SlidingLineDecoder extends DecoderBase {
                 ceilingMax,
                 THRESHOLD
                 );
-        
+
         this.sigSize = sigSize;
-        
+
         this.level = level;
-        
+
         new Info("sliding line half-width (slices): %d", halfWidth);
-        
+
     }
 
     @Override
@@ -92,13 +92,13 @@ public final class SlidingLineDecoder extends DecoderBase {
         double acc = 0.0;
         double accMax = 0.0;
         for (int k = 0 + jDash; k < sigSize - jDash; k++) {
-            
+
             final double thr = threshold(decoder, level, flo[k], cei[k]);
-            
+
             final TwoDoubles r = lsq(sig, k, halfWidth, wDot);
 
             final boolean high = r.a > thr;
-            
+
             final double tSec = w.secondsFromSliceIndex(k, framesPerSlice);
 
             if (!isHigh && !high) {
@@ -153,18 +153,18 @@ public final class SlidingLineDecoder extends DecoderBase {
             if (prevKey == null) {
                 qCharBegin = lsqToneBegin(key, tones, jDot);
             }
-            
+
             if (prevKey == null) {
                 final ToneBase tb = tones.get(key);
                 p = tb instanceof Dash ? p.newNode("-") : p.newNode(".");
                 lsqPlotHelper(tb);
-                
+
             } else if (prevKey != null) {
-                
+
                 final ToneBase t1 = tones.get(prevKey);
                 final ToneBase t2 = tones.get(key);
                 final int toneDistSlices = t2.rise - t1.drop;
-                
+
                 if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
                             ? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
@@ -184,7 +184,7 @@ public final class SlidingLineDecoder extends DecoderBase {
                     wpm.chTicks += lsqToneEnd(prevKey, tones, jDot) - qCharBegin;
                     qCharBegin = lsqToneBegin(key, tones, jDot);
                     lsqPlotHelper(tb);
-                    
+
                 } else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;

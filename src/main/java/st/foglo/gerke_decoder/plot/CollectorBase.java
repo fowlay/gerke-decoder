@@ -10,11 +10,11 @@ public class CollectorBase {
     protected final String fileName;
     protected final String fileNameWin;
     public final PrintStream ps;
-    
-    
-    
+
+
+
     public CollectorBase() throws IOException {
-        if (isWindows()) { 
+        if (isWindows()) {
             this.fileName = makeTempFile();
             this.fileNameWin = toWindows(this.fileName);
             this.ps = new PrintStream(new File(fileNameWin));
@@ -25,8 +25,8 @@ public class CollectorBase {
             this.ps = new PrintStream(new File(fileName));
         }
     }
-    
-    
+
+
     String toWindows(String tempFileName) throws IOException {
         final ProcessBuilder pb = new ProcessBuilder("cygpath", "-w", tempFileName);
         final Process pr = pb.start();

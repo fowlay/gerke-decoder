@@ -22,23 +22,23 @@ import st.foglo.gerke_decoder.wave.Wav;
  * TODO: This decoder does not produce a full WPM report.
  */
 public final class PatternMatchDecoder extends DecoderBase {
-    
+
     public static final double THRESHOLD = 0.64791;
 
     final Trans[] trans;
     final int transIndex;
-    
+
     final int decoder = DecoderIndex.PATTERN_MATCHING.ordinal();
-    
+
     final int wordSpaceLimit =
             (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-    
+
     final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
     final double level;
-    
+
     public PatternMatchDecoder(
-            
+
             double tuMillis,
             int framesPerSlice,
             double tsLength,
@@ -47,10 +47,10 @@ public final class PatternMatchDecoder extends DecoderBase {
             double[] sig,
             PlotEntries plotEntries,
             Formatter formatter,
-            
+
             double ceilingMax,
             double level,
-            
+
             int nofSlices,
             double[] cei,
             double[] flo
@@ -69,27 +69,27 @@ public final class PatternMatchDecoder extends DecoderBase {
                 ceilingMax,
                 THRESHOLD
                 );
-        
-        
+
+
         this.trans = findTransitions(
 //                tuMillis,
-//                tsLength, 
-                nofSlices, 
-//                framesPerSlice, 
-//                w, 
+//                tsLength,
+                nofSlices,
+//                framesPerSlice,
+//                w,
                 decoder,
-                level, 
-//                sig, 
-//                cei, 
+                level,
+//                sig,
+//                cei,
                 flo);
         this.transIndex = trans.length;
-        
+
         this.level = level;
     }
-    
+
     @Override
     public void execute() throws Exception {
-        
+
         if (plotEntries != null) {
             // make one "decode" entry at left edge of plot
             plotEntries.addDecoded(
@@ -186,7 +186,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
 
     }
-    
+
     private CharTemplate decodeCharByPattern(CharData cd) {
 
         final int qSize = cd.getLastAdded().q - cd.transes.get(0).q;
@@ -253,7 +253,7 @@ public final class PatternMatchDecoder extends DecoderBase {
 
         return best;
     }
-    
+
     /**
      * Make plot entries for a decoded character
      * @param plotEntries

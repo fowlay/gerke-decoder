@@ -7,7 +7,7 @@ import st.foglo.gerke_decoder.GerkeLib.Death;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public abstract class DetectorBase implements CwDetector {
-    
+
     protected final Wav w;
     protected final int framesPerSlice; // nof. frames in one slice
     protected final int nofSlices;
@@ -22,12 +22,12 @@ public abstract class DetectorBase implements CwDetector {
         this.tsLength = tsLength;
         this.tuMillis = tuMillis;
     }
-    
-    
+
+
 
     /**
      * Determines threshold based on decoder.
-     * 
+     *
      * TODO, duplication, this code is also in DecoderBase
      */
     public double threshold(
@@ -35,11 +35,11 @@ public abstract class DetectorBase implements CwDetector {
             double floor,
             double ceiling,
             int decoder) {
-        
+
         final double thr = GerkeDecoder.getThreshold(decoder);
         return floor + level*thr*(ceiling - floor);
     }
-    
+
     public void frequencyStabilityPlot() throws IOException, InterruptedException {
         new Death("frequency stability plot not supported with this detector");
     }

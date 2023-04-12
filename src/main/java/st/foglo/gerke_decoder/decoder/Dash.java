@@ -19,12 +19,12 @@ public final class Dash extends ToneBase {
     private static final double STRETCH_FACTOR = 1.767;
 
     public final double ceiling;
-    
+
     public Dash(int k, int rise, int drop) {
         super(k, rise, drop);
         this.ceiling = 0.0;
     }
-    
+
     public Dash(int k, int rise, int drop, HistEntries histEntries) {
         super(k, rise, drop);
         this.ceiling = 0.0;
@@ -46,7 +46,7 @@ public final class Dash extends ToneBase {
             tones.put(Integer.valueOf(this.k), this);
         }
     }
-    
+
     public Dash(
             int k,
             int jDot,
@@ -60,8 +60,8 @@ public final class Dash extends ToneBase {
         ;
         this.ceiling = ceiling;
     }
-    
-    
+
+
     // TODO, the factor 2 in 2*jDot SEEMS beneficial .... analysis needed though
 
     private static int findRise(int k, double[] sig, int jDash, int jDot) {
@@ -70,7 +70,7 @@ public final class Dash extends ToneBase {
         double uMax = 0.0;
         int qBest = k - jDash;
         for (int q = k - stretchedDash; q < k - jDash + jDot; q++) {    // q is slice index
-            
+
             final TwoDoubles u = lsq(sig, q, jDot, w);
             if (u.b > uMax) {
                 uMax = u.b;
@@ -79,14 +79,14 @@ public final class Dash extends ToneBase {
         }
         return qBest;
     }
-    
+
     private static int findDrop(int k, double[] sig, int jDash, int jDot) {
         final WeightBase w = new WeightDot(0);
         final int stretchedDash = (int) Math.round(STRETCH_FACTOR*jDash);
         double uMin = 0.0;
         int qBest = k + jDash;
         for (int q = k + jDash - jDot; q < k + stretchedDash; q++) {    // q is slice index
-            
+
             final TwoDoubles u = lsq(sig, q, jDot, w);
             if (u.b < uMin) {
                 uMin = u.b;
@@ -100,7 +100,7 @@ public final class Dash extends ToneBase {
 //
 //        if (!improve) {
 //            return k - jDash;
-//        } 
+//        }
 //        else {
 //            int bestRise;
 //            try {
@@ -119,12 +119,12 @@ public final class Dash extends ToneBase {
 //            return bestRise;
 //        }
 //    }
-//        
+//
 //
 //    private static int dashDrop(int k, double[] sig, int jDot, int jDash, double ceiling, boolean improve) {
 //        if (!improve) {
 //            return k + jDash;
-//        } 
+//        }
 //        else {
 //            int bestDrop;
 //            try {

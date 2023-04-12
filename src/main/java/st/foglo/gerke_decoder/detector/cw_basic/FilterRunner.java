@@ -96,5 +96,3 @@ public final class FilterRunner extends FilterRunnerBase {
         }
     }
 }
-
-

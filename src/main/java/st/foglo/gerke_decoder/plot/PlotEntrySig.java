@@ -21,4 +21,3 @@ public class PlotEntrySig extends PlotEntryBase {
         this.floor = floor;
     }
 }
-

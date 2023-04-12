@@ -48,9 +48,9 @@ import st.foglo.gerke_decoder.plot.PlotEntrySigPlus;
 import st.foglo.gerke_decoder.wave.Wav;
 
 public final class GerkeDecoder {
-    
+
     static final double IGNORE = 0.0;
-    
+
     private static final double[] TS_LENGTH =
             new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
 
@@ -69,17 +69,18 @@ public final class GerkeDecoder {
     static final String O_DECODER = "decoder";
     public static final String O_LEVEL = "level";
     public static final String O_TSTAMPS = "timestamps";
-    
+    public static final String O_TEXT_FORMAT = "text-format";
+
     public static final String O_PLINT = "plot-interval";
     public static final String O_FPLOT = "plot-frequency";
     public static final String O_APLOT = "plot-amplitude";
     public static final String O_PPLOT = "plot-phase";
     public static final String O_FSPLOT = "plot-frequency-stability";
-    
+
     public static final String O_HIST_TONE_SPACE = "histogram-tone-space";
-    
+
     public static final String O_VERBOSE = "verbose";
-    
+
     public static final String O_COHSIZE = "coherence-size";
     public static final String O_SEGSIZE = "segment-size";
 
@@ -108,7 +109,7 @@ public final class GerkeDecoder {
             "prototype segments",
             "sliding segments",
             "adaptive segments"};
-    
+
     /**
      * Numeric decoder index 1..6 maps to these names. Do not reorder.
      */
@@ -121,7 +122,7 @@ public final class GerkeDecoder {
         LSQ2,
         LSQ2_PLUS
     };
-    
+
     public enum DetectorIndex {
         BASIC_DETECTOR,
         ADAPTIVE_DETECTOR
@@ -236,12 +237,14 @@ public final class GerkeDecoder {
      * lower than this limit.
      */
     public static final double P_DIP_EXPTABLE_LIM = 0.01;
-    
+
     /**
      * Do not change. Changing this constant would affect the ceiling
      * and floor estimation.
      */
     public static final String STIME_DEFAULT = "0.10";
+
+    public static final String LINE_LENGTH_DEFAULT = "72";
 
 
     static {
@@ -249,7 +252,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.0");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.1");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -263,7 +266,7 @@ public final class GerkeDecoder {
         new SingleValueOption("c", O_CLIPPING, "-1");
         new SingleValueOption("q", O_STIME, "1.0");
         new SingleValueOption("s", O_SIGMA, "0.18");
-        
+
         new SingleValueOption("C", O_COHSIZE, "0.8");
         new SingleValueOption("G", O_SEGSIZE, "3.0");
 
@@ -272,15 +275,16 @@ public final class GerkeDecoder {
         new SingleValueOption("u", O_LEVEL, "1.0");
 
         new Flag("t", O_TSTAMPS);
+        new SingleValueOption("T", O_TEXT_FORMAT, "L,"+LINE_LENGTH_DEFAULT);
 
         new Flag("S", O_FPLOT);
 
         new SingleValueOption("Z", O_PLINT, "0,-1");
         new Flag("A", O_APLOT);
         new Flag("P", O_PPLOT);
-        
+
         new Flag("Y", O_FSPLOT);
-        
+
         new SingleValueOption("M", O_HIST_TONE_SPACE, "-1");
 
         new SteppingOption("v", O_VERBOSE);
@@ -321,7 +325,7 @@ new String[]{
 
         String.format("  -q TS_STRETCH      time slice stretch, defaults to %s", GerkeLib.getDefault(O_STIME)),
         String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
-        
+
         String.format("  -C COHERENCE_SIZE  coherence size, defaults to %s TU", GerkeLib.getDefault(O_COHSIZE)),
         String.format("  -G SEGMENT_SIZE    segment size, defaults to %s s", GerkeLib.getDefault(O_SEGSIZE)),
 
@@ -335,29 +339,30 @@ new String[]{
 
         String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
         String.format("  -t                 Insert timestamps in decoded text"),
+        String.format("  -T CASE[,LENGTH]   Decoded text case (L/U/C) and line length"),
         String.format("  -v                 Verbosity (may be given several times)"),
         String.format("  -V                 Show version"),
         String.format("  -h                 This help"),
         "",
         "Available decoders are:",
         String.format("  %d    %s",
-        		DecoderIndex.TONE_SILENCE.ordinal(),
-        		DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()]),
+                DecoderIndex.TONE_SILENCE.ordinal(),
+                DECODER_NAME[DecoderIndex.TONE_SILENCE.ordinal()]),
         String.format("  %d    %s",
-        		DecoderIndex.PATTERN_MATCHING.ordinal(),
-        		DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()]),
+                DecoderIndex.PATTERN_MATCHING.ordinal(),
+                DECODER_NAME[DecoderIndex.PATTERN_MATCHING.ordinal()]),
         String.format("  %d    %s",
-        		DecoderIndex.DIPS_FINDING.ordinal(),
-        		DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()]),
+                DecoderIndex.DIPS_FINDING.ordinal(),
+                DECODER_NAME[DecoderIndex.DIPS_FINDING.ordinal()]),
         String.format("  %d    %s",
-        		DecoderIndex.LEAST_SQUARES.ordinal(),
-        		DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()]),
+                DecoderIndex.LEAST_SQUARES.ordinal(),
+                DECODER_NAME[DecoderIndex.LEAST_SQUARES.ordinal()]),
         String.format("  %d    %s",
-        		DecoderIndex.LSQ2.ordinal(),
-        		DECODER_NAME[DecoderIndex.LSQ2.ordinal()]),
+                DecoderIndex.LSQ2.ordinal(),
+                DECODER_NAME[DecoderIndex.LSQ2.ordinal()]),
         String.format("  %d    %s",
-        		DecoderIndex.LSQ2_PLUS.ordinal(),
-        		DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()]),
+                DecoderIndex.LSQ2_PLUS.ordinal(),
+                DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()]),
         "",
         "A tentative TU length (length of one dot) is derived from the WPM value",
         "The TU length in ms is taken as = 1200/WPM. This value is used for the",
@@ -431,7 +436,7 @@ new String[]{
             // Number of TU covered by N time slices is N/(1.0/tsLength) = N*tsLength
 
             final int decoder = GerkeLib.getIntOpt(O_DECODER);
-            
+
             final double tsStretch = GerkeLib.getDoubleOpt(O_STIME);
             final double tsLengthGiven = tsStretch*TS_LENGTH[decoder];
 
@@ -442,7 +447,7 @@ new String[]{
             new Info("time slice: %.3f ms", 1000.0*framesPerSlice/w.frameRate);
             new Info("frames per time slice: %d", framesPerSlice);
             new Debug("time slice roundoff: %e", (tsLength - tsLengthGiven)/tsLengthGiven);
-            
+
             new Info("sigma: %f", GerkeLib.getDoubleOpt(O_SIGMA));
 
 
@@ -453,36 +458,36 @@ new String[]{
             final int nofSlices = w.nofFrames/framesPerSlice;
 
             final int fSpecified = GerkeLib.getIntOpt(GerkeDecoder.O_FREQ);
-            
-            
-            
+
+
+
             final CwDetector detector;
-            
+
             final double decoderThreshold = getThreshold(decoder);
-            
+
             if (DecoderBase.getDetector(decoder) == DetectorIndex.ADAPTIVE_DETECTOR) {
-                
+
                 // warn if specified frequency .. not expected by this detector
-                
+
                 final double cohSizeGiven = GerkeLib.getDoubleOpt(O_COHSIZE);
                 final int cohFactor = (int) Math.round(cohSizeGiven/tsLength);
                 final int segFactor = (int) Math.round(
                         GerkeLib.getDoubleOpt(O_SEGSIZE)*w.frameRate/
                         (cohFactor*framesPerSlice));
-                
+
                 detector = new CwAdaptiveImpl(
                         nofSlices,
                         w,
                         tuMillis,
                         framesPerSlice,
-                        
+
                         // TODO, parameter, 4 or 5 seems a reasonable value
-                        cohFactor,   
-                        
+                        cohFactor,
+
                         // TODO, parameter, unclear if it is very critical
                         segFactor,
                         // while trying out, let the product of the two be about 500
-                        
+
                         tsLength
                         );
             }
@@ -501,18 +506,18 @@ new String[]{
             else {
                 throw new RuntimeException();
             }
-            
+
 
 
             final Signal signal = detector.getSignal();
             final double[] sig = signal.sig;
             final int sigSize = signal.sig.length;
-            
+
             if (detector instanceof CwAdaptiveImpl) {
                 // diagnostic only
                 ((CwAdaptiveImpl)detector).trigTableReport();
             }
-            
+
             if (GerkeLib.getFlag(O_FSPLOT)) {
                 detector.frequencyStabilityPlot();
             }
@@ -559,7 +564,7 @@ new String[]{
             // ================ Phase plot, optional
 
             if (GerkeLib.getFlag(O_PPLOT)) {
-     
+
                 detector.phasePlot(
                         sig,
                         level,
@@ -587,19 +592,19 @@ new String[]{
              */
             final int[] histRequests = GerkeLib.getIntOptMulti(O_HIST_TONE_SPACE);
             if (histRequests.length > 0 && decoder != DecoderIndex.LSQ2_PLUS.ordinal()) {
-            	new Death("Option -%s only supported for -%s %d",
-            			GerkeLib.getOptShortName(O_HIST_TONE_SPACE),
-            			GerkeLib.getOptShortName(O_DECODER),
-            			DecoderIndex.LSQ2_PLUS.ordinal());
+                new Death("Option -%s only supported for -%s %d",
+                        GerkeLib.getOptShortName(O_HIST_TONE_SPACE),
+                        GerkeLib.getOptShortName(O_DECODER),
+                        DecoderIndex.LSQ2_PLUS.ordinal());
             }
 
             final HistEntries histEntries;
             if (GerkeLib.member(1, histRequests) ||
-            		GerkeLib.member(0, histRequests)) { // move method to GerkeLib? TODO
-            	if (! GerkeLib.validBoundaries(0, 1, histRequests)) {
-            		new Death("Option -%s values must be 0 or 1",
-            				GerkeLib.getOptShortName(O_HIST_TONE_SPACE));
-            	}
+                    GerkeLib.member(0, histRequests)) { // move method to GerkeLib? TODO
+                if (! GerkeLib.validBoundaries(0, 1, histRequests)) {
+                    new Death("Option -%s values must be 0 or 1",
+                            GerkeLib.getOptShortName(O_HIST_TONE_SPACE));
+                }
                 histEntries = new HistEntries(tuMillis, tsLength);
             }
             else {
@@ -618,23 +623,23 @@ new String[]{
                         sig,
                         plotEntries,
                         formatter,
-                        
+
 //                        trans,
 //                        transIndex,
                         ceilingMax,
-                        
+
                         nofSlices,
                         level,
                         cei,
                         flo
-                        
+
                         );
-                
+
             }
 
             else if (decoder == DecoderIndex.PATTERN_MATCHING.ordinal()) {
                 dec = new PatternMatchDecoder(
-                        
+
                         tuMillis,
                         framesPerSlice,
                         tsLength,
@@ -643,12 +648,12 @@ new String[]{
                         sig,
                         plotEntries,
                         formatter,
-                        
+
                         ceilingMax,
 //                        trans,
 //                        transIndex,
                         level,
-                        
+
                         nofSlices,
                         cei,
                         flo);
@@ -664,7 +669,7 @@ new String[]{
                         sig,
                         plotEntries,
                         formatter,
-                        
+
                         ceilingMax,
 //                        trans,
 //                        transIndex,
@@ -677,7 +682,7 @@ new String[]{
 
             else if (decoder == DecoderIndex.LEAST_SQUARES.ordinal()) {
                 dec = new LeastSquaresDecoder(
-                        
+
                         tuMillis,
                         framesPerSlice,
                         tsLength,
@@ -686,12 +691,12 @@ new String[]{
                         sig,
                         plotEntries,
                         formatter,
-                        
+
                         sigSize,
                         cei,
                         flo,
                         ceilingMax
-                        
+
                         );
             }
             else if (decoder == DecoderIndex.LSQ2.ordinal()) {
@@ -704,13 +709,13 @@ new String[]{
                         sig,
                         plotEntries,
                         formatter,
-                        
+
                         sigSize,
                         cei,
                         flo,
                         level,
                         ceilingMax
-                        
+
                         );
             }
             else if (decoder == DecoderIndex.LSQ2_PLUS.ordinal()) {
@@ -724,13 +729,13 @@ new String[]{
                         plotEntries,
                         histEntries,
                         formatter,
-                        
+
                         sigSize,
                         cei,
                         flo,
                         level,
                         ceilingMax
-                        
+
                         );
             }
             else {
@@ -740,7 +745,7 @@ new String[]{
             dec.execute();
 
             new Info("decoded text MD5 digest: %s", formatter.getDigest());
-            
+
             if (GerkeLib.member(1, histRequests)) {
                 final HistCollector hc =
                         new HistCollector(
@@ -752,7 +757,7 @@ new String[]{
                 }
                 hc.plot(1);
             }
-            
+
             if (GerkeLib.member(0, histRequests)) {
                 final HistCollector hc =
                         new HistCollector(
@@ -774,9 +779,9 @@ new String[]{
                 double floor = 0.0;
                 double sigavg = 0.0;
                 double digitizedSignal = initDigitizedSignal;
-                
+
                 final boolean hasSigPlus = plotEntries.hasSigPlus();
-                
+
                 for (Entry<Double, List<PlotEntryBase>> e : plotEntries.entries.entrySet()) {
 
                     for (PlotEntryBase peb : e.getValue()) {
@@ -789,7 +794,7 @@ new String[]{
                             ceiling = ((PlotEntrySigPlus)peb).ceiling;
                             floor = ((PlotEntrySigPlus)peb).floor;
                             sigavg = ((PlotEntrySigPlus)peb).sigAvg;
-                            
+
                         }
                         else if (peb instanceof PlotEntrySig) {
                             signa = ((PlotEntrySig)peb).sig;
@@ -851,7 +856,7 @@ new String[]{
      * @return
      */
     public static double getThreshold(int decoder) {
-    
+
         if (decoder == 1) {
             return ToneSilenceDecoder.THRESHOLD;
         }
@@ -881,7 +886,7 @@ new String[]{
 
     /**
      * Returns time in seconds, relative to beginning of wave file.
-     * 
+     *
      * @param q
      * @param framesPerSlice
      * @param frameRate
@@ -944,7 +949,7 @@ new String[]{
 
         final int q1 = Compute.iMax(q-width/2, 0);
         final int q2 = Compute.iMin(q+width/2, sig.length);
-        
+
         final double tsLengthDefault = Double.parseDouble(GerkeDecoder.STIME_DEFAULT);
         final int largeInt = 500;    // not critical, not a parameter
 
@@ -996,14 +1001,14 @@ new String[]{
      * @param q
      * @param sig
      * @param width
-     * @param tsLength 
+     * @param tsLength
      * @return
      */
     private static double localFloorByHist(int q, double[] sig, int width, double tsLength) {
 
         final int q1 = Compute.iMax(q-width/2, 0);
         final int q2 = Compute.iMin(q+width/2, sig.length);
-        
+
         final double tsLengthDefault = Double.parseDouble(GerkeDecoder.STIME_DEFAULT);
         final int largeInt = 500;    // not critical, not a parameter
 

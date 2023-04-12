@@ -29,59 +29,59 @@ public abstract class DecoderBase implements Decoder {
     protected double tsLength;
     protected int offset;
     protected Wav w;
-    
+
     protected double[] sig;
-    
+
     protected PlotEntries plotEntries;
-    
+
     protected HistEntries histEntries = null;  // may be reassigned in constructor
-    
+
     protected Formatter formatter;
-    
+
     protected double[] cei;
     protected double[] flo;
     protected double ceilingMax;
     protected final Wpm wpm = new Wpm();
-    
+
     public final double threshold;
-    
+
     public class Wpm {
-        
+
         /**
          * Nominal nof. in-character TUs
          */
         public int chCus = 0;
-        
+
         /**
          * Actual nof. in-character ticks (slices)
          */
         public int chTicks = 0;
-        
+
         /**
          *  Nominal nof. in-char-space TUs
          */
         public int spCusC = 0;
-        
+
         /**
          * Actual nof. in-word-space ticks (slices)
          */
         public int spTicksC = 0;
-        
+
         /**
          *  Nominal nof. in-word-space TUs
          */
         public int spCusW = 0;
-        
+
         /**
          * Actual nof. in-word-space ticks (slices)
          */
         public int spTicksW = 0;
-        
 
-        
+
+
         /**
          * Report WPM estimates
-         * 
+         *
          * @param chCus             nominal nof. TUs in character
          * @param chTicks           actual nof. ticks in character
          * @param spCusW            nominal nof. TUs in word spaces (always increment by 7)
@@ -109,7 +109,7 @@ public abstract class DecoderBase implements Decoder {
             }
         }
     }
-    
+
     protected DecoderBase(
             double tuMillis,
             int framesPerSlice,
@@ -135,10 +135,10 @@ public abstract class DecoderBase implements Decoder {
         this.cei = cei;
         this.flo = flo;
         this.ceilingMax = ceilingMax;
-        
+
         this.threshold = threshold;
     }
-    
+
     protected DecoderBase(
             double tuMillis,
             int framesPerSlice,
@@ -166,11 +166,11 @@ public abstract class DecoderBase implements Decoder {
         this.cei = cei;
         this.flo = flo;
         this.ceilingMax = ceilingMax;
-        
+
         this.threshold = threshold;
     }
-    
-    
+
+
     /**
      * Returns the index of the suitable detector for this decoder. This method is
      * static since we need the detector before the decoder is instantiated.
@@ -188,8 +188,8 @@ public abstract class DecoderBase implements Decoder {
             throw new RuntimeException();
         }
     }
-    
-    
+
+
     /**
      * Determines threshold based on decoder and amplitude mapping.
      */
@@ -201,7 +201,7 @@ public abstract class DecoderBase implements Decoder {
 
         return floor + level*threshold*(ceiling - floor);
     }
-    
+
     protected TwoDoubles lsq(
             double[] sig,
             int k,
@@ -226,9 +226,9 @@ public abstract class DecoderBase implements Decoder {
 
         return new TwoDoubles((r1*sumJJW - r2*sumJW)/det, (sumW*r2 - sumJW*r1)/det);
     }
-    
-    
-    
+
+
+
 
     /**
      * No weighting, provide summation limits as arguments
@@ -242,10 +242,10 @@ public abstract class DecoderBase implements Decoder {
             int k1,
             int k2
             ) {
-        
+
         final int k = (k1+k2)/2;
         final WeightBase w = new WeightDot(0);
-        
+
         if (2*k == k1+k2) {
             return lsq(sig, k, k-k1, w);
         }
@@ -253,7 +253,7 @@ public abstract class DecoderBase implements Decoder {
             return lsq(sig, k, k2-k, w);
         }
     }
-    
+
     protected int lsqToneBegin(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
         ToneBase tone = tones.get(key);
         if (tone instanceof Dash) {
@@ -262,9 +262,9 @@ public abstract class DecoderBase implements Decoder {
         else {
             final int dotReduction = (int) Math.round(70.0*jDot/100);
             return tone.k - dotReduction;
-        }    
+        }
     }
-    
+
     protected int lsqToneEnd(Integer key, NavigableMap<Integer, ToneBase> tones, int jDot) {
         ToneBase tone = tones.get(key);
         if (tone instanceof Dash) {
@@ -273,7 +273,7 @@ public abstract class DecoderBase implements Decoder {
         else {
             final int dotReduction = (int) Math.round(70.0*jDot/100);
             return tone.k + dotReduction;
-        }    
+        }
     }
 
     protected void lsqPlotHelper(ToneBase tb) {
@@ -298,13 +298,13 @@ public abstract class DecoderBase implements Decoder {
             int decoder,
             double level,
             double[] flo) {
-        
+
         final int charSpaceLimit =
                 (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
-        
+
         final int twoDashLimit = (int) Math.round(GerkeDecoder.TWO_DASH_LIMIT*tuMillis*w.frameRate/(1000*framesPerSlice));     // PARAMETER
-        
-        
+
+
          // ============== identify transitions
         // usage depends on decoder method
 
@@ -472,14 +472,14 @@ public abstract class DecoderBase implements Decoder {
         else if (transIndex == 1) {
             new Death("no code detected");
         }
-        
+
         Trans[] result = new Trans[transIndex];
         for (int i = 0; i < transIndex; i++) {
             result[i] = tr[i];
         }
         return result;
     }
-    
+
     /**
      * Remove null elements from the given array. The returned value
      * is the new active size.
@@ -499,4 +499,3 @@ public abstract class DecoderBase implements Decoder {
         return k;
     }
 }
-

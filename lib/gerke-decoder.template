@@ -1,10 +1,9 @@
-#! /bin/bash
-
-# assuming Java 8 in environment
-
-# assuming working directory: ~/wh/workspace/gerke-decoder
-
-# assuming this script is one directory level below Git repo root
+#! /usr/bin/env bash
+# -*-Shell-script-*-
+#
+# Shell wrapper over the gerke-decoder Java program.
+#
+# Dependencies: mpg123  -- required for decoding mp3 recordings
 
 function isCygwin {
     [[ "$(uname -o)" == Cygwin ]]
@@ -36,7 +35,42 @@ function join {
     echo "$result"
 }
 
-exec java \
+declare -r WaveFile=$(mktemp --dry-run /tmp/gerke-decoder-XXXXXXXX)
+
+function cleanup {
+    rm -f $WaveFile
+}
+
+trap cleanup EXIT
+
+declare -a Args=()
+for arg in "$@"; do
+    if [[ -r "$arg" ]]; then
+        Mime=($(file --brief --mime "$arg"))
+        if [[ ${#Mime[*]} -eq 0 ]]; then
+            Args+=("$arg")
+        elif [[ "${Mime[0]}" =~ audio/mpeg ]]; then
+            if ! command -v mpg123 >/dev/null; then
+                echo "missing conversion utility: 'mpg123'" >&2
+                exit 1
+            else
+                mpg123 --quiet --wav $WaveFile "$arg"
+                if isCygwin; then
+                    Args+=($(cygpath -w $WaveFile))
+                else
+                    Args+=($WaveFile)
+                fi
+            fi
+        else
+            ## assume a .wav file
+            Args+=("$arg")
+        fi
+    else
+        Args+=("$arg")
+    fi
+done
+
+java \
      -classpath "$(join ${ClassPathElements[@]})" \
      st.foglo.gerke_decoder.GerkeDecoder \
-     "$@"
+     "${Args[@]}"

@@ -4,17 +4,55 @@ import java.nio.charset.Charset;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import st.foglo.gerke_decoder.GerkeDecoder;
+import st.foglo.gerke_decoder.GerkeLib;
+
 public final class Formatter {
+
+    private enum CapState {LOWER, UPPER};
+
     StringBuilder sb = new StringBuilder();
     int pos = 0;
     final MessageDigest md;
     final byte[] sp = new byte[]{' '};
+    private final String caseMode;
+    private final int lineLength;
+    private CapState capState = CapState.LOWER;
 
     public Formatter() throws NoSuchAlgorithmException {
         md = MessageDigest.getInstance("MD5");
-    }
 
-    private static final int lineLength = 72;
+        final String[] optValues = GerkeLib.getStringOptMulti(GerkeDecoder.O_TEXT_FORMAT);
+
+        if (optValues.length > 2) {
+                caseMode = "";
+                lineLength = 0;
+                new GerkeLib.Death("Too many option values for option -%s",
+                                GerkeLib.getOptShortName(GerkeDecoder.O_TEXT_FORMAT));
+
+        }
+        else {
+                caseMode = optValues[0];
+
+                if (!(caseMode.equals("L") || caseMode.equals("U") || caseMode.equals("C"))) {
+                        new GerkeLib.Death("Expecting option value L, U or C for option -%s",
+                                        GerkeLib.getOptShortName(GerkeDecoder.O_TEXT_FORMAT));
+                }
+
+                final String lineLengthAsString =
+                                optValues.length == 2 ? optValues[1] :
+                                        GerkeDecoder.LINE_LENGTH_DEFAULT;
+
+                lineLength =
+                                GerkeLib.parseInt(lineLengthAsString);
+                if (lineLength == Integer.MIN_VALUE) {
+                        new GerkeLib.Death("Expecting numeric value for line length");
+                }
+                else if (lineLength < 1) {
+                        new GerkeLib.Death("Value for line length is out of range");
+                }
+        }
+    }
 
     /**
      * @param wordBreak
@@ -23,9 +61,24 @@ public final class Formatter {
      */
     public void add(boolean wordBreak, String text, int timestamp) {
 
-        //new Info("word break: %b, text: '%s'", wordBreak, text);
-
-        sb.append(text);
+            if (caseMode.equals("U")) {
+                    sb.append(text.toUpperCase());
+            }
+            else if (caseMode.equals("C") && capState == CapState.LOWER) {
+                    if (wordBreak && (text.equals(".") || text.equals(":") || text.equals("="))) {
+                            capState = CapState.UPPER;
+                    }
+                    sb.append(text);
+            }
+            else if (caseMode.equals("C") &&
+                            capState == CapState.UPPER &&
+                            Character.isLetter(text.charAt(0))) {
+                    capState = CapState.LOWER;
+                    sb.append(text.toUpperCase());
+            }
+            else {
+                    sb.append(text);
+            }
 
         if (wordBreak) {
             md.update(sp);

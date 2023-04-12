@@ -66,7 +66,7 @@ public final class PlotCollector extends CollectorBase {
                         "-e",
                         "set term x11 size 1400 200",
                         "-e",
-                        
+
                         nofCurves == 6 ?
                                 String.format("plot '%s' using 1:2 with %s, '%s' using 1:3 with %s, '%s' using 1:4 with %s, '%s' using 1:5 with %s, '%s' using 1:6 with %s, '%s' using 1:7 with %s",
                                         tempFileName,
@@ -129,4 +129,3 @@ public final class PlotCollector extends CollectorBase {
 
 
 }
-
