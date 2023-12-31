@@ -26,6 +26,10 @@ public final class Compute {
     public static int iMin(int a, int b) {
         return a < b ? a : b;
     }
+    
+    public static int iAve(int j, int k) {
+        return (int) Math.round((((double)j) + ((double)k))/2);
+    }
 
     public static int roundToOdd(double x) {
         final int k = (int) Math.round(x);

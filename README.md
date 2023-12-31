@@ -29,6 +29,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>3.1.0</td><td>Add tone/space lengths histogram</td></tr>
 <tr><td>3.1.1</td><td>Support .mp3 input</td></tr>
 <tr><td>3.1.2</td><td>Correct Maven archive URL</td></tr>
+<tr><td>3.1.3</td><td>Break up oversized dashes</td></tr>
 </table>
 
 ## Platforms

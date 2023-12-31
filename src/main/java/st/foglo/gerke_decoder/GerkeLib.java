@@ -205,6 +205,10 @@ public final class GerkeLib {
         public Trace(String format, int j, int k, double x, double y) {
             this(String.format(format, j, k, x, y));
         }
+        
+        public Trace(String format, double x) {
+            this(String.format(format, x));
+        }
     }
 
     public static class Debug extends Message {
