@@ -31,3 +31,8 @@ grimeton-clip.wav
 /eclipse-bin/
 /apache-maven-*/
 /target/
+
+.classpath
+.project
+/settings/
+/bin/

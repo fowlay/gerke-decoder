@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<classpath>
-	<classpathentry kind="src" path="src/main/java"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar"/>
-	<classpathentry kind="output" path="eclipse-bin"/>
-</classpath>

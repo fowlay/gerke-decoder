@@ -2,6 +2,8 @@
 
 A decoder that translates Morse code audio to text.
 
+Copyright (C) 2020-2024 Rabbe Fogelholm
+
 ## Version history
 
 <table>
@@ -30,6 +32,7 @@ A decoder that translates Morse code audio to text.
 <tr><td>3.1.1</td><td>Support .mp3 input</td></tr>
 <tr><td>3.1.2</td><td>Correct Maven archive URL</td></tr>
 <tr><td>3.1.3</td><td>Break up oversized dashes</td></tr>
+<tr><td>3.1.4</td><td>Release content tidyup</td></tr>
 </table>
 
 ## Platforms
