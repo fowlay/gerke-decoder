@@ -2,7 +2,7 @@ package st.foglo.gerke_decoder;
 
 // gerke-decoder - translates Morse code audio to text
 //
-// Copyright (C) 2020-2023 Rabbe Fogelholm
+// Copyright (C) 2020-2024 Rabbe Fogelholm
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import st.foglo.gerke_decoder.detector.adaptive.CwAdaptiveImpl;
 import st.foglo.gerke_decoder.detector.cw_basic.CwBasicImpl;
 import st.foglo.gerke_decoder.format.Formatter;
 import st.foglo.gerke_decoder.lib.Compute;
+import st.foglo.gerke_decoder.plot.CollectorBase;
 import st.foglo.gerke_decoder.plot.HistCollector;
 import st.foglo.gerke_decoder.plot.HistEntries;
 import st.foglo.gerke_decoder.plot.PlotCollector;
@@ -252,7 +253,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.4");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.5");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -847,6 +848,10 @@ new String[]{
         }
         catch (Exception e) {
             new Death(e);
+        }
+
+        if (CollectorBase.windowsPlotCount > 0) {
+            GerkeLib.prompt("push Enter to exit this program: ");
         }
     }
 

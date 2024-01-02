@@ -33,6 +33,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.1.2</td><td>Correct Maven archive URL</td></tr>
 <tr><td>3.1.3</td><td>Break up oversized dashes</td></tr>
 <tr><td>3.1.4</td><td>Release content tidyup</td></tr>
+<tr><td>3.1.5</td><td>Fix gnuplot behaviour for Cygwin/X</td></tr>
 </table>
 
 ## Platforms

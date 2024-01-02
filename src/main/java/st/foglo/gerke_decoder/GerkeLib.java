@@ -1,5 +1,9 @@
 package st.foglo.gerke_decoder;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 // gerke-decoder - translates Morse code audio to text
 //
 // Copyright (C) 2020 Rabbe Fogelholm
@@ -205,7 +209,7 @@ public final class GerkeLib {
         public Trace(String format, int j, int k, double x, double y) {
             this(String.format(format, j, k, x, y));
         }
-        
+
         public Trace(String format, double x) {
             this(String.format(format, x));
         }
@@ -629,6 +633,16 @@ public final class GerkeLib {
         }
         catch (NumberFormatException e) {
             return Integer.MIN_VALUE;
+        }
+    }
+
+    public static void prompt(String text) {
+        System.err.print(text);
+        final BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        try {
+            br.readLine();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

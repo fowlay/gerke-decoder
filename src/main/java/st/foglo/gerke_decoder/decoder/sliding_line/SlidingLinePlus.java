@@ -55,15 +55,15 @@ public final class SlidingLinePlus extends DecoderBase {
     private static final double crackWidth =
         GerkeLib.getDoubleOptMulti(
             GerkeDecoder.O_HIDDEN)[HiddenOpts.CRACK_WIDTH_MAX.ordinal()];
-    
+
     private static final double SUPER_LONG_DASH = 6.0;
     private static final double LONG_DASH = 4.5;
-    
+
     private static final double MIDPOINT_OF_N_OR_A = 2.5;
-    
+
     private static final double LONG_DASH_INTERIOR_BEGIN = 0.4;
     private static final double LONG_DASH_INTERIOR_END = 4.4;
-    
+
 
     final int sigSize;
 
@@ -141,9 +141,9 @@ public final class SlidingLinePlus extends DecoderBase {
 
         double accCrack = 0.0;        // accumulate squared actual signal
         double nominalCrack = 0.0;    // accumulate squared possible full signal
-        
+
         double aMin = Double.MAX_VALUE;
-        
+
         final boolean breakLongDash =
                 GerkeLib.getIntOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.BREAK_LONG_DASH.ordinal()] == 1;
@@ -204,13 +204,13 @@ public final class SlidingLinePlus extends DecoderBase {
                     accSpike += Compute.squared(r.a - flo[k]);
                     nominalSpike += Compute.squared(cei[k] - flo[k]);
                 }
-                
+
                 if ((k - kRaise)*tsLength > LONG_DASH_INTERIOR_BEGIN &&
                         (k - kRaise)*tsLength < LONG_DASH_INTERIOR_END && r.a < aMin) {
                     aMin = r.a;
                     kCrack = k;
                 }
-                
+
             }
             else if (state == States.M_LOW) {
                 if (low) {
@@ -233,7 +233,7 @@ public final class SlidingLinePlus extends DecoderBase {
                                     final int kDropDash1 = kRaise + (int) Math.round(3.0 / tsLength);
                                     final int kMiddleDash1 = Compute.iAve(kRaise, kDropDash1);
                                     tones.put(Integer.valueOf(kMiddleDash1), new Dash(kMiddleDash1, kRaise, kDropDash1, histEntries));
-                                    
+
                                     final int kRaiseDash2 = kRaise + (int) Math.round(4.0 / tsLength);
                                     final int kMiddleDash2 = Compute.iAve(kRaiseDash2, kDrop);
                                     tones.put(Integer.valueOf(kMiddleDash2), new Dash(kMiddleDash2, kRaiseDash2, kDrop, histEntries));
@@ -244,7 +244,7 @@ public final class SlidingLinePlus extends DecoderBase {
                                         final int kDropDot = kRaise + (int) Math.round(1.0 / tsLength);
                                         final int kMiddleDot = Compute.iAve(kRaise, kDropDot);
                                         tones.put(Integer.valueOf(kMiddleDot), new Dot(kMiddleDot, kRaise, kDropDot, histEntries));
-                                        
+
                                         final int kRaiseDash = kRaise + (int) Math.round(2.0 / tsLength);
                                         final int kMiddleDash = Compute.iAve(kRaiseDash, kDrop);
                                         tones.put(Integer.valueOf(kMiddleDash), new Dash(kMiddleDash, kRaiseDash, kDrop, histEntries));
@@ -253,7 +253,7 @@ public final class SlidingLinePlus extends DecoderBase {
                                         final int kDropDash = kRaise + (int) Math.round(3.0 / tsLength);
                                         final int kMiddleDash = Compute.iAve(kRaise, kDropDash);
                                         tones.put(Integer.valueOf(kMiddleDash), new Dash(kMiddleDash, kRaise, kDropDash, histEntries));
-                                        
+
                                         final int kRaiseDot = kRaise + (int) Math.round(4.0 / tsLength);
                                         final int kMiddleDot = Compute.iAve(kRaiseDot, kDrop);
                                         tones.put(Integer.valueOf(kMiddleDot), new Dot(kMiddleDot, kRaiseDot, kDrop, histEntries));
@@ -284,7 +284,7 @@ public final class SlidingLinePlus extends DecoderBase {
                                 (kDrop - kRaise)*tsLength <
                                 GerkeDecoder.DASH_LIMIT[DecoderIndex.LSQ2.ordinal()];
                         final int kMiddle = Compute.iAve(kRaise, kDrop);
-                        
+
                         // this is a low-probability case; don't bother breaking long dashes
                         if (createDot) {
                             tones.put(Integer.valueOf(kMiddle), new Dot(kMiddle, kRaise, kDrop, histEntries));

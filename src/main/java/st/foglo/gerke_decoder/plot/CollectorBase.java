@@ -7,19 +7,20 @@ import java.io.PrintStream;
 
 public class CollectorBase {
 
+    // assuming single-threaded access
+    public static volatile int windowsPlotCount = 0;
+
     protected final String fileName;
     protected final String fileNameWin;
     public final PrintStream ps;
-
-
 
     public CollectorBase() throws IOException {
         if (isWindows()) {
             this.fileName = makeTempFile();
             this.fileNameWin = toWindows(this.fileName);
             this.ps = new PrintStream(new File(fileNameWin));
-        }
-        else {
+            windowsPlotCount++;
+        } else {
             this.fileName = makeTempFile();
             this.fileNameWin = null;
             this.ps = new PrintStream(new File(fileName));
