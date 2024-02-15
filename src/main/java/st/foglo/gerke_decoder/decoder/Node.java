@@ -2,12 +2,13 @@ package st.foglo.gerke_decoder.decoder;
 
 import st.foglo.gerke_decoder.lib.Compute;
 
+/**
+ * The static initialization of class instances
+ * follows Recommendation ITU-R M.1677-1 (2009).
+ */
 public final class Node {
 
     public static final Node tree = new Node("", "");
-
-
-
 
 
     final String code;
@@ -144,7 +145,7 @@ public final class Node {
         new Node("-", "-....-");
 
         new Node(":", "---...");
-        new Node(null, "-.-.-");
+        new Node("<KA>", "-.-.-");    // "starting"
         new Node(";", "-.-.-.");
 
         new Node("(", "-.--.");
@@ -158,15 +159,17 @@ public final class Node {
         new Node(null, ".-..-");
         new Node("\"", ".-..-.");
 
-        new Node("<AS>", ".-...");
+        new Node("<AS>", ".-...");    // "wait"
 
         new Node(null, "-...-.");
         new Node("<BK>", "-...-.-");
 
-        new Node(null, "...-.");
-        new Node("<SK>", "...-.-");
+        new Node("<SN>", "...-.");    // "understood"
+        new Node("<SK>", "...-.-");   // "end of work"
         new Node(null, "...-..");
         new Node("$", "...-..-");
+        
+        new Node("@", ".--.-.");
 
         new Node(null, "-.-..");
         new Node(null, "-.-..-");
@@ -177,6 +180,10 @@ public final class Node {
         new Node(null, "...---.");
         new Node(null, "...---..");
         new Node("<SOS>", "...---...");
+        
+        new Node(null, "......");
+        new Node(null, ".......");
+        new Node("<HH>", "........"); // "error"
     }
 
 
