@@ -151,7 +151,7 @@ public abstract class DecoderBase implements Decoder {
      * @return
      */
     public static DetectorIndex getDetector(int decoder) {
-        if (decoder == 4 || decoder == 5 || decoder == 6) {
+        if (decoder == 4 || decoder == 5 || decoder == 6 || decoder == 7) {
             return DetectorIndex.ADAPTIVE_DETECTOR;
         } else if (decoder == 3 || decoder == 2 || decoder == 1) {
             return DetectorIndex.BASIC_DETECTOR;

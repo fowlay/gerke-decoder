@@ -27,6 +27,7 @@ import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
 import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
 import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
+import st.foglo.gerke_decoder.decoder.sliding_line.IntegratingDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLineDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLinePlus;
 import st.foglo.gerke_decoder.decoder.tone_silence.ToneSilenceDecoder;
@@ -53,7 +54,9 @@ public final class GerkeDecoder {
     static final double IGNORE = 0.0;
 
     private static final double[] TS_LENGTH =
-            new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
+            new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10,
+                                 SlidingLinePlus.TS_LENGTH,
+                                 IntegratingDecoder.TS_LENGTH};
 
 
 
@@ -109,10 +112,11 @@ public final class GerkeDecoder {
             "dips",
             "prototype segments",
             "sliding segments",
-            "adaptive segments"};
+            "adaptive segments",
+            "integrating"};
 
     /**
-     * Numeric decoder index 1..6 maps to these names. Do not reorder.
+     * Numeric decoder index 1..7 maps to these names. Do not reorder.
      */
     public enum DecoderIndex {
         ZERO,
@@ -121,7 +125,8 @@ public final class GerkeDecoder {
         DIPS_FINDING,
         LEAST_SQUARES,
         LSQ2,
-        LSQ2_PLUS
+        LSQ2_PLUS,
+        INTEGRATING
     };
 
     public enum DetectorIndex {
@@ -134,23 +139,24 @@ public final class GerkeDecoder {
      * Model value: sqrt(3*7) = 4.58
      * words break <---------+---------> words stick
      */
-    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6};
+    public static final double[] WORD_SPACE_LIMIT = new double[]{
+            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 5.6};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73,
-            1.85,
-            1.9, 1.9};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{
+            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.9};
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.745, 1.9, 1.9};
+    public static final double[] DASH_LIMIT = new double[]{
+            IGNORE, 1.8, 1.73, 1.7, 1.745, 1.9, 1.9, 1.9};
 
     /**
      * Tones longer than this are interpreted as two dashes
@@ -271,7 +277,7 @@ public final class GerkeDecoder {
         new SingleValueOption("C", O_COHSIZE, "0.8");
         new SingleValueOption("G", O_SEGSIZE, "3.0");
 
-        new SingleValueOption("D", O_DECODER, "6");
+        new SingleValueOption("D", O_DECODER, "7");
 
         new SingleValueOption("u", O_LEVEL, "1.0");
 
@@ -593,6 +599,7 @@ new String[]{
              * or -1 denoting "undefined".
              */
             final int[] histRequests = GerkeLib.getIntOptMulti(O_HIST_TONE_SPACE);
+
             if (histRequests.length == 1 && histRequests[0] == -1) {
                 // nothing requested
             }
@@ -725,6 +732,26 @@ new String[]{
             }
             else if (decoder == DecoderIndex.LSQ2_PLUS.ordinal()) {
                 dec = new SlidingLinePlus(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        histEntries,
+                        formatter,
+
+                        sigSize,
+                        cei,
+                        flo,
+                        level,
+                        ceilingMax
+
+                        );
+            }
+            else if (decoder == DecoderIndex.INTEGRATING.ordinal()) {
+                dec = new IntegratingDecoder(
                         tuMillis,
                         framesPerSlice,
                         tsLength,
@@ -883,6 +910,9 @@ new String[]{
         }
         else if (decoder == 6) {
             return SlidingLinePlus.THRESHOLD;
+        }
+        else if (decoder == 7) {
+            return IntegratingDecoder.THRESHOLD;
         }
         else {
             throw new RuntimeException();
