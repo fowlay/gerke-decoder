@@ -31,7 +31,7 @@ public final class IntegratingDecoder extends DecoderBase {
 
     final double level;
     
-    int j = 0;
+    //int j = 0;
     final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
     
     public IntegratingDecoder(
@@ -80,41 +80,39 @@ public final class IntegratingDecoder extends DecoderBase {
     @Override
     public void execute() throws Exception {
         // TODO Auto-generated method stub
-        System.out.println("+++++ decoder 7");
         
         final int tsPerTu = (int)Math.round(1.0/tsLength);
+        System.out.println(String.format("+++++ decoder 7, slices per TU: %d", tsPerTu));
         
         final double u = 1.0; // TODO, level, bind to a parameter
         
         
         // first pass, for normalizing
-        double strength = 0.0;
-        for (int k = tsPerTu; k < sigSize-tsPerTu; k++) {
-            
-            //System.out.println(String.format("%f", sig[k]));
-            
-            // integrate
-            double s = 0.0;
-
-
-            for (int i = -tsPerTu; i <= tsPerTu; i++) {
-                if (i == 0) {
-                    continue;
-                }
-                else if (i < 0) {
-                    s += (-1)*(sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
-                }
-                else {
-                    s += sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
-                }
-                
-            }
-            
-            strength = Math.max(strength, Math.abs(s));
-        }
+//        double strength = 0.0;
+//        for (int k = tsPerTu; k < sigSize-tsPerTu; k++) {
+//            
+//            //System.out.println(String.format("%f", sig[k]));
+//            
+//            // integrate
+//            double s = 0.0;
+//            for (int i = -tsPerTu; i <= tsPerTu; i++) {
+//                if (i == 0) {
+//                    continue;
+//                }
+//                else if (i < 0) {
+//                    s += (-1)*(sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
+//                }
+//                else {
+//                    s += sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
+//                }
+//                
+//            }
+//            
+//            strength = Math.max(strength, Math.abs(s));
+//        }
         
-        
-        
+        // TODO: s is a global maximum, maybe a localized value is better
+        // 
         
         States q = States.LOW;
         double candRaise = -Double.MAX_VALUE;
@@ -127,32 +125,38 @@ public final class IntegratingDecoder extends DecoderBase {
             //System.out.println(String.format("%f", sig[k]));
             
             // integrate
+            
+            double localStrength = 0.0;
+            
             double s = 0.0;
-
-
-            for (int i = -tsPerTu; i <= tsPerTu; i++) {
-                if (i == 0) {
-                    continue;
-                }
-                else if (i < 0) {
+            for (int i = -tsPerTu; i <= (tsPerTu-1); i++) {
+                if (i < 0) {
                     s += (-1)*(sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
+                    localStrength += (-1)*(flo[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
                 }
                 else {
                     s += sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
+                    localStrength += cei[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
                 }
                 
             }
             //System.out.println(String.format("%d: %f", k, s));
             
+            // ignore candidate transitions weaker than this limit
+            double ignore = 0.2;
+            
             if (q == States.LOW) {
-                if (s >= candRaise) {
+                if (s <= 0.0) {
+                    continue;
+                }
+                else if (s >= candRaise) {
                     candRaise = s;
                     kCandRaise = k;
                 }
                 else if ((k - kCandRaise) <= 3) {   // parameter TODO
                     continue;
                 }
-                else if (candRaise/strength < 0.2) {
+                else if (candRaise/localStrength < ignore) {
                     candRaise = -Double.MAX_VALUE;
                 }
                 else {
@@ -162,14 +166,17 @@ public final class IntegratingDecoder extends DecoderBase {
                 
             }
             else if (q == States.HIGH) {
-                if (s <= candDrop) {
+                if (s >= 0.0) {
+                    continue;
+                }
+                else if (s <= candDrop) {
                     candDrop = s;
                     kCandDrop = k;
                 }
                 else if ((k - kCandDrop) <= 3) {   // parameter TODO
                     continue;
                 }
-                else if ((-candDrop)/strength < 0.2) {
+                else if ((-candDrop)/localStrength < ignore) {
                     candDrop = Double.MAX_VALUE;
                 }
                 else {
@@ -181,10 +188,10 @@ public final class IntegratingDecoder extends DecoderBase {
                             GerkeDecoder.DASH_LIMIT[DecoderIndex.INTEGRATING.ordinal()];
                     
                     if (createDot) {
-                        tones.put(Integer.valueOf(j++), new Dot(kCandRaise, kCandDrop));
+                        tones.put(Integer.valueOf(kCandRaise), new Dot(kCandRaise, kCandDrop));
                     }
                     else {
-                        tones.put(Integer.valueOf(j++), new Dash(kCandRaise, kCandDrop));
+                        tones.put(Integer.valueOf(kCandRaise), new Dash(kCandRaise, kCandDrop));
                     }
                     
                 }
