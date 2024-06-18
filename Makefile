@@ -49,10 +49,11 @@ bin/gerke-decoder: lib/gerke-decoder.template target/gerke_decoder-$(GERKE_DECOD
 	chmod a+x $@
 
 target/gerke_decoder-$(GERKE_DECODER_REL).jar: apache-maven-$(APACHE_REL)/conf/settings.xml $(SRC)
-	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" mvn package
+	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" \
+            JAVA_HOME=$$(dirname $$(dirname $$(command -v javac))) mvn package
 
 
-## Make executable jar (this make-target assumes a Linux environment; TODO: fix for Cygwin/X)
+## Make executable jar
 
 gerke-decoder.jar: target/gerke_decoder-$(GERKE_DECODER_REL).jar \
 	    m2/uk/me/berndporr/iirj/1.1/iirj-1.1.jar \
@@ -96,13 +97,15 @@ test: gerke-decoder.jar bin/gerke-decoder grimeton-clip.wav
 	else echo test failed, expected: $$expected, actual: $$md5; fi
 
 grimeton-clip.wav:
-	wget http://privat.bahnhof.se/wb748077/alexanderson-day/$@
+	wget https://privat.bahnhof.se/wb748077/alexanderson-day/$@
 
 
 ## Removal
 
 clean:
-	rm -rf bin target gerke-decoder.jar
+	rm -rf gerke-decoder.jar
+	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" \
+            JAVA_HOME=$$(dirname $$(dirname $$(command -v javac))) mvn clean
 
 realclean: clean
-	rm -rf m2 apache-maven-$(APACHE_REL) grimeton-clip.wav
+	rm -rf bin target m2 apache-maven-$(APACHE_REL) grimeton-clip.wav

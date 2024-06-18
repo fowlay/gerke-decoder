@@ -35,6 +35,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.1.4</td><td>Release content tidyup</td></tr>
 <tr><td>3.1.5</td><td>Fix gnuplot behaviour for Cygwin/X</td></tr>
 <tr><td>3.1.6</td><td>Add some missing code table entries</td></tr>
+<tr><td>3.1.7</td><td>Adjust build scripts</td></tr>
 </table>
 
 ## Platforms
