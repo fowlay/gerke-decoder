@@ -253,7 +253,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.7");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.8");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -589,10 +589,14 @@ new String[]{
             }
 
             /**
-             * The array may contain 1 (tones histogram) or 0 (spaces histogram) or both.
+             * The array may contain 1 (tones histogram) or 0 (spaces histogram) or both,
+             * or -1 denoting "undefined".
              */
             final int[] histRequests = GerkeLib.getIntOptMulti(O_HIST_TONE_SPACE);
-            if (histRequests.length > 0 && decoder != DecoderIndex.LSQ2_PLUS.ordinal()) {
+            if (histRequests.length == 1 && histRequests[0] == -1) {
+                // nothing requested
+            }
+            else if (histRequests.length > 0 && decoder != DecoderIndex.LSQ2_PLUS.ordinal()) {
                 new Death("Option -%s only supported for -%s %d",
                         GerkeLib.getOptShortName(O_HIST_TONE_SPACE),
                         GerkeLib.getOptShortName(O_DECODER),

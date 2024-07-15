@@ -145,6 +145,8 @@ public final class SlidingLineDecoder extends DecoderBase {
             }
         }
 
+        reportDotsAndDashes(tones);
+
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;

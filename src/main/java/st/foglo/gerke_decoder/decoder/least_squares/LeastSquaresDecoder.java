@@ -366,6 +366,8 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
             dashes.put(key, dots.get(key));
         }
 
+        reportDotsAndDashes(dashes);
+
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
