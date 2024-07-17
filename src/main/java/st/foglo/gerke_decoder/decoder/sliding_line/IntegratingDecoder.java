@@ -1,7 +1,11 @@
 package st.foglo.gerke_decoder.decoder.sliding_line;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.NavigableMap;
+import java.util.SortedSet;
 import java.util.TreeMap;
+import java.util.TreeSet;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
@@ -73,134 +77,246 @@ public final class IntegratingDecoder extends DecoderBase {
         this.level = level;
     }
     
-    private enum States {LOW, HIGH};
 
+    class Candidate implements Comparable<Candidate> {
+    	
+    	final double strength;
+    	final double alfa;
+    	final int kRise;
+    	final int kDrop;
+    	final int k0;
+    	
+    	Candidate(double strength, double alfa, int kRise, int kDrop, int k0) {
+    		this.strength = strength;
+    		this.alfa = alfa;
+    		this.kRise = kRise;
+    		this.kDrop = kDrop;
+    		this.k0 = k0;
+    	}
+
+		@Override
+		public int compareTo(Candidate o) {
+			if (this.strength < o.strength) {
+				return 1;			
+			}
+			else if (this.strength == o.strength) {
+				return 0;
+			}
+			else {
+				return -1;
+			}
+		}
+    	
+    }
     
 
     @Override
     public void execute() throws Exception {
-        // TODO Auto-generated method stub
         
-        final int tsPerTu = (int)Math.round(1.0/tsLength);
-        System.out.println(String.format("+++++ decoder 7, slices per TU: %d", tsPerTu));
+        final double tsPerTu = 1.0/tsLength;
+        new GerkeLib.Info("+++++ decoder 7, slices per TU: %f", tsPerTu);
         
         final double u = 1.0; // TODO, level, bind to a parameter
         
+        final double aMax = 1.3;
+        final double aMin = 0.8;
         
-        // first pass, for normalizing
-//        double strength = 0.0;
-//        for (int k = tsPerTu; k < sigSize-tsPerTu; k++) {
-//            
-//            //System.out.println(String.format("%f", sig[k]));
-//            
-//            // integrate
-//            double s = 0.0;
-//            for (int i = -tsPerTu; i <= tsPerTu; i++) {
-//                if (i == 0) {
-//                    continue;
-//                }
-//                else if (i < 0) {
-//                    s += (-1)*(sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
-//                }
-//                else {
-//                    s += sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
-//                }
-//                
-//            }
-//            
-//            strength = Math.max(strength, Math.abs(s));
-//        }
+        // find dashes
         
-        // TODO: s is a global maximum, maybe a localized value is better
-        // 
+        final int k0Lowest = (int)Math.round(2.0*aMax/tsLength) + 1;
+        final int k0Highest = sigSize - (int)Math.round(2.0*aMax/tsLength) - 1;
+       
+        final SortedSet<Candidate> candidates = new TreeSet<Candidate>();
         
-        States q = States.LOW;
-        double candRaise = -Double.MAX_VALUE;
-        double candDrop = Double.MAX_VALUE;
-        int kCandRaise = -1;
-        int kCandDrop = -1;
+        for (int k0 = k0Lowest; k0 < k0Highest; k0++) {  // new GerkeLib.Info("k0: %d", k0);
+        	
+        	double bestStrength = Double.MIN_VALUE;
+        	double bestA = Double.MIN_VALUE;
+        	int bestKRise = Integer.MIN_VALUE;
+        	int bestKDrop = Integer.MIN_VALUE;
+        	
+        	for (double a = aMin; a <= aMax; a += 0.1) {
+        		double sum = 0.0;
+        		double sumNorm = 0.0;
+        		final int kRise = k0 - (int)Math.round(1.5*a/tsLength);
+        		final int kDrop = k0 + (int)Math.round(1.5*a/tsLength);
+        		for (int k = k0 - (int)Math.round(2.0*a/tsLength);
+        				k < k0 + (int)Math.round(2.0*a/tsLength);
+        				k++) {
+        			final double g = k < kRise ? -1.0 : k < kDrop ? 1.0 : -1.0;
+        			sum += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
+        			
+        			final double norm = k < kRise ? flo[k] :
+        				k < kDrop ? cei[k] :
+        					flo[k];
+        			
+        			sumNorm += g*(norm - (flo[k] + u*0.5*(cei[k] - flo[k])));
+        		}
+        		final double strength = sum/sumNorm;
+        		if (strength != bestStrength) {
+        			bestStrength = strength;
+        			bestA = a;
+        			bestKRise = kRise;
+        			bestKDrop = kDrop;
+        		}
+        	} // end alfa loop
+        	
+        	// check if two dots is more likely, assuming best alfa
+        	
+        	double sum2dots = 0.0;
+        	double sum2dotsNorm = 0.0;
+        	final int kRise1st = k0 - (int)Math.round(1.5*bestA/tsLength);
+        	final int kDrop1st = k0 - (int)Math.round(0.5*bestA/tsLength);
+    		final int kRise2nd = k0 + (int)Math.round(0.5*bestA/tsLength);
+    		final int kDrop2nd = k0 + (int)Math.round(1.5*bestA/tsLength);
+    		for (int k = k0 - (int)Math.round(2.0*bestA/tsLength);
+    				k < k0 + (int)Math.round(2.0*bestA/tsLength);
+    				k++) {
+    			final double g = k < kRise1st ? -1.0 :
+    				k < kDrop1st ? 1.0 :
+    					k < kRise2nd ? -1.0 :
+    						k < kDrop2nd ? 1.0 : -1.0;
+    			sum2dots += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
+    			
+    			final double norm2dots = k < kRise1st ? flo[k] :
+    				k < kDrop1st ? cei[k] :
+    					k < kRise2nd ? flo[k] :
+    				k < kDrop2nd ? cei[k] :
+    					flo[k];
+    			
+    			sum2dotsNorm += g*(norm2dots - (flo[k] + u*0.5*(cei[k] - flo[k])));
+    		}
+    		
+    		final double strength2dots = sum2dots/sum2dotsNorm;
+    		
+    		final double twoDotsLimit = 0.2; // PARA .. smaller value favors 'i' over 't'
+    		
+//    		if (bestStrength > 0.0 && strength2dots > 0.0 && strength2dots/bestStrength > twoDotsLimit) {
+//    			continue;
+//    		}
+//    		else {
+//    			candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+//    		}
+    		
+    		if (bestStrength < 0.6) {
+    			continue;
+    		}
+    		else {
+			candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+		}
+    		
+    		
+    		
+    		
+        } // end loop over k
+
+        // loop over dash candidates, strongest first
         
-        for (int k = tsPerTu; k < sigSize-tsPerTu; k++) {
-            
-            //System.out.println(String.format("%f", sig[k]));
-            
-            // integrate
-            
-            double localStrength = 0.0;
-            
-            double s = 0.0;
-            for (int i = -tsPerTu; i <= (tsPerTu-1); i++) {
-                if (i < 0) {
-                    s += (-1)*(sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
-                    localStrength += (-1)*(flo[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i])));
-                }
-                else {
-                    s += sig[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
-                    localStrength += cei[k+i] - (flo[k+1] + (u/1.0)*(0.5)*(cei[k+i] - flo[k+i]));
-                }
-                
-            }
-            //System.out.println(String.format("%d: %f", k, s));
-            
-            // ignore candidate transitions weaker than this limit
-            double ignore = 0.2;
-            
-            if (q == States.LOW) {
-                if (s <= 0.0) {
-                    continue;
-                }
-                else if (s >= candRaise) {
-                    candRaise = s;
-                    kCandRaise = k;
-                }
-                else if ((k - kCandRaise) <= 3) {   // parameter TODO
-                    continue;
-                }
-                else if (candRaise/localStrength < ignore) {
-                    candRaise = -Double.MAX_VALUE;
-                }
-                else {
-                    q = States.HIGH;
-                    candDrop = Double.MAX_VALUE;
-                }
-                
-            }
-            else if (q == States.HIGH) {
-                if (s >= 0.0) {
-                    continue;
-                }
-                else if (s <= candDrop) {
-                    candDrop = s;
-                    kCandDrop = k;
-                }
-                else if ((k - kCandDrop) <= 3) {   // parameter TODO
-                    continue;
-                }
-                else if ((-candDrop)/localStrength < ignore) {
-                    candDrop = Double.MAX_VALUE;
-                }
-                else {
-                    q = States.LOW;
-                    candRaise = -Double.MAX_VALUE;
-                    
-                    final boolean createDot =
-                            (kCandDrop - kCandRaise)*tsLength <
-                            GerkeDecoder.DASH_LIMIT[DecoderIndex.INTEGRATING.ordinal()];
-                    
-                    if (createDot) {
-                        tones.put(Integer.valueOf(kCandRaise), new Dot(kCandRaise, kCandDrop));
-                    }
-                    else {
-                        tones.put(Integer.valueOf(kCandRaise), new Dash(kCandRaise, kCandDrop));
-                    }
-                    
-                }
-            }
-            
+        for (; !candidates.isEmpty();) {
+        	
+        	final Candidate c = candidates.iterator().next();
+        	
+        	// simple heuristic, drop very weak tones, PARA
+        	if (c.strength < 0.1) {
+        		break;
+        	}
+        	// new GerkeLib.Info("strength: %e", c.strength);
+        	tones.put(Integer.valueOf(c.k0), new Dash(c.kRise, c.kDrop));
+        	
+        	for (int k = c.kRise; k <= c.kDrop; k++) {
+        		sig[k] = flo[k];
+        	}
+        	
+        	final List<Candidate> toCut = new ArrayList<Candidate>();
+        	
+        	for (Candidate q : candidates) {
+        		if (q.kDrop >= c.kRise && q.kRise <= c.kDrop) {
+        			toCut.add(q);
+        		}
+        	}
+        	
+        	candidates.removeAll(toCut);
         }
-        // we got tones
-        System.out.println(String.format("nof. tones: %d", tones.size()));
+        
+        // now find the dots
+        
+        candidates.clear();
+        
+        final int k0LowestDots = (int)Math.round(1.0*aMax/tsLength) + 1;
+        final int k0HighestDots = sigSize - (int)Math.round(1.0*aMax/tsLength) - 1;
+        
+        for (int k0 = k0LowestDots; k0 < k0HighestDots; k0++) {  // new GerkeLib.Info("k0: %d", k0);
+        	
+        	double bestStrength = Double.MIN_VALUE;
+        	double bestA = Double.MIN_VALUE;
+        	int bestKRise = Integer.MIN_VALUE;
+        	int bestKDrop = Integer.MIN_VALUE;
+        	
+        	for (double a = aMin; a <= aMax; a += 0.1) {
+        		double sum = 0.0;
+        		double sumNorm = 0.0;
+        		final int kRise = k0 - (int)Math.round(0.5*a/tsLength);
+        		final int kDrop = k0 + (int)Math.round(0.5*a/tsLength);
+        		for (int k = k0 - (int)Math.round(1.0*a/tsLength);
+        				k < k0 + (int)Math.round(1.0*a/tsLength);
+        				k++) {
+        			final double g = k < kRise ? -1.0 : k < kDrop  ? 1.0 : -1.0;
+        			sum += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
+        			
+        			final double norm = k < kRise ? flo[k] :
+        				k < kDrop ? cei[k] :
+        					flo[k];
+        			
+        			sumNorm += g*(norm - (flo[k] + u*0.5*(cei[k] - flo[k])));
+        		}
+        		final double strength = sum/sumNorm;
+        		if (strength != bestStrength) {
+        			bestStrength = strength;
+        			bestA = a;
+        			bestKRise = kRise;
+        			bestKDrop = kDrop;
+        		}
+        	} // end alfa loop
+        	
+    		candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+    		
+        } // end loop over k
+        
+
+        for (; !candidates.isEmpty();) {
+        	
+        	final Candidate c = candidates.iterator().next();
+        	
+        	// simple heuristic, drop very weak tones, PARA
+        	if (c.strength < 0.5) {
+        		break;
+        	}
+        	// new GerkeLib.Info("strength: %e", c.strength);
+        	tones.put(Integer.valueOf(c.k0), new Dot(c.kRise, c.kDrop));
+
+        	final List<Candidate> toCut = new ArrayList<Candidate>();
+        	
+        	for (Candidate q : candidates) {
+        		if (q.kDrop >= c.kRise && q.kRise <= c.kDrop) {
+        			toCut.add(q);
+        		}
+        	}
+        	
+        	candidates.removeAll(toCut);
+        }
+        
+
+      
+        // we have tones
+        // System.out.println(String.format("nof. tones: %d", tones.size()));
         // duplicated code from SlidingLinePlus
+        
+        reportDotsAndDashes(tones);
+        
+        overlapCheck(tones);
+        if (overlapCount > 0) {
+        	new GerkeLib.Warning("overlaps: %d", overlapCount);
+        }
         
         Node p = Node.tree;
         int qCharBegin = -999999;
@@ -280,7 +396,33 @@ public final class IntegratingDecoder extends DecoderBase {
 
     }
     
-    // duplicated. Open code very simple function?
+    private int overlapCount = 0;
+    
+    private void overlapCheck(NavigableMap<Integer, ToneBase> tones) {
+	
+    	ToneBase prev = null;
+    	for (Integer key : tones.navigableKeySet()) {
+    		final ToneBase tb = tones.get(key);
+    		if (prev == null)  {
+    			prev = tb;
+    			continue;
+    		}
+    		else if (prev.drop < tb.rise) {
+    			prev = tb;
+    			continue;
+    		}
+    		else {
+    			final String prevType = prev instanceof Dash ? "dash" : "dot";
+    			final String type = tb instanceof Dash ? "dash" : "dot";
+    			new GerkeLib.Warning("overlapping tones, %s drop: %d, %s rise: %d",
+    					prevType, prev.drop, type, tb.rise);
+    			overlapCount++;
+    			prev = tb;
+    		}
+    	}
+	}
+
+	// duplicated. Open code very simple function?
     private int toneBegin(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
         return tone.rise;

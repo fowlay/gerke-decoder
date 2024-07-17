@@ -13,7 +13,8 @@ public abstract class ToneBase {
         this.rise = rise;
         this.drop = drop;
         if (k < rise || k > drop) {
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(
+            		String.format("arguments: %d, %d, %d", k, rise, drop));
         }
     }
 
