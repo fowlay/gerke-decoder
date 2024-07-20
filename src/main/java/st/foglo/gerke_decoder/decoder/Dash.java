@@ -30,6 +30,11 @@ public final class Dash extends ToneBase {
         super(Compute.iAve(rise, drop), rise, drop);
         this.ceiling = 0.0;
     }
+    
+    public Dash(int rise, int drop, double strength) {
+        super(Compute.iAve(rise, drop), rise, drop, strength);
+        this.ceiling = 0.0;
+    }
 
     public Dash(int k, int rise, int drop, HistEntries histEntries) {
         super(k, rise, drop);

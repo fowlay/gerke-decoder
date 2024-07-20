@@ -17,6 +17,10 @@ public final class Dot extends ToneBase {
     public Dot(int rise, int drop) {
         super(Compute.iAve(rise, drop), rise, drop);
     }
+    
+    public Dot(int rise, int drop, double strength) {
+        super(Compute.iAve(rise, drop), rise, drop, strength);
+    }
 
     public Dot(int k, int rise, int drop, HistEntries histEntries) {
         super(k, rise, drop);
