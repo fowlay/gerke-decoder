@@ -74,7 +74,12 @@ public final class Wav {
         }
 
         this.offsetFrames = offset*frameRate;
-        this.nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
+        
+        if (length*frameRate > frameLength) {
+        	new Death("option -l (seconds) must not exceed wave file length");
+        }
+        
+        this.nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate - offsetFrames;
 
         if (nofFrames < 0) {
             new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);

@@ -1,10 +1,11 @@
 package st.foglo.gerke_decoder.decoder.sliding_line;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableMap;
-import java.util.SortedMap;
+import java.util.Set;
 import java.util.TreeMap;
 
 import st.foglo.gerke_decoder.GerkeDecoder;
@@ -35,7 +36,6 @@ public final class IntegratingDecoder extends DecoderBase {
 
     final double level;
     
-    //int j = 0;
     final NavigableMap<Integer, Dash> dashes = new TreeMap<Integer, Dash>();
     final NavigableMap<Integer, Dot> dots = new TreeMap<Integer, Dot>();
     final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
@@ -83,6 +83,7 @@ public final class IntegratingDecoder extends DecoderBase {
     class Candidate implements Comparable<Candidate> {
     	
     	final double strength;
+    	final int number;
     	final double alfa;
     	final int kRise;
     	final int kDrop;
@@ -94,18 +95,22 @@ public final class IntegratingDecoder extends DecoderBase {
     		this.kRise = kRise;
     		this.kDrop = kDrop;
     		this.k0 = k0;
+    		this.number = candCount++;
     	}
 
 		@Override
 		public int compareTo(Candidate o) {
 			if (this.strength < o.strength) {
-				return 1;			
+				return -1;			
 			}
-			else if (this.strength == o.strength) {
-				return 0;
+			else if (this.strength > o.strength) {
+				return 1;
+			}
+			else if (this.number < o.number) {
+				return -1;
 			}
 			else {
-				return -1;
+				return 1;
 			}
 		}
     	
@@ -113,6 +118,7 @@ public final class IntegratingDecoder extends DecoderBase {
     
     
     int cmapKeyCount = 0;
+    int candCount = 0;
     
     class CmapKey implements Comparable<CmapKey> {
 		final double strength;
@@ -125,10 +131,10 @@ public final class IntegratingDecoder extends DecoderBase {
     	
 		@Override
 		public int compareTo(CmapKey other) {
-			return this.strength < other.strength ? -1 :
-				this.strength > other.strength ? 1 :
-					this.number < other.number ? -1 :
-						1;
+			return this.strength < other.strength ? 1 :
+				this.strength > other.strength ? -1 :
+					this.number < other.number ? 1 :
+						-1;
 		}
     }
     
@@ -164,9 +170,6 @@ public final class IntegratingDecoder extends DecoderBase {
     @Override
     public void execute() throws Exception {
         
-        final double tsPerTu = 1.0/tsLength;
-        // new GerkeLib.Info("decoder 7, slices per TU: %f", tsPerTu);
-        
         final double u = level; // PARA, settable from CLI
         
         final double aMax = 1.10; // PARA .. +- 10% seems ok, more than that causes timing issues
@@ -180,20 +183,21 @@ public final class IntegratingDecoder extends DecoderBase {
         
         final double peaking = 1.3;
         
+        // -----------------------------------------------
+        
         final boolean isDashes = true;
         final boolean isDots = true;
         
-        // find dashes
+        final double tsPerTu = 1.0/tsLength;
         
+        // find dash candidates
+        
+        final Set<Candidate> cands = new HashSet<Candidate>();
         final int k0Lowest = (int)Math.round(2.0*aMax*tsPerTu) + 1;
         final int k0Highest = sigSize - (int)Math.round(2.0*aMax*tsPerTu) - 1;
-       
-        //final SortedSet<Candidate> candidates = new TreeSet<Candidate>();
-        
-        final SortedMap<CmapKey, Candidate> cmap = new TreeMap<CmapKey, Candidate>();
-        
-        new GerkeLib.Info("find dash candidates");
-        for (int k0 = k0Lowest; k0 < k0Highest; k0++) {  // new GerkeLib.Info("k0: %d", k0);
+
+        // new GerkeLib.Info("find dash candidates");
+        for (int k0 = k0Lowest; k0 < k0Highest; k0++) {
         	
         	double bestStrength = Double.MIN_VALUE;
         	double bestA = Double.MIN_VALUE;
@@ -226,89 +230,51 @@ public final class IntegratingDecoder extends DecoderBase {
         		}
         	} // end alfa loop
 
-    		if (bestStrength < dashStrengthLimit) {
-    			continue;
-    		}
-    		else {
-    			// candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
-    			// final double uniqueStrength = uniqueStrength(bestStrength, cmap);
-    			//cmap.put(Double.valueOf(uniqueStrength), new Candidate(uniqueStrength, bestA, bestKRise, bestKDrop, k0));
-    			
-    			//cmapPut(bestStrength, new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0), cmap);
-    			cmap.put(new CmapKey(bestStrength), new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+    		if (bestStrength >= dashStrengthLimit) {
+    			cands.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
     		}
         } // end loop over k
 
-        // loop over dash candidates, strongest first
-        new GerkeLib.Info("find dashes");
-        
-        new GerkeLib.Info("keyset size: %d", cmap.keySet().size());
-        for (CmapKey k : cmap.keySet()) {
-        	
-        	new GerkeLib.Info("candidate k: %d", cmap.get(k).k0);
-        	
-        }
-        
-        
-        Candidate cPrev = null;
+        int numPrev = Integer.MIN_VALUE;
         boolean rFlag = false;
-        for (; 
-        		//!candidates.isEmpty();
-        		!cmap.isEmpty();
-        		) {
+        for (; !cands.isEmpty();) {
         	
-        	final Candidate c = cmap.get(cmap.lastKey());
-        			// cmap.get(cmap.lastKey());
-        			// candidates.first();
-        			//candidates.iterator().next();
-        	if (c == cPrev) {
+        	final Candidate c = getStrongest(cands);
+        	
+        	if (numPrev != Integer.MIN_VALUE && c.number == numPrev) {
         		new GerkeLib.Info("repetition, %d %d", c.kRise, c.kDrop);
         		rFlag = true;
         	}
         	else {
-        		cPrev = c;
+        		numPrev = c.number;
         	}
 
-        	// new GerkeLib.Info("strength: %e", c.strength);
         	dashes.put(Integer.valueOf(c.k0), new Dash(c.kRise, c.kDrop, c.strength));
-
+        	
         	// drop all candidates that would overlap
         	// TODO, drop some more that would be very close to overlap
-        	final List<CmapKey> toBeRemoved = new ArrayList<CmapKey>();
-        	for (CmapKey k : cmap.keySet()) {
-        		Candidate q = cmap.get(k);
+        	final List<Candidate> toBeRemoved = new ArrayList<Candidate>();
+        	
+        	for (Candidate q : cands) {
         		if (q.kDrop >= c.kRise && q.kRise <= c.kDrop) {
-        			toBeRemoved.add(k);
+        			toBeRemoved.add(q);
         		}
         	}
-        	//new GerkeLib.Info("TBR size: %d", toBeRemoved.size());
-        	//candidates.removeAll(toBeRemoved);
         	
-//        	for (Candidate z : toBeRemoved) {
-//        		if (!candidates.contains(z)) {
-//        			throw new RuntimeException("contains failed ++++++++");
-//        		}
-//        		if (!candidates.remove(z)) {
-//        			throw new RuntimeException("remove failed ++++++++");
-//        		}
-//        	}
-//        	
-        	
-        	for (CmapKey k : toBeRemoved) {
-        		cmap.remove(k);
+        	for (Candidate q : toBeRemoved) {
+        		cands.remove(q);
         	}
-        	// new GerkeLib.Info("candidates size: %d", candidates.size());
+        	
         	if (rFlag) { throw new RuntimeException(); }
         }
-                
-        //candidates.clear();
-        cmap.clear();
+
+        cands.clear();
         
         // now find the dots
         
         final int k0LowestDots = (int)Math.round(1.0*aMax*tsPerTu) + 1;
         final int k0HighestDots = sigSize - (int)Math.round(1.0*aMax*tsPerTu) - 1;
-        new GerkeLib.Info("find dot candidates");
+        // new GerkeLib.Info("find dot candidates");
         for (int k0 = k0LowestDots; k0 < k0HighestDots; k0++) {
         	
         	double bestStrength = Double.MIN_VALUE;
@@ -350,33 +316,27 @@ public final class IntegratingDecoder extends DecoderBase {
         	else {
         		//candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
         		// cmap.put(Double.valueOf(uniqueStrength), new Candidate(uniqueStrength, bestA, bestKRise, bestKDrop, k0));
-        		cmap.put(new CmapKey(bestStrength), new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+        		cands.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
         	}
     		
         } // end loop over k
         
-
-        for (;
-        		//!candidates.isEmpty()
-        		!cmap.isEmpty();) {
+        for (; !cands.isEmpty(); ) {
         	
-        	final Candidate c = cmap.get(cmap.lastKey());
-        			// candidates.iterator().next();
+        	final Candidate c = getStrongest(cands);
 
         	dots.put(Integer.valueOf(c.k0), new Dot(c.kRise, c.kDrop, c.strength));
 
-        	final List<CmapKey> toBeRemoved = new ArrayList<CmapKey>();
+        	final List<Candidate> toBeRemoved = new ArrayList<Candidate>();
         	
-        	for (CmapKey k : cmap.keySet()) {
-        		Candidate q = cmap.get(k);
+        	for (Candidate q : cands) {
         		if (q.kDrop >= c.kRise && q.kRise <= c.kDrop) {
-        			toBeRemoved.add(k);
+        			toBeRemoved.add(q);
         		}
         	}
         	
-        	// candidates.removeAll(toBeRemoved);
-        	for (CmapKey k : toBeRemoved) {
-        		cmap.remove(k);
+        	for (Candidate q : toBeRemoved) {
+        		cands.remove(q);
         	}
         }
         
@@ -433,8 +393,6 @@ public final class IntegratingDecoder extends DecoderBase {
             		}
             		else {
             			final double dotStrength = (dot.strength/dash.strength)*(dot2.strength/dash.strength);
-            			// new GerkeLib.Info("dots strength: %f", dotStrength);
-            			// strength comparison
             			if (dotStrength > twoDotsStrengthLimit) {
             				tones.put(Integer.valueOf(dot.k), dot);
             				tones.put(Integer.valueOf(dot2.k), dot2);
@@ -452,17 +410,10 @@ public final class IntegratingDecoder extends DecoderBase {
         
         reportDotsAndDashes(tones);
         overlapCheck(tones);
-        new GerkeLib.Warning("overlaps: %d", overlapCount);
+        if (overlapCount > 0) {
+        	new GerkeLib.Warning("overlaps: %d", overlapCount);
+        }
         
-//        for (Integer key : tones.navigableKeySet()) {
-//        	ToneBase tb = tones.get(key);
-//        	if (tb instanceof Dot) {
-//        		new GerkeLib.Info("o %12d %12d %12d", tb.rise, tb.k, tb.drop);
-//        	}
-//        	else {
-//        		new GerkeLib.Info("= %12d %12d %12d", tb.rise, tb.k, tb.drop);
-//        	}
-//        }
 
         Node p = Node.tree;
         int qCharBegin = -999999;
@@ -542,6 +493,22 @@ public final class IntegratingDecoder extends DecoderBase {
 
     }
     
+private Candidate getStrongest(Set<Candidate> cands) {
+		Candidate result = null;
+		for (Candidate q : cands) {
+			if (result == null) {
+				result = q;
+			}
+			else if (q.compareTo(result) == -1) {
+				continue;
+			}
+			else {
+				result = q;
+			}
+		}
+		return result;
+	}
+
 //    private Candidate removeLast(SortedMap<Double, List<Candidate>> cmap) {
 //    	final Double key = cmap.lastKey();
 //    	final List<Candidate> list = cmap.get(key);

@@ -140,7 +140,7 @@ public final class GerkeDecoder {
      * words break <---------+---------> words stick
      */
     public static final double[] WORD_SPACE_LIMIT = new double[]{
-            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.4};
+            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.6};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
