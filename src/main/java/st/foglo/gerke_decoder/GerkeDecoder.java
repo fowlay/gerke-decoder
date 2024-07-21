@@ -148,7 +148,7 @@ public final class GerkeDecoder {
      * chars break <---------+---------> chars cluster
      */
     public static final double[] CHAR_SPACE_LIMIT = new double[]{
-            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.5};
+            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.7};
 
     /**
      * Tones longer than this are interpreted as a dash

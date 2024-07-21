@@ -172,14 +172,14 @@ public final class IntegratingDecoder extends DecoderBase {
         
         final double u = level; // PARA, settable from CLI
         
-        final double aMax = 1.10; // PARA .. +- 10% seems ok, more than that causes timing issues
+        final double aMax = 1.14; // PARA .. +- 14% seems ok, needed for dealing with extralong dashes
         final double aMin = 0.9; // PARA
         final double aDelta = 0.02; // PARA ... should have little effect, but this is not the case??
         
         final double dashStrengthLimit = 0.3; // PARA
         final double dotStrengthLimit = 0.3; // PARA
         
-        final double twoDotsStrengthLimit = 1.0; // PARA .. dot doublets <------|-----> dashes
+        final double twoDotsStrengthLimit = 1.2; // PARA .. dot doublets <------|-----> dashes
         
         final double peaking = 1.3;
         
