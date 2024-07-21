@@ -1,5 +1,8 @@
 package st.foglo.gerke_decoder.decoder;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 
 public abstract class ToneBase {
@@ -8,6 +11,9 @@ public abstract class ToneBase {
     public final int rise;
     public final int drop;
     public final double strength;
+    
+	// TODO, only the integrating decoder needs this
+    public final Set<ToneBase> clashers = new HashSet<ToneBase>();
 
     public ToneBase(int k, int rise, int drop) {
     	this(k, rise, drop, 0.0);

@@ -172,14 +172,14 @@ public final class IntegratingDecoder extends DecoderBase {
         
         final double u = level; // PARA, settable from CLI
         
-        final double aMax = 1.14; // PARA .. +- 14% seems ok, needed for dealing with extralong dashes
+        final double aMax = 1.14; // PARA .. +- 14% seems ok, needed for dealing with extra long dashes
         final double aMin = 0.9; // PARA
         final double aDelta = 0.02; // PARA ... should have little effect, but this is not the case??
         
-        final double dashStrengthLimit = 0.3; // PARA
-        final double dotStrengthLimit = 0.3; // PARA
+        final double dashStrengthLimit = 0.25; // 0.3 PARA
+        final double dotStrengthLimit = 0.25; // 0.3 PARA
         
-        final double twoDotsStrengthLimit = 1.2; // PARA .. dot doublets <------|-----> dashes
+        final double twoDotsStrengthLimit = 1.29; // 1.2 PARA .. dot doublets <------|-----> dashes
         
         final double peaking = 1.3;
         
@@ -345,9 +345,75 @@ public final class IntegratingDecoder extends DecoderBase {
         if (!isDots) { dots.clear(); }
         if (!isDashes) { dashes.clear(); }
         
-        new GerkeLib.Info("pre-merge nof. dots: %d", dots.size());
-        new GerkeLib.Info("pre-merge nof. dash: %d", dashes.size());
+        new GerkeLib.Info("pre-merge nof. dots: %d, dashes: %d", dots.size(), dashes.size());
         
+        // detect clashes seen from the dots
+        
+        for (Dot dot : dots.values()) {
+        	for (Dash dash : dashes.values()) {
+        		if (isClash(dot, dash)) {
+        			if (dot.clashers.isEmpty()) {
+        				dot.clashers.add(dash);
+        			}
+        			else if (Math.abs(dash.k - dot.k) < Math.abs(dot.clashers.iterator().next().k - dot.k)) {
+        				dot.clashers.clear();
+        				dot.clashers.add(dash);
+        			}
+        		}
+        	}
+        }
+        
+        // detect clashes seen from the dashes
+        	
+        for (Dash dash : dashes.values()) {
+        	for (Dot dot : dots.values()) {
+        		if (isClash(dot, dash)) {
+        			if (dot.clashers.contains(dash)) {
+        				dash.clashers.add(dot);
+        			}
+        		}
+        	}
+        }
+        
+        // resolve clashes
+        
+        final List<Integer> dashesToRemove = new ArrayList<Integer>();
+        for (Dash dash : dashes.values()) {	
+        	
+        	if (dash.clashers.isEmpty()) {
+        		continue;
+        	}
+        	else if (dash.clashers.size() == 1) {
+        		notNull(dots.remove(Integer.valueOf(dash.clashers.iterator().next().k)));
+        	}
+        	else if (dash.clashers.size() == 2) {
+        		final Iterator<ToneBase> iter = dash.clashers.iterator();
+        		final Dot dot0 = (Dot) iter.next();
+        		final Dot dot1 = (Dot) iter.next();
+        		
+        		final double dotStrength = (dot0.strength/dash.strength)*(dot1.strength/dash.strength);
+    			if (dotStrength > twoDotsStrengthLimit) {
+    				// collect dash for removal
+    				dashesToRemove.add(Integer.valueOf(dash.k));
+    			}
+    			else {
+    				notNull(dots.remove(Integer.valueOf(dot0.k)));
+    				notNull(dots.remove(Integer.valueOf(dot1.k)));
+    			}
+        	}
+        	else {
+        		for (ToneBase tb : dash.clashers) {
+        			notNull(dots.remove(Integer.valueOf(tb.k)));
+        		}
+        	}
+        }
+        
+        // remove collected dashes
+        
+        for (Integer j : dashesToRemove) {
+        	notNull(dashes.remove(j));
+        }
+
         final KeyIterator dashIter = new KeyIterator(dashes.navigableKeySet().iterator());
         final KeyIterator dotsIter = new KeyIterator(dots.navigableKeySet().iterator());
 
@@ -361,7 +427,7 @@ public final class IntegratingDecoder extends DecoderBase {
         			tones.put(Integer.valueOf(dash.k), dash);
         		}
         	}
-        	else if (!dashIter.hasNext()) {    // we have dots, but no dashes
+        	else if (!dashIter.hasNext()) {
         		final Dot dot = dots.get(dotsIter.next());
     			tones.put(Integer.valueOf(dot.k), dot);
         	}
@@ -379,28 +445,33 @@ public final class IntegratingDecoder extends DecoderBase {
         			tones.put(Integer.valueOf(dash.k), dash);
         			dotsIter.pushback(dotKey);
         		}
-        		else if (!dotsIter.hasNext()) {  // clashing, but no more dots, drop this last dot
-        			tones.put(Integer.valueOf(dash.k), dash);
-        		}
-        		else { // clashing first dot, what about second dot?
-        			final Integer dot2Key = dotsIter.next();
-            		final Dot dot2 = dots.get(dot2Key);
-            		
-            		if (isAfter(dot2, dash)) {
-            			// drop the first dot, take the dash
-            			tones.put(Integer.valueOf(dash.k), dash);
-            			dotsIter.pushback(dot2Key);
-            		}
-            		else {
-            			final double dotStrength = (dot.strength/dash.strength)*(dot2.strength/dash.strength);
-            			if (dotStrength > twoDotsStrengthLimit) {
-            				tones.put(Integer.valueOf(dot.k), dot);
-            				tones.put(Integer.valueOf(dot2.k), dot2);
-            			}
-            			else {
-            				tones.put(Integer.valueOf(dash.k), dash);
-            			}
-            		}
+        		
+//        		else if (!dotsIter.hasNext()) {  // clashing, but no more dots, drop this last dot
+//        			tones.put(Integer.valueOf(dash.k), dash);
+//        		}
+        		else {
+        			
+        			throw new RuntimeException("unexpected: clashing dot and dash");
+        			
+//        			// clashing first dot, what about second dot?
+//        			final Integer dot2Key = dotsIter.next();
+//            		final Dot dot2 = dots.get(dot2Key);
+//            		
+//            		if (isAfter(dot2, dash)) {
+//            			// drop the first dot, take the dash
+//            			tones.put(Integer.valueOf(dash.k), dash);
+//            			dotsIter.pushback(dot2Key);
+//            		}
+//            		else {
+//            			final double dotStrength = (dot.strength/dash.strength)*(dot2.strength/dash.strength);
+//            			if (dotStrength > twoDotsStrengthLimit) {
+//            				tones.put(Integer.valueOf(dot.k), dot);
+//            				tones.put(Integer.valueOf(dot2.k), dot2);
+//            			}
+//            			else {
+//            				tones.put(Integer.valueOf(dash.k), dash);
+//            			}
+//            		}
         		}
         	}
         }
@@ -493,6 +564,12 @@ public final class IntegratingDecoder extends DecoderBase {
 
     }
     
+private void notNull(Object x) {
+		if (x == null) {
+			throw new RuntimeException();
+		}
+	}
+
 private Candidate getStrongest(Set<Candidate> cands) {
 		Candidate result = null;
 		for (Candidate q : cands) {
@@ -553,12 +630,23 @@ private Candidate getStrongest(Set<Candidate> cands) {
 //    	//return strength;
 //	}
 
+
+    /**
+     * Returns true if the dot is entirely after the dash.
+     */
 	private boolean isAfter(Dot dot, Dash dash) {
 		return dot.rise > dash.drop;
 	}
 
+	/**
+	 * Returns true if the dot is entirely before the dash.
+	 */
 	private boolean isBefore(Dot dot, Dash dash) {
 		return dot.drop < dash.rise;
+	}
+	
+	private boolean isClash(Dot dot, Dash dash) {
+		return !isBefore(dot, dash) && !isAfter(dot, dash);
 	}
 
 	private int overlapCount = 0;
