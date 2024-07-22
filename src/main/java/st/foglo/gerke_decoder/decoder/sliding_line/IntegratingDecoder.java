@@ -11,6 +11,7 @@ import java.util.TreeMap;
 import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeDecoder.DecoderIndex;
+import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.decoder.Dash;
 import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.Dot;
@@ -172,16 +173,16 @@ public final class IntegratingDecoder extends DecoderBase {
         
         final double u = level; // PARA, settable from CLI
         
-        final double aMax = 1.14; // PARA .. +- 14% seems ok, needed for dealing with extra long dashes
-        final double aMin = 0.9; // PARA
-        final double aDelta = 0.02; // PARA ... should have little effect, but this is not the case??
+        final double aMin = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MIN.ordinal()];
+        final double aMax = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MAX.ordinal()];
+        final double aDelta = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_STEP.ordinal()];
         
-        final double dashStrengthLimit = 0.25; // 0.3 PARA
-        final double dotStrengthLimit = 0.25; // 0.3 PARA
+        final double dotStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DOT_LIMIT.ordinal()];
+        final double dashStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DASH_LIMIT.ordinal()];
         
-        final double twoDotsStrengthLimit = 1.29; // 1.2 PARA .. dot doublets <------|-----> dashes
+        final double twoDotsStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.TWO_DOTS_LIMIT.ordinal()];
         
-        final double peaking = 1.3;
+        final double peaking = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.PEAKING.ordinal()];
         
         // -----------------------------------------------
         

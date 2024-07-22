@@ -103,7 +103,14 @@ public final class GerkeDecoder {
         CLIP_DEPTH,
         HALF_WIDTH,
         SPIKE_WIDTH_MAX,
-        CRACK_WIDTH_MAX
+        CRACK_WIDTH_MAX,
+        ALFA_MIN,
+        ALFA_MAX,
+        ALFA_STEP,
+        DOT_LIMIT,
+        DASH_LIMIT,
+        TWO_DOTS_LIMIT,
+        PEAKING
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -148,7 +155,7 @@ public final class GerkeDecoder {
      * chars break <---------+---------> chars cluster
      */
     public static final double[] CHAR_SPACE_LIMIT = new double[]{
-            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.7};
+            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.55};
 
     /**
      * Tones longer than this are interpreted as a dash
@@ -310,7 +317,15 @@ public final class GerkeDecoder {
                         ",0.05"+                    // clipping depth
                         ",0.40"+                    // sliding line half-width .... maybe lower towards 0.30?
                         ",0.35"+                    // spike width max         .... maybe lower towards 0.30?
-                        ",0.33"                     // crack width max         .... maybe lower?
+                        ",0.33"+                    // crack width max         .... maybe lower?
+                        
+                        ",0.9"+                     // alfaMin
+                        ",1.14"+                    // alfaMax
+                        ",0.02"+                    // alfaStep
+                        ",0.25"+                    // dotStrengthLimit
+                        ",0.25"+                    // dashStrengthLimit
+                        ",0.95"+                    // twoDotsStrengthLimit
+                        ",1.3"                      // peaking
                 );
 
         new HelpOption(
