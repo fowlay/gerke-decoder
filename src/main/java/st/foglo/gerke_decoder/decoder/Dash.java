@@ -4,6 +4,7 @@ import java.util.NavigableMap;
 
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
+import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.HistEntries;
 
 /**
@@ -22,6 +23,16 @@ public final class Dash extends ToneBase {
 
     public Dash(int k, int rise, int drop) {
         super(k, rise, drop);
+        this.ceiling = 0.0;
+    }
+    
+    public Dash(int rise, int drop) {
+        super(Compute.iAve(rise, drop), rise, drop);
+        this.ceiling = 0.0;
+    }
+    
+    public Dash(int rise, int drop, double strength) {
+        super(Compute.iAve(rise, drop), rise, drop, strength);
         this.ceiling = 0.0;
     }
 

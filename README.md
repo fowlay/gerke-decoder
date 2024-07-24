@@ -37,6 +37,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.1.6</td><td>Add some missing code table entries</td></tr>
 <tr><td>3.1.7</td><td>Adjust build scripts</td></tr>
 <tr><td>3.1.8</td><td>Reporting number of dots and dashes (certain decoders only)</td></tr>
+<tr><td>3.2.0</td><td>Introduce integrating decoder</td></tr>
 </table>
 
 ## Platforms
@@ -148,7 +149,7 @@ word breaks.
 
 ### Decoding method
 
-Six different decoding methods are provided, selectable with the -D option:
+Seven different decoding methods are provided, selectable with the -D option:
 
 1: Tone/silence: Dots and dashes are recognized as the
 signal amplitude raises above and falls below a threshold level. The
@@ -177,6 +178,11 @@ thereby locating dashes and dots.
 
 6: Adaptive segments: Similar to the no. 5 method, plus it adapts
 to frequency drift and fading.
+
+7: Integrating: Sums over short segments of the signal are examined,
+locating probable dots and dashes. This method does not require
+detection of tone/silence crossings, which tends to be very sensitive
+to noise.
 <span style="font-weight: bold;">This is the default decoding
 method</span>.
 

@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
+import st.foglo.gerke_decoder.GerkeLib.Trace;
+
 /**
  * Static methods and classes for command line handling.
  */
@@ -201,9 +203,17 @@ public final class GerkeLib {
         public Trace(String message) {
             super("TRACE", message, getIntOpt("verbose") >= 3);
         }
+        
+        public Trace(String format, int j) {
+            this(String.format(format, j));
+        }
 
         public Trace(String format, int j, double x) {
             this(String.format(format, j, x));
+        }
+        
+        public Trace(String format, int j, double x, double y) {
+            this(String.format(format, j, x, y));
         }
 
         public Trace(String format, int j, int k, double x, double y) {
@@ -212,6 +222,10 @@ public final class GerkeLib {
 
         public Trace(String format, double x) {
             this(String.format(format, x));
+        }
+        
+        public Trace(String format, int i, double a, double b, double c, double d, double e, double f) {
+            this(String.format(format, i, a, b, c, d, e, f));
         }
     }
 
@@ -405,6 +419,10 @@ public final class GerkeLib {
         public Warning(String format, double x) {
             this(String.format(format, x));
         }
+        
+        public Warning(String format, int j, int k) {
+            this(String.format(format, j, k));
+        }
 
         public Warning(String format, double x, double y) {
             this(String.format(format, x, y));
@@ -412,6 +430,10 @@ public final class GerkeLib {
 
         public Warning(String format, String s) {
             this(String.format(format, s));
+        }
+        
+        public Warning(String format, String s, int j, String t, int k) {
+            this(String.format(format, s, j, t, k));
         }
     }
 

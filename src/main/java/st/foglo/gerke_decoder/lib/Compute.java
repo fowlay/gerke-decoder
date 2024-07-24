@@ -28,7 +28,16 @@ public final class Compute {
     }
 
     public static int iAve(int j, int k) {
-        return (int) Math.round((((double)j) + ((double)k))/2);
+    	final int sum = j+k;
+    	if (sum % 2 == 0) {
+    		return sum/2;
+    	}
+    	else if (sum < 0) {
+    		return (sum-1)/2;
+    	}
+    	else {
+    		return sum/2;
+    	}
     }
 
     public static int roundToOdd(double x) {

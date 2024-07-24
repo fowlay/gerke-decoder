@@ -308,6 +308,8 @@ public final class SlidingLinePlus extends DecoderBase {
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
+        final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
+        final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
         for (Integer key : tones.navigableKeySet()) {
 
             if (prevKey == null) {
@@ -325,7 +327,7 @@ public final class SlidingLinePlus extends DecoderBase {
                     histEntries.addEntry(0, toneDistSlices);
                 }
 
-                if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder] / tsLength) {
+                if (toneDistSlices > wordSpaceLimit) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
                             ? offset + (int) Math.round(key * tsLength * tuMillis / 1000)
                             : -1;
@@ -345,7 +347,7 @@ public final class SlidingLinePlus extends DecoderBase {
                     qCharBegin = toneBegin(key, tones);
                     lsqPlotHelper(tb);
 
-                } else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder] / tsLength) {
+                } else if (toneDistSlices > charSpaceLimit) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;
                     wpm.spCusC += 3;

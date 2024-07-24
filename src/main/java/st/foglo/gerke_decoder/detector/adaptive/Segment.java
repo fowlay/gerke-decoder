@@ -4,6 +4,7 @@ import st.foglo.gerke_decoder.GerkeDecoder;
 import st.foglo.gerke_decoder.GerkeLib;
 import st.foglo.gerke_decoder.GerkeDecoder.HiddenOpts;
 import st.foglo.gerke_decoder.GerkeLib.Debug;
+import st.foglo.gerke_decoder.GerkeLib.Trace;
 import st.foglo.gerke_decoder.detector.TrigTable;
 import st.foglo.gerke_decoder.wave.Wav;
 
@@ -83,7 +84,7 @@ final class Segment {
         } else {
             this.bestFrequency = bestFrequency(this, f[0], f[1], FREQ_PREC);
             this.clipLevel = clipLevelInSegment(maxAbsValue);
-            new Debug("clip level in segment: %d", clipLevel);
+            new Trace("clip level in segment: %d", clipLevel);
             this.strength = sumOverSegment(bestFrequency, this.clipLevel);
         }
     }
@@ -130,13 +131,11 @@ final class Segment {
                 for (double y = 1.05*x; true; y *= 1.05) {
                     final double lossAmountInner = signalLossAmount(y);
                     if (lossAmountInner <= acceptableLoss) {
-                        new Debug("[%d] accepted clip level: % f, amount: %f", segIndex, y, lossAmountInner);
+                        new Trace("[%d] accepted clip level: % f, amount: %f", segIndex, y, lossAmountInner);
                         return (short) Math.round(y);
                     }
-                    // new Debug("[%d] incr clip level: % f, amount: %f", segIndex, y, clipAmountInner);
                 }
             }
-            // new Debug("[%d] decr clip level: % f, amount: %f", segIndex, x, clipAmount);
         }
     }
 
@@ -241,7 +240,7 @@ final class Segment {
             if (u2-u1 < u3-u2) {
                 u4 = u3 - (u2-u1);
                 e4 = sumOverSegment(u4);
-                new Debug("A %2d   %.2f(%.1f)  %.2f(%.1f)  %.2f(%.1f)", i, e1, u1, e4, u4, e3, u3);
+                new Trace("A %2d   %.2f(%.1f)  %.2f(%.1f)  %.2f(%.1f)", i, e1, u1, e4, u4, e3, u3);
                 // points are now u1 u2 u4 u3
                 if ((e2 >= e1 && e2 >= e4 && e2 >= e3) || (e1 >= e2 && e1 >= e4 && e1 >= e3)) {
                     // select left
@@ -256,7 +255,7 @@ final class Segment {
             else {
                 u4 = u1 + (u3-u2);
                 e4 = sumOverSegment(u4);
-                new Debug("B %2d   %.2f(%.1f)  %.2f(%.1f)  %.2f(%.1f)", i, e1, u1, e4, u4, e3, u3);
+                new Trace("B %2d   %.2f(%.1f)  %.2f(%.1f)  %.2f(%.1f)", i, e1, u1, e4, u4, e3, u3);
                 // points are now u1 u4 u2 u3
                 if ((e2 >= e1 && e2 >= e4 && e2 >= e3) || (e3 >= e2 && e3 >= e4 && e3 >= e1)) {
                     // select right

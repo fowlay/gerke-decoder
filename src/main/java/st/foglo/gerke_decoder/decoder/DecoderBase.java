@@ -44,6 +44,8 @@ public abstract class DecoderBase implements Decoder {
     protected final Wpm wpm = new Wpm();
 
     public final double threshold;
+    
+    protected final double spExp = GerkeLib.getDoubleOpt(GerkeDecoder.O_SPACE_EXP);
 
     public class Wpm {
 
@@ -151,7 +153,7 @@ public abstract class DecoderBase implements Decoder {
      * @return
      */
     public static DetectorIndex getDetector(int decoder) {
-        if (decoder == 4 || decoder == 5 || decoder == 6) {
+        if (decoder == 4 || decoder == 5 || decoder == 6 || decoder == 7) {
             return DetectorIndex.ADAPTIVE_DETECTOR;
         } else if (decoder == 3 || decoder == 2 || decoder == 1) {
             return DetectorIndex.BASIC_DETECTOR;
@@ -438,7 +440,6 @@ public abstract class DecoderBase implements Decoder {
                 throw new RuntimeException();
             }
         }
-        new GerkeLib.Info("nof. dots: %d", dotCount);
-        new GerkeLib.Info("nof. dashes: %d", dashCount);
+        new GerkeLib.Debug("nof. dots: %d, dashes: %d", dotCount, dashCount);
     }
 }

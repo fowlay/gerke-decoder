@@ -18,12 +18,13 @@ public final class ToneSilenceDecoder extends DecoderBase {
     final Trans[] trans;
     final int transIndex;
 
-
-    final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
+    final int decoder = DecoderIndex.TONE_SILENCE.ordinal();
+    
     final int wordSpaceLimit =
-            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+            (int) Math.round(spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));
 
-    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    final int charSpaceLimit =
+            (int) Math.round(spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
     final int dashLimit = (int) Math.round(GerkeDecoder.DASH_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));        // PARAMETER
 

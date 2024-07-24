@@ -74,7 +74,18 @@ public final class Wav {
         }
 
         this.offsetFrames = offset*frameRate;
-        this.nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) : length*frameRate;
+        
+        if (length*frameRate > frameLength) {
+        	new Death("option -l (seconds) must not exceed wave file length");
+        }
+        
+        this.nofFrames = length == -1 ? ((int) (frameLength - offsetFrames)) :
+        	(int) Math.min(length*frameRate, frameLength - offsetFrames);
+        
+        if (length*frameRate > frameLength - offsetFrames) {
+        	new GerkeLib.Warning("option -l too large, using value: %d",
+        			             ((int)(frameLength - offsetFrames)/frameRate));
+        }
 
         if (nofFrames < 0) {
             new Death("offset too large, WAV file length is: %f s", (double)frameLength/frameRate);

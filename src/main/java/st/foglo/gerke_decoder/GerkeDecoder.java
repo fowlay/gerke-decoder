@@ -27,6 +27,7 @@ import st.foglo.gerke_decoder.decoder.DecoderBase;
 import st.foglo.gerke_decoder.decoder.dips_find.DipsFindingDecoder;
 import st.foglo.gerke_decoder.decoder.least_squares.LeastSquaresDecoder;
 import st.foglo.gerke_decoder.decoder.pattern_match.PatternMatchDecoder;
+import st.foglo.gerke_decoder.decoder.sliding_line.IntegratingDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLineDecoder;
 import st.foglo.gerke_decoder.decoder.sliding_line.SlidingLinePlus;
 import st.foglo.gerke_decoder.decoder.tone_silence.ToneSilenceDecoder;
@@ -53,7 +54,9 @@ public final class GerkeDecoder {
     static final double IGNORE = 0.0;
 
     private static final double[] TS_LENGTH =
-            new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10, SlidingLinePlus.TS_LENGTH};
+            new double[]{IGNORE, 0.10, 0.10, 0.10, 0.10, 0.10,
+                                 SlidingLinePlus.TS_LENGTH,
+                                 IntegratingDecoder.TS_LENGTH};
 
 
 
@@ -100,7 +103,14 @@ public final class GerkeDecoder {
         CLIP_DEPTH,
         HALF_WIDTH,
         SPIKE_WIDTH_MAX,
-        CRACK_WIDTH_MAX
+        CRACK_WIDTH_MAX,
+        ALFA_MIN,
+        ALFA_MAX,
+        ALFA_STEP,
+        DOT_LIMIT,
+        DASH_LIMIT,
+        TWO_DOTS_LIMIT,
+        PEAKING
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -109,10 +119,11 @@ public final class GerkeDecoder {
             "dips",
             "prototype segments",
             "sliding segments",
-            "adaptive segments"};
+            "adaptive segments",
+            "integrating"};
 
     /**
-     * Numeric decoder index 1..6 maps to these names. Do not reorder.
+     * Numeric decoder index 1..7 maps to these names. Do not reorder.
      */
     public enum DecoderIndex {
         ZERO,
@@ -121,7 +132,8 @@ public final class GerkeDecoder {
         DIPS_FINDING,
         LEAST_SQUARES,
         LSQ2,
-        LSQ2_PLUS
+        LSQ2_PLUS,
+        INTEGRATING
     };
 
     public enum DetectorIndex {
@@ -134,23 +146,24 @@ public final class GerkeDecoder {
      * Model value: sqrt(3*7) = 4.58
      * words break <---------+---------> words stick
      */
-    public static final double[] WORD_SPACE_LIMIT = new double[]{IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6};
+    public static final double[] WORD_SPACE_LIMIT = new double[]{
+            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.8};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
      * Model value: sqrt(1*3) = 1.73
      * chars break <---------+---------> chars cluster
      */
-    public static final double[] CHAR_SPACE_LIMIT = new double[]{IGNORE, 1.65, 1.65, 1.73,
-            1.85,
-            1.9, 1.9};  // 2.3??
+    public static final double[] CHAR_SPACE_LIMIT = new double[]{
+            IGNORE, 1.73, 1.65, 1.73, 1.85, 1.9, 1.9, 1.4};
 
     /**
      * Tones longer than this are interpreted as a dash
      * Model value: sqrt(1*3) = 1.73
      * too many dashes <---------+---------> too few dashes
      */
-    public static final double[] DASH_LIMIT = new double[]{IGNORE, 1.8, 1.73, 1.7, 1.745, 1.9, 1.9};
+    public static final double[] DASH_LIMIT = new double[]{
+            IGNORE, 1.8, 1.73, 1.7, 1.745, 1.9, 1.9, 1.9};
 
     /**
      * Tones longer than this are interpreted as two dashes
@@ -204,7 +217,7 @@ public final class GerkeDecoder {
      * When determining the floor level, focus on nearby amplitudes.
      * A larger value widens focus. The unit is number of time slices.
      */
-    static final double P_FLOOR_FOCUS = 25.0;
+    static final double P_FLOOR_FOCUS = 45.0;
 
     /**
      * Gaussian sigma for identifying dips. Unit is TUs.
@@ -253,7 +266,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.1.8");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.0");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -271,7 +284,7 @@ public final class GerkeDecoder {
         new SingleValueOption("C", O_COHSIZE, "0.8");
         new SingleValueOption("G", O_SEGSIZE, "3.0");
 
-        new SingleValueOption("D", O_DECODER, "6");
+        new SingleValueOption("D", O_DECODER, "7");
 
         new SingleValueOption("u", O_LEVEL, "1.0");
 
@@ -304,7 +317,16 @@ public final class GerkeDecoder {
                         ",0.05"+                    // clipping depth
                         ",0.40"+                    // sliding line half-width .... maybe lower towards 0.30?
                         ",0.35"+                    // spike width max         .... maybe lower towards 0.30?
-                        ",0.33"                     // crack width max         .... maybe lower?
+                        ",0.33"+                    // crack width max         .... maybe lower?
+                        
+                                                    // Options used by the integrating decoder
+                        ",0.88"+                    // alfaMin
+                        ",1.16"+                    // alfaMax
+                        ",0.02"+                    // alfaStep
+                        ",0.17"+                    // dotStrengthLimit
+                        ",0.25"+                    // dashStrengthLimit
+                        ",1.10"+                    // twoDotsStrengthLimit
+                        ",1.3"                      // peaking
                 );
 
         new HelpOption(
@@ -315,20 +337,20 @@ new String[]{
         String.format("  -o OFFSET          Offset (seconds)"),
         String.format("  -l LENGTH          Length (seconds)"),
 
-        String.format("  -w WPM             WPM, tentative, defaults to %s", GerkeLib.getDefault(O_WPM)),
-        String.format("  -W EXPANSION       Expanded spaces: %s", GerkeLib.getDefault(O_SPACE_EXP)),
-        String.format("  -F LOW,HIGH        Audio frequency search range, defaults to %s", GerkeLib.getDefault(O_FRANGE)),
-        String.format("  -f FREQ            Audio frequency, bypassing search"),
-        String.format("  -c CLIPLEVEL       Clipping level, optional"),
-        String.format("  -D DECODER         Decoder, defaults to %s (see below)", GerkeLib.getDefault(O_DECODER)),
+        String.format("  -w WPM             WPM, tentative, default: %s", GerkeLib.getDefault(O_WPM)),
+        String.format("  -W EXPANSION       Expanded spaces, default: %s", GerkeLib.getDefault(O_SPACE_EXP)),
+        String.format("  -F LOW,HIGH        Audio frequency search range, default: %s", GerkeLib.getDefault(O_FRANGE)),
+        String.format("  -f FREQ            Audio frequency, bypassing frequency search"),
+        String.format("  -c CLIPLEVEL       Clipping level (optional)"),
+        String.format("  -D DECODER         Decoder (see below), default: %s", GerkeLib.getDefault(O_DECODER)),
 
-        String.format("  -u THRESHOLD       Threshold adjustment, defaults to %s", GerkeLib.getDefault(O_LEVEL)),
+        String.format("  -u THRESHOLD       Threshold adjustment, default: %s", GerkeLib.getDefault(O_LEVEL)),
 
-        String.format("  -q TS_STRETCH      time slice stretch, defaults to %s", GerkeLib.getDefault(O_STIME)),
-        String.format("  -s SIGMA           Gaussian sigma, defaults to %s TU", GerkeLib.getDefault(O_SIGMA)),
+        String.format("  -q TS_STRETCH      time slice stretch, default: %s", GerkeLib.getDefault(O_STIME)),
+        String.format("  -s SIGMA           Gaussian sigma, default: %s TU", GerkeLib.getDefault(O_SIGMA)),
 
-        String.format("  -C COHERENCE_SIZE  coherence size, defaults to %s TU", GerkeLib.getDefault(O_COHSIZE)),
-        String.format("  -G SEGMENT_SIZE    segment size, defaults to %s s", GerkeLib.getDefault(O_SEGSIZE)),
+        String.format("  -C COHERENCE_SIZE  coherence size, default: %s TU", GerkeLib.getDefault(O_COHSIZE)),
+        String.format("  -G SEGMENT_SIZE    segment size, default: %s s", GerkeLib.getDefault(O_SEGSIZE)),
 
         String.format("  -H PARAMETERS      Experimental parameters, default: %s", GerkeLib.getDefault(O_HIDDEN)),
 
@@ -340,7 +362,7 @@ new String[]{
 
         String.format("  -Z START,LENGTH    Time interval for signal and phase plot (seconds)"),
         String.format("  -t                 Insert timestamps in decoded text"),
-        String.format("  -T CASE[,LENGTH]   Decoded text case (L/U/C) and line length"),
+        String.format("  -T CASE[,LENGTH]   Decoded text case (L/U/C) and line length (optional)"),
         String.format("  -v                 Verbosity (may be given several times)"),
         String.format("  -V                 Show version"),
         String.format("  -h                 This help"),
@@ -364,6 +386,9 @@ new String[]{
         String.format("  %d    %s",
                 DecoderIndex.LSQ2_PLUS.ordinal(),
                 DECODER_NAME[DecoderIndex.LSQ2_PLUS.ordinal()]),
+        String.format("  %d    %s",
+                DecoderIndex.INTEGRATING.ordinal(),
+                DECODER_NAME[DecoderIndex.INTEGRATING.ordinal()]),
         "",
         "A tentative TU length (length of one dot) is derived from the WPM value",
         "The TU length in ms is taken as = 1200/WPM. This value is used for the",
@@ -372,11 +397,8 @@ new String[]{
         "If inter-character and inter-word spaces are extended, provide a factor",
         "greater than 1.0 for EXPANSION.",
         "",
-        "The SAMPLE_PERIOD parameter defines the periodicity of signal evaluation",
-        "given in TU units.",
-        "",
         "The SIGMA parameter defines the width, given in TU units, of the Gaussian",
-        "used in computing the signal value."
+        "used in computing a smoothed signal value."
                 });
     }
 
@@ -743,6 +765,26 @@ new String[]{
 
                         );
             }
+            else if (decoder == DecoderIndex.INTEGRATING.ordinal()) {
+                dec = new IntegratingDecoder(
+                        tuMillis,
+                        framesPerSlice,
+                        tsLength,
+                        offset,
+                        w,
+                        sig,
+                        plotEntries,
+                        histEntries,
+                        formatter,
+
+                        sigSize,
+                        cei,
+                        flo,
+                        level,
+                        ceilingMax
+
+                        );
+            }
             else {
                 dec = null;
                 new Death("no such decoder: '%d'", decoder);
@@ -883,6 +925,9 @@ new String[]{
         }
         else if (decoder == 6) {
             return SlidingLinePlus.THRESHOLD;
+        }
+        else if (decoder == 7) {
+            return IntegratingDecoder.THRESHOLD;
         }
         else {
             throw new RuntimeException();

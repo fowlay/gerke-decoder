@@ -31,9 +31,10 @@ public final class PatternMatchDecoder extends DecoderBase {
     final int decoder = DecoderIndex.PATTERN_MATCHING.ordinal();
 
     final int wordSpaceLimit =
-            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+            (int) Math.round(spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));
 
-    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    final int charSpaceLimit =
+            (int) Math.round(spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
 
     final double level;
 

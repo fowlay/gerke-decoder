@@ -30,10 +30,12 @@ public final class DipsFindingDecoder extends DecoderBase {
     final int transIndex;
 
     final int decoder = DecoderIndex.DIPS_FINDING.ordinal();
+    
     final int wordSpaceLimit =
-            (int) Math.round(GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+            (int) Math.round(spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));
 
-    final int charSpaceLimit = (int) Math.round(GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));   // PARAMETER
+    final int charSpaceLimit =
+            (int) Math.round(spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]*tuMillis*w.frameRate/(1000*framesPerSlice));
 
     public DipsFindingDecoder(
             double tuMillis,
@@ -112,7 +114,6 @@ public final class DipsFindingDecoder extends DecoderBase {
 
         for (int t = 0; t < transIndex; t++) {
             final boolean newTone = trans[t].rise;
-            final double spExp = GerkeLib.getDoubleOpt(GerkeDecoder.O_SPACE_EXP);
             if (t == 0 && !(trans[t].rise)) {
                 new Death("assertion failure, first transition is not a rise");
             }
@@ -122,7 +123,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                 if (t == 0) {
                     beginChar = trans[t].q;
                 }
-                else if (trans[t].q - trans[t-1].q > spExp*wordSpaceLimit) {
+                else if (trans[t].q - trans[t-1].q > wordSpaceLimit) {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,
@@ -136,7 +137,7 @@ public final class DipsFindingDecoder extends DecoderBase {
                     wpm.spCusW += 7;
                     wpm.spTicksW += trans[t].q - trans[t-1].q;
                 }
-                else if (trans[t].q - trans[t-1].q > spExp*charSpaceLimit) {
+                else if (trans[t].q - trans[t-1].q > charSpaceLimit) {
                     decodeGapChar(beginChar, trans[t-1].q, sig, cei, flo, tsLength,
                             dipMergeLim, dipStrengthMin,
                             charNo++,

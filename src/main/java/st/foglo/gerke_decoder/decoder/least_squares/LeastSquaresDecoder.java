@@ -371,6 +371,8 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
+        final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
+        final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
         for (Integer key : dashes.navigableKeySet()) {
 
             if (prevKey == null) {
@@ -389,7 +391,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
 
                 // TODO, fetch tb outside the if/else
 
-                if (toneDistSlices > GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength) {
+                if (toneDistSlices > wordSpaceLimit) {
 
                     //formatter.add(true, p.text, -1);
                     final int ts =
@@ -412,7 +414,7 @@ public final class LeastSquaresDecoder extends DecoderBase implements Decoder {
                     qCharBegin = dashes.get(key).rise;
                     lsqPlotHelper(tb);
                 }
-                else if (toneDistSlices > GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength) {
+                else if (toneDistSlices > charSpaceLimit) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;
                     wpm.spCusC += 3;
