@@ -188,8 +188,9 @@ public final class IntegratingDecoder extends DecoderBase {
                 double sumNorm = 0.0;
                 final int kRise = k0 - (int) Math.round(1.5*a*tsPerTu);
                 final int kDrop = k0 + (int) Math.round(1.5*a*tsPerTu);
-                for (int k = k0 - (int) Math.round(2.0*a*tsPerTu);
-                        k < k0 + (int) Math.round(2.0*a*tsPerTu);
+                // 1.85 works slightly better than 2.0
+                for (int k = k0 - (int) Math.round(1.85*a*tsPerTu);
+                        k < k0 + (int) Math.round(1.85*a*tsPerTu);
                         k++) {
                     final double h = ((double) (k - k0))/(kDrop - k0);
                     final double g = k < kRise ? -1.0 :
@@ -334,13 +335,7 @@ public final class IntegratingDecoder extends DecoderBase {
         for (Dot dot : dots.values()) {
             for (Dash dash : dashes.values()) {
                 if (isClash(dot, dash)) {
-                    if (dot.clashers.isEmpty()) {
-                        dot.clashers.add(dash);
-                    } else if (Math.abs(dash.k - dot.k) <
-                            Math.abs(dot.clashers.iterator().next().k - dot.k)) {
-                        dot.clashers.clear();
-                        dot.clashers.add(dash);
-                    }
+                    dot.clashers.add(dash);
                 }
             }
         }
@@ -355,6 +350,29 @@ public final class IntegratingDecoder extends DecoderBase {
                     }
                 }
             }
+        }
+        
+        // a dot may clash with two dashes at most; remove such dots
+        
+        final List<Integer> dotsToRemove = new ArrayList<Integer>();
+        for (Dot dot : dots.values()) {
+            if (dot.clashers.size() > 1) {
+                dotsToRemove.add(Integer.valueOf(dot.k));
+                for (ToneBase tbDash : dot.clashers) {
+                    final Dash dash = (Dash) tbDash;
+                    final Set<Dot> dotsClashingWithDash = new HashSet<Dot>();
+                    for (ToneBase tbDot : dash.clashers) {
+                        if ((Dot) tbDot == dot) {
+                            dotsClashingWithDash.add(dot);
+                        }
+                    }
+                    dash.clashers.removeAll(dotsClashingWithDash);
+                }
+            }
+        }
+        
+        for (Integer j : dotsToRemove) {
+            notNull(dots.remove(j));
         }
 
         // resolve clashes

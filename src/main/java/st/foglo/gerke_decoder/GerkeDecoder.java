@@ -147,7 +147,7 @@ public final class GerkeDecoder {
      * words break <---------+---------> words stick
      */
     public static final double[] WORD_SPACE_LIMIT = new double[]{
-            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.8};
+            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.85};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
@@ -155,7 +155,7 @@ public final class GerkeDecoder {
      * chars break <---------+---------> chars cluster
      */
     public static final double[] CHAR_SPACE_LIMIT = new double[]{
-            IGNORE, 1.73, 1.65, 1.73, 1.85, 1.9, 1.9, 1.4};
+            IGNORE, 1.73, 1.65, 1.73, 1.85, 1.9, 1.9, 1.47};
 
     /**
      * Tones longer than this are interpreted as a dash
@@ -266,7 +266,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.0");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.1");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");

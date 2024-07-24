@@ -38,6 +38,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.1.7</td><td>Adjust build scripts</td></tr>
 <tr><td>3.1.8</td><td>Reporting number of dots and dashes (certain decoders only)</td></tr>
 <tr><td>3.2.0</td><td>Introduce integrating decoder</td></tr>
+<tr><td>3.2.1</td><td>Internal consistency fix, tweak parameters</td></tr>
 </table>
 
 ## Platforms
