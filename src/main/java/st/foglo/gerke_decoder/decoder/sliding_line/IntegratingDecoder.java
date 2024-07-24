@@ -213,7 +213,10 @@ public final class IntegratingDecoder extends DecoderBase {
         		for (int k = k0 - (int)Math.round(2.0*a*tsPerTu);
         				k < k0 + (int)Math.round(2.0*a*tsPerTu);
         				k++) {
-        			final double g = k < kRise ? -1.0 : k < kDrop ? peaking*1.0 : -1.0;
+        			final double h = ((double)(k - k0))/(kDrop - k0);
+        			final double g = k < kRise ? -1.0 :
+                                                 k < kDrop ? peaking*(1.0 - 0.45*h*h*h*h) :
+                                                 -1.0;
         			sum += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
         			
         			final double norm = k < kRise ? flo[k] :

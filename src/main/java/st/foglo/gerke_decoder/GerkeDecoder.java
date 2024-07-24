@@ -147,7 +147,7 @@ public final class GerkeDecoder {
      * words break <---------+---------> words stick
      */
     public static final double[] WORD_SPACE_LIMIT = new double[]{
-            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.6};
+            IGNORE, 5.0, 5.0, 5.0, 5.65, 5.6, 5.6, 4.8};
 
     /**
      * Pauses longer than this denote a character boundary. Unit is TU.
@@ -155,7 +155,7 @@ public final class GerkeDecoder {
      * chars break <---------+---------> chars cluster
      */
     public static final double[] CHAR_SPACE_LIMIT = new double[]{
-            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.55};
+            IGNORE, 1.65, 1.65, 1.73, 1.85, 1.9, 1.9, 1.4};
 
     /**
      * Tones longer than this are interpreted as a dash
@@ -319,12 +319,13 @@ public final class GerkeDecoder {
                         ",0.35"+                    // spike width max         .... maybe lower towards 0.30?
                         ",0.33"+                    // crack width max         .... maybe lower?
                         
+                                                    // Options used by the integrating decoder
                         ",0.9"+                     // alfaMin
-                        ",1.14"+                    // alfaMax
+                        ",1.16"+                    // alfaMax
                         ",0.02"+                    // alfaStep
-                        ",0.25"+                    // dotStrengthLimit
+                        ",0.17"+                    // dotStrengthLimit
                         ",0.25"+                    // dashStrengthLimit
-                        ",0.95"+                    // twoDotsStrengthLimit
+                        ",1.22"+                    // twoDotsStrengthLimit
                         ",1.3"                      // peaking
                 );
 
