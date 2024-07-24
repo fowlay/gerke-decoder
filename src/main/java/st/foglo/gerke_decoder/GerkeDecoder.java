@@ -615,7 +615,6 @@ new String[]{
              * or -1 denoting "undefined".
              */
             final int[] histRequests = GerkeLib.getIntOptMulti(O_HIST_TONE_SPACE);
-
             if (histRequests.length == 1 && histRequests[0] == -1) {
                 // nothing requested
             }

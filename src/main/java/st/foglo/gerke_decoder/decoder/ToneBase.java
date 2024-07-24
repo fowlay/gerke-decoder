@@ -12,7 +12,7 @@ public abstract class ToneBase {
     public final int drop;
     public final double strength;
     
-	// TODO, only the integrating decoder needs this
+    // TODO, only the integrating decoder needs this
     public final Set<ToneBase> clashers = new HashSet<ToneBase>();
 
     public ToneBase(int k, int rise, int drop) {
