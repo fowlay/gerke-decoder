@@ -266,7 +266,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.1");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.2");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -284,7 +284,7 @@ public final class GerkeDecoder {
         new SingleValueOption("C", O_COHSIZE, "0.8");
         new SingleValueOption("G", O_SEGSIZE, "3.0");
 
-        new SingleValueOption("D", O_DECODER, "7");
+        new SingleValueOption("D", O_DECODER, "6");
 
         new SingleValueOption("u", O_LEVEL, "1.0");
 

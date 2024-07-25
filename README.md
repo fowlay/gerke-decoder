@@ -39,6 +39,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.1.8</td><td>Reporting number of dots and dashes (certain decoders only)</td></tr>
 <tr><td>3.2.0</td><td>Introduce integrating decoder</td></tr>
 <tr><td>3.2.1</td><td>Internal consistency fix, tweak parameters</td></tr>
+<tr><td>3.2.2</td><td>Fix Makefile issue</td></tr>
 </table>
 
 ## Platforms
@@ -179,13 +180,13 @@ thereby locating dashes and dots.
 
 6: Adaptive segments: Similar to the no. 5 method, plus it adapts
 to frequency drift and fading.
+<span style="font-weight: bold;">This is the default decoding
+method</span>.
 
 7: Integrating: Sums over short segments of the signal are examined,
 locating probable dots and dashes. This method does not require
 detection of tone/silence crossings, which tends to be very sensitive
 to noise.
-<span style="font-weight: bold;">This is the default decoding
-method</span>.
 
 ### Verbosity
 

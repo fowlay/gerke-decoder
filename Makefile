@@ -85,16 +85,18 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 ## Quick test
 
 test: gerke-decoder.jar bin/gerke-decoder grimeton-clip.wav
-	cmd="bin/gerke-decoder -v -o1 -l87 -w16 grimeton-clip.wav" && \
-	$$cmd && \
-	expected=fffe9b72b43f4fe65953565afd4d87c3 && \
-	md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
-	if [ $$md5 = $$expected ]; then echo first test successful; \
-	else echo test failed, expected: $$expected, actual: $$md5; fi && \
-	cmd="java -jar gerke-decoder.jar -v -o1 -l87 -w16 grimeton-clip.wav" && \
-	md5="$$($$cmd 2>&1 | sed -e '/MD5/!d' -e 's|.* ||' -e 's|\r||')" && \
-	if [ $$md5 = $$expected ]; then echo second test successful; \
-	else echo test failed, expected: $$expected, actual: $$md5; fi
+	opts="-D6 -l88 -w15.3 -TL,999" && \
+	expected=a7049dadae84e5ee1139bb76a96d7461 && \
+	for cmd in "bin/gerke-decoder" "java -jar gerke-decoder.jar"; do \
+	    cleartext=$$($$cmd $$opts grimeton-clip.wav); \
+	    echo $$cleartext; \
+	    md5=($$(echo $$cleartext | md5sum)); \
+	    if [ $${md5[0]} == $$expected ]; then \
+		echo "test of '$$cmd' succeeded"; \
+	    else \
+		echo "unexpected digest for '$$cmd': $$md5, expected: $$expected"; false; break; \
+	    fi; \
+	done
 
 grimeton-clip.wav:
 	wget https://privat.bahnhof.se/wb748077/alexanderson-day/$@
@@ -105,7 +107,7 @@ grimeton-clip.wav:
 clean:
 	rm -rf gerke-decoder.jar
 	env "PATH=apache-maven-$(APACHE_REL)/bin:$$PATH" \
-            JAVA_HOME=$$(dirname $$(dirname $$(command -v javac))) mvn clean
+	    JAVA_HOME=$$(dirname $$(dirname $$(command -v javac))) mvn clean
 
 realclean: clean
 	rm -rf bin target m2 apache-maven-$(APACHE_REL) grimeton-clip.wav
