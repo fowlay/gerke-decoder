@@ -40,6 +40,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.0</td><td>Introduce integrating decoder</td></tr>
 <tr><td>3.2.1</td><td>Internal consistency fix, tweak parameters</td></tr>
 <tr><td>3.2.2</td><td>Fix Makefile issue</td></tr>
+<tr><td>3.2.3</td><td>Take tone separation from tone midpoints</td></tr>
 </table>
 
 ## Platforms
@@ -94,9 +95,20 @@ local directory. This installation will not interfere with possible
 other use of Maven on the same host. For licensing info, read here:
 <http://maven.apache.org/#>
 
+NOTE: It is recommended that the working directory is on a path that
+doesn't have embedded spaces. Likewise the Java installation should be
+on a space-free path. This may be a problem when using Oracle JDK on
+Windows, which typically is installed under C:\Program Files\ - when
+using Cygwin this can be overcome by setting up a symlink to the
+C:\Program Files\Java\ directory.
+
 Building an executable jar (optional) can be done with
 
     make gerke-decoder.jar
+
+Running a quick test can be done with
+
+    make test
 
 Removing downloaded and built objects can be done with
 
@@ -180,13 +192,13 @@ thereby locating dashes and dots.
 
 6: Adaptive segments: Similar to the no. 5 method, plus it adapts
 to frequency drift and fading.
-<span style="font-weight: bold;">This is the default decoding
-method</span>.
 
 7: Integrating: Sums over short segments of the signal are examined,
 locating probable dots and dashes. This method does not require
 detection of tone/silence crossings, which tends to be very sensitive
 to noise.
+<span style="font-weight: bold;">This is the default decoding
+method</span>.
 
 ### Verbosity
 

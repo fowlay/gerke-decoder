@@ -266,7 +266,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.2");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.3");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -323,9 +323,9 @@ public final class GerkeDecoder {
                         ",0.88"+                    // alfaMin
                         ",1.16"+                    // alfaMax
                         ",0.02"+                    // alfaStep
-                        ",0.17"+                    // dotStrengthLimit
-                        ",0.25"+                    // dashStrengthLimit
-                        ",1.10"+                    // twoDotsStrengthLimit
+                        ",0.22"+                    // dotStrengthLimit
+                        ",0.29"+                    // dashStrengthLimit
+                        ",1.12"+                    // twoDotsStrengthLimit
                         ",1.3"                      // peaking
                 );
 

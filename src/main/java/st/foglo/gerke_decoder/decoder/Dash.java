@@ -13,6 +13,8 @@ import st.foglo.gerke_decoder.plot.HistEntries;
  */
 public final class Dash extends ToneBase {
 
+    private static final int KEY = 2;
+    
     /**
      * When fitting a dash to the signal, allow some additional stretch
      * TODO: PARA
@@ -32,7 +34,7 @@ public final class Dash extends ToneBase {
     }
     
     public Dash(int rise, int drop, double strength) {
-        super(Compute.iAve(rise, drop), rise, drop, strength);
+        super(rise, drop, strength, KEY);
         this.ceiling = 0.0;
     }
 

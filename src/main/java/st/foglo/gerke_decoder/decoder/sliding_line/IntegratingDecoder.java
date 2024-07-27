@@ -171,6 +171,8 @@ public final class IntegratingDecoder extends DecoderBase {
         final double tsPerTu = 1.0/tsLength;
 
         // find dash candidates
+        
+        // finding dashes and finding dots can be done in parallel, but little time gained
 
         final Set<Candidate> cands = new HashSet<Candidate>();
         final int k0Lowest = (int) Math.round(2.0*aMax*tsPerTu) + 1;
@@ -443,7 +445,7 @@ public final class IntegratingDecoder extends DecoderBase {
         }
 
         // we have tones
-        // duplicated code from SlidingLinePlus
+        // duplicated code from SlidingLinePlus, later modified
 
         reportDotsAndDashes(tones);
         overlapCheck(tones);
@@ -454,8 +456,23 @@ public final class IntegratingDecoder extends DecoderBase {
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
-        final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
-        final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
+        //final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
+        //final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
+        
+        final double wordSpIncr = 1.1;
+        
+        final double[] charSpLim = new double[] {-1,
+                0.95*spExp*Math.sqrt(2*4)/tsLength,
+                0.98*spExp*Math.sqrt(3*5)/tsLength,
+                -1,
+                1.03*spExp*Math.sqrt(4*6)/tsLength};
+        
+        final double[] wordSpLim = new double[] {-1,
+                wordSpIncr*spExp*Math.sqrt(4*8)/tsLength,
+                wordSpIncr*spExp*Math.sqrt(5*9)/tsLength,
+                -1,
+                wordSpIncr*spExp*Math.sqrt(6*10)/tsLength};
+        
         for (Integer key : tones.navigableKeySet()) {
 
             if (prevKey == null) {
@@ -468,12 +485,14 @@ public final class IntegratingDecoder extends DecoderBase {
                 lsqPlotHelper(tb);
 
             } else if (prevKey != null) {
-                final int toneDistSlices = toneBegin(key, tones) - toneEnd(prevKey, tones);
+                final int toneDistSlices = toneCenter(key, tones) - toneCenter(prevKey, tones);
+                final ToneBase prevTb = tones.get(prevKey);
+                final ToneBase thisTb = tones.get(key);
                 if (histEntries != null) {
                     histEntries.addEntry(0, toneDistSlices);
                 }
 
-                if (toneDistSlices > wordSpaceLimit) {
+                if (toneDistSlices > wordSpLim[prevTb.key * thisTb.key]) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
                             ? offset + (int) Math.round(key*tsLength*tuMillis/1000)
                             : -1;
@@ -493,7 +512,7 @@ public final class IntegratingDecoder extends DecoderBase {
                     qCharBegin = toneBegin(key, tones);
                     lsqPlotHelper(tb);
 
-                } else if (toneDistSlices > charSpaceLimit) {
+                } else if (toneDistSlices > charSpLim[prevTb.key * thisTb.key]) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;
                     wpm.spCusC += 3;
@@ -602,6 +621,11 @@ public final class IntegratingDecoder extends DecoderBase {
     private int toneEnd(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
         return tone.drop;
+    }
+    
+    private int toneCenter(Integer key, NavigableMap<Integer, ToneBase> tones) {
+        ToneBase tone = tones.get(key);
+        return tone.k;
     }
 
 }

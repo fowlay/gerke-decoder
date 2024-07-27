@@ -9,9 +9,11 @@ import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.HistEntries;
 
 /**
- * Represents a dot, centered at index k. The extent is implied.
+ * Represents a dot.
  */
 public final class Dot extends ToneBase {
+    
+    private static final int KEY = 1;
 
 	public Dot(int k, int rise, int drop) {
         super(k, rise, drop);
@@ -22,7 +24,7 @@ public final class Dot extends ToneBase {
     }
     
     public Dot(int rise, int drop, double strength) {
-        super(Compute.iAve(rise, drop), rise, drop, strength);
+        super(rise, drop, strength, KEY);
     }
 
     public Dot(int k, int rise, int drop, HistEntries histEntries) {
