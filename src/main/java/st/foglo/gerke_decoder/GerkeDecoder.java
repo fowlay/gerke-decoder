@@ -284,7 +284,7 @@ public final class GerkeDecoder {
         new SingleValueOption("C", O_COHSIZE, "0.8");
         new SingleValueOption("G", O_SEGSIZE, "3.0");
 
-        new SingleValueOption("D", O_DECODER, "6");
+        new SingleValueOption("D", O_DECODER, "7");
 
         new SingleValueOption("u", O_LEVEL, "1.0");
 

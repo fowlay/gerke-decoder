@@ -85,8 +85,8 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 ## Quick test
 
 test: gerke-decoder.jar bin/gerke-decoder grimeton-clip.wav
-	opts="-D6 -l88 -w15.3 -TL,999" && \
-	expected=a7049dadae84e5ee1139bb76a96d7461 && \
+	opts="-D7 -l88 -w15.3 -TL,999" && \
+	expected=f0d99014b559f4fb74fea7bb78d3a83b && \
 	for cmd in "bin/gerke-decoder" "java -jar gerke-decoder.jar"; do \
 	    cleartext=$$($$cmd $$opts grimeton-clip.wav); \
 	    echo $$cleartext; \
