@@ -147,6 +147,26 @@ public final class Wav {
                 }
             }
         }
+        else if (bpf == 6 && nch == 2) {
+            // 2 channels, 24 bits per channel, drop the least significant bytes
+            final int blockSize = bpf*frameRate;
+            for (int k = 0; true; k += blockSize) {
+                final byte[] b = new byte[blockSize];
+                final int nRead = ais.read(b, 0, blockSize);
+                if (k >= offsetFrames*bpf) {
+                    if (nRead == -1 || frameCount == nofFrames) {
+                        break;
+                    }
+                    for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
+                        final int left = (256*b[bpf*j+2] + (b[bpf*j+1] < 0 ? (b[bpf*j+1] + 256) : b[bpf*j+1]));
+                        final int right = (256*b[bpf*j+5] + (b[bpf*j+4] < 0 ? (b[bpf*j+4] + 256) : b[bpf*j+4]));
+                        wav[k/bpf - offsetFrames + j] =
+                                (short) ((left + right)/2);
+                        frameCount++;
+                    }
+                }
+            }
+        }
         else {
             ais.close();
             new Death("cannot handle bytesPerFrame: %d, nofChannels: %d", bpf, nch);

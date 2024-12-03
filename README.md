@@ -41,6 +41,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.1</td><td>Internal consistency fix, tweak parameters</td></tr>
 <tr><td>3.2.2</td><td>Fix Makefile issue</td></tr>
 <tr><td>3.2.3</td><td>Take tone separation from tone midpoints</td></tr>
+<tr><td>3.2.4</td><td>Handle 24-bit 2-channel WAV, decode ..--. to '!'</td></tr>
 </table>
 
 ## Platforms

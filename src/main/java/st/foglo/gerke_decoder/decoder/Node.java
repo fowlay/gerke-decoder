@@ -153,7 +153,9 @@ public final class Node {
 
         new Node("'", ".----.");
 
-        new Node(Compute.encodeLetter(240), "..--.");
+        // https://sv.rilpedia.org/wiki/Morsealfabetet#Inofficiella_tecken
+        new Node("!", "..--.");
+
         new Node("?", "..--..");
 
         new Node(null, ".-..-");
