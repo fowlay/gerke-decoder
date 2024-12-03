@@ -128,6 +128,24 @@ public final class Wav {
                 }
             }
         }
+        else if (bpf == 3 && nch == 1) {
+         // 1 channel, 24 bits per channel, drop the least significant byte
+            final int blockSize = bpf*frameRate;
+            for (int k = 0; true; k += blockSize) {
+                final byte[] b = new byte[blockSize];
+                final int nRead = ais.read(b, 0, blockSize);
+                if (k >= offsetFrames*bpf) {
+                    if (nRead == -1 || frameCount == nofFrames) {
+                        break;
+                    }
+                    for (int j = 0; j < nRead/bpf && frameCount < nofFrames; j++) {
+                        wav[k/bpf - offsetFrames + j] =
+                                (short) (256*b[bpf*j+2] + (b[bpf*j+1] < 0 ? (b[bpf*j+1] + 256) : b[bpf*j+1]));
+                        frameCount++;
+                    }
+                }
+            }
+        }
         else if (bpf == 4 && nch == 2) {
             final int blockSize = bpf*frameRate;
             for (int k = 0; true; k += blockSize) {
@@ -147,6 +165,7 @@ public final class Wav {
                 }
             }
         }
+
         else if (bpf == 6 && nch == 2) {
             // 2 channels, 24 bits per channel, drop the least significant bytes
             final int blockSize = bpf*frameRate;

@@ -42,6 +42,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.2</td><td>Fix Makefile issue</td></tr>
 <tr><td>3.2.3</td><td>Take tone separation from tone midpoints</td></tr>
 <tr><td>3.2.4</td><td>Handle 24-bit 2-channel WAV, decode ..--. to '!'</td></tr>
+<tr><td>3.2.5</td><td>Handle 24-bit 1-channel WAV</td></tr>
 </table>
 
 ## Platforms
