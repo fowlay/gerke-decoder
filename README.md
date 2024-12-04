@@ -43,6 +43,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.3</td><td>Take tone separation from tone midpoints</td></tr>
 <tr><td>3.2.4</td><td>Handle 24-bit 2-channel WAV, decode ..--. to '!'</td></tr>
 <tr><td>3.2.5</td><td>Handle 24-bit 1-channel WAV</td></tr>
+<tr><td>3.2.6</td><td>Build with Java 8 compatibility</td></tr>
 </table>
 
 ## Platforms
@@ -54,7 +55,8 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 
 ### Java
 
-OpenJDK version 11 or higher is recommended.
+OpenJDK version 11 or higher is recommended. Binaries are built with
+Java 8 compatibility.
 
 ### Optional: mpg123
 
