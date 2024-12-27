@@ -65,7 +65,7 @@ public abstract class DecoderBase implements Decoder {
         public int spCusC = 0;
 
         /**
-         * Actual nof. in-word-space ticks (slices)
+         * Actual nof. in-char-space ticks (slices)
          */
         public int spTicksC = 0;
 

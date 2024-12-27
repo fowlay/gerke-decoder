@@ -12,7 +12,9 @@ public abstract class ToneBase {
 
     public final int k;
     public final int rise;
+    public final int riseN;
     public final int drop;
+    public final int dropN;
     public final double strength;
     
     // Only the integrating decoder needs this
@@ -24,26 +26,21 @@ public abstract class ToneBase {
     
     // For cases where k is not the average of rise and drop
     public ToneBase(int k, int rise, int drop) {
-    	this(k, rise, drop, 0.0, Integer.MIN_VALUE);
+    	this(k, rise, rise, drop, drop, 0.0, Integer.MIN_VALUE);
     }
-    
-    public ToneBase(int rise, int drop, double strength) {
-        this(Compute.iAve(rise, drop), rise, drop, strength, Integer.MIN_VALUE);
-    }
-    
-    public ToneBase(int rise, int drop, double strength, int key) {
-        this(Compute.iAve(rise, drop), rise, drop, strength, key);
-    }
-    
-    public ToneBase(int k, int rise, int drop, double strength, int key) {
+
+    public ToneBase(int k, int rise, int riseN, int drop, int dropN, double strength, int key) {
         this.key = key;
         this.k = k;
         this.rise = rise;
+        this.riseN = riseN;
         this.drop = drop;
+        this.dropN = dropN;
         this.strength = strength;
         if (k < rise || k > drop) {
             throw new IllegalArgumentException(
-            		String.format("arguments: %d, %d, %d", k, rise, drop));
+                    String.format("arguments: %d, %d, %d, %d, %d, %f, %d",
+                            k, rise, riseN, drop, dropN, strength, key));
         }
     }
 

@@ -44,6 +44,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.4</td><td>Handle 24-bit 2-channel WAV, decode ..--. to '!'</td></tr>
 <tr><td>3.2.5</td><td>Handle 24-bit 1-channel WAV</td></tr>
 <tr><td>3.2.6</td><td>Build with Java 8 compatibility</td></tr>
+<tr><td>3.2.7</td><td>Improve timings summary</td></tr>
 </table>
 
 ## Platforms

@@ -1,11 +1,7 @@
 package st.foglo.gerke_decoder.decoder;
 
-import java.util.HashSet;
-import java.util.Set;
-
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightBase;
 import st.foglo.gerke_decoder.decoder.sliding_line.WeightDot;
-import st.foglo.gerke_decoder.lib.Compute;
 import st.foglo.gerke_decoder.plot.HistEntries;
 
 /**
@@ -16,15 +12,11 @@ public final class Dot extends ToneBase {
     private static final int KEY = 1;
 
 	public Dot(int k, int rise, int drop) {
-        super(k, rise, drop);
+        this(k, rise, rise, drop, drop, 0.0);
     }
-    
-    public Dot(int rise, int drop) {
-        super(Compute.iAve(rise, drop), rise, drop);
-    }
-    
-    public Dot(int rise, int drop, double strength) {
-        super(rise, drop, strength, KEY);
+
+    public Dot(int k, int rise, int riseN, int drop, int dropN, double strength) {
+        super(k, rise, riseN, drop, dropN, strength, KEY);
     }
 
     public Dot(int k, int rise, int drop, HistEntries histEntries) {

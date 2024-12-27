@@ -42,14 +42,9 @@ public final class IntegratingDecoder extends DecoderBase {
     final NavigableMap<Integer, ToneBase> tones = new TreeMap<Integer, ToneBase>();
 
     public IntegratingDecoder(
-
             double tuMillis, int framesPerSlice, double tsLength, int offset, Wav w, double[] sig,
             PlotEntries plotEntries, HistEntries histEntries, Formatter formatter,
-
-            int sigSize, double[] cei, double[] flo, double level, double ceilingMax
-
-    ) {
-
+            int sigSize, double[] cei, double[] flo, double level, double ceilingMax) {
         super(tuMillis, framesPerSlice, tsLength, offset, w, sig,
                 plotEntries, histEntries, formatter, cei, flo,
                 ceilingMax, THRESHOLD);
@@ -63,14 +58,18 @@ public final class IntegratingDecoder extends DecoderBase {
         final int number;
         final double alfa;
         final int kRise;
+        final int kRiseN;
         final int kDrop;
+        final int kDropN;
         final int k0;
 
-        Candidate(double strength, double alfa, int kRise, int kDrop, int k0) {
+        Candidate(double strength, double alfa, int kRise, int kRiseN, int kDrop, int kDropN, int k0) {
             this.strength = strength;
             this.alfa = alfa;
             this.kRise = kRise;
+            this.kRiseN = kRiseN;
             this.kDrop = kDrop;
+            this.kDropN = kDropN;
             this.k0 = k0;
             this.number = candCount++;
         }
@@ -172,7 +171,8 @@ public final class IntegratingDecoder extends DecoderBase {
 
         // find dash candidates
         
-        // finding dashes and finding dots can be done in parallel, but little time gained
+        // finding dashes and finding dots could be done in parallel,
+        // but little time would be gained
 
         final Set<Candidate> cands = new HashSet<Candidate>();
         final int k0Lowest = (int) Math.round(2.0*aMax*tsPerTu) + 1;
@@ -214,7 +214,13 @@ public final class IntegratingDecoder extends DecoderBase {
             } // end alfa loop
 
             if (bestStrength >= dashStrengthLimit) {
-                cands.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+                final int q3 = (int) Math.round(3*tsPerTu);
+                cands.add(new Candidate(bestStrength, bestA,
+                        bestKRise,
+                        k0 - q3/2,
+                        bestKDrop,
+                        k0 - q3/2 + q3,
+                        k0));
             }
         } // end loop over k
 
@@ -231,7 +237,7 @@ public final class IntegratingDecoder extends DecoderBase {
                 numPrev = c.number;
             }
 
-            dashes.put(Integer.valueOf(c.k0), new Dash(c.kRise, c.kDrop, c.strength));
+            dashes.put(Integer.valueOf(c.k0), new Dash(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
 
             // drop all candidates that would overlap
             // TODO, drop some more that would be very close to overlap
@@ -294,10 +300,13 @@ public final class IntegratingDecoder extends DecoderBase {
             if (bestStrength < dotStrengthLimit) {
                 continue;
             } else {
-                // candidates.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
-                // cmap.put(Double.valueOf(uniqueStrength), new Candidate(uniqueStrength, bestA,
-                // bestKRise, bestKDrop, k0));
-                cands.add(new Candidate(bestStrength, bestA, bestKRise, bestKDrop, k0));
+                final int q1 = (int) Math.round(1.0*tsPerTu);
+                cands.add(new Candidate(bestStrength, bestA,
+                        bestKRise,
+                        k0 - q1/2,
+                        bestKDrop,
+                        k0 + - q1/2 + q1,
+                        k0));
             }
 
         } // end loop over k
@@ -306,7 +315,7 @@ public final class IntegratingDecoder extends DecoderBase {
 
             final Candidate c = getStrongest(cands);
 
-            dots.put(Integer.valueOf(c.k0), new Dot(c.kRise, c.kDrop, c.strength));
+            dots.put(Integer.valueOf(c.k0), new Dot(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
 
             final List<Candidate> toBeRemoved = new ArrayList<Candidate>();
 
@@ -615,12 +624,12 @@ public final class IntegratingDecoder extends DecoderBase {
     // duplicated. Open code very simple function?
     private int toneBegin(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
-        return tone.rise;
+        return tone.riseN;
     }
 
     private int toneEnd(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
-        return tone.drop;
+        return tone.dropN;
     }
     
     private int toneCenter(Integer key, NavigableMap<Integer, ToneBase> tones) {
