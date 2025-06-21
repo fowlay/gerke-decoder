@@ -45,6 +45,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.5</td><td>Handle 24-bit 1-channel WAV</td></tr>
 <tr><td>3.2.6</td><td>Build with Java 8 compatibility</td></tr>
 <tr><td>3.2.7</td><td>Improve timings summary</td></tr>
+<tr><td>3.2.8</td><td>Robustness fix for 'make test'</td></tr>
 </table>
 
 ## Platforms

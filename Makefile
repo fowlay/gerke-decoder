@@ -86,15 +86,20 @@ apache-maven-$(APACHE_REL)/conf/settings.xml:
 
 test: gerke-decoder.jar bin/gerke-decoder grimeton-clip.wav
 	opts="-D7 -l88 -w15.3 -TL,999" && \
-	expected=f0d99014b559f4fb74fea7bb78d3a83b && \
+	expected=b1cf2e9f28e8559aae6e4c6527c85969 && \
 	for cmd in "bin/gerke-decoder" "java -jar gerke-decoder.jar"; do \
-	    cleartext=$$($$cmd $$opts grimeton-clip.wav); \
-	    echo $$cleartext; \
-	    md5=($$(echo $$cleartext | md5sum)); \
-	    if [ $${md5[0]} == $$expected ]; then \
+	    cleartext="$$($$cmd $$opts grimeton-clip.wav | tr -d '\r\n')"; \
+	    echo "$$cleartext"; \
+	    digest=$$(echo "$$cleartext" | \
+		      tr -d '\r\n' | \
+		      md5sum | \
+		      sed -e 's| .*||') ; \
+	    if [ $$digest = $$expected ]; then \
 		echo "test of '$$cmd' succeeded"; \
 	    else \
-		echo "unexpected digest for '$$cmd': $$md5, expected: $$expected"; false; break; \
+		echo "unexpected digest for '$$cmd': $$digest, expected: $$expected"; \
+                false; \
+                break; \
 	    fi; \
 	done
 
