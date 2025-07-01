@@ -110,7 +110,9 @@ public final class GerkeDecoder {
         DOT_LIMIT,
         DASH_LIMIT,
         TWO_DOTS_LIMIT,
-        PEAKING
+        PEAKING,
+        DOT_BASELINE,
+        DASH_BASELINE
     };
 
     static final String[] DECODER_NAME = new String[] {"",
@@ -266,7 +268,7 @@ public final class GerkeDecoder {
          * Note: Align with the top level pom.xml. Also update the
          * version history in README.md.
          */
-        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.8");
+        new VersionOption("V", O_VERSION, "gerke-decoder version 3.2.9");
 
         new SingleValueOption("o", O_OFFSET, "0");
         new SingleValueOption("l", O_LENGTH, "-1");
@@ -326,7 +328,9 @@ public final class GerkeDecoder {
                         ",0.22"+                    // dotStrengthLimit
                         ",0.29"+                    // dashStrengthLimit
                         ",1.12"+                    // twoDotsStrengthLimit
-                        ",1.3"                      // peaking
+                        ",1.3"+                     // peaking
+                        ",1.0"+                     // dotBaseline
+                        ",1.0"                      // dashBaseline
                 );
 
         new HelpOption(

@@ -161,6 +161,12 @@ public final class IntegratingDecoder extends DecoderBase {
 
         final double peaking = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.PEAKING.ordinal()];
+        
+        final double dotBaseline = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.DOT_BASELINE.ordinal()];
+
+        final double dashBaseline = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.DASH_BASELINE.ordinal()];
 
         // -----------------------------------------------
 
@@ -198,11 +204,11 @@ public final class IntegratingDecoder extends DecoderBase {
                     final double g = k < kRise ? -1.0 :
                         k < kDrop ? peaking*(1.0 - 0.45*h*h*h*h) :
                             -1.0;
-                    sum += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
+                    sum += g*(sig[k] - (flo[k] + u*0.5*dashBaseline*(cei[k] - flo[k])));
 
                     final double norm = k < kRise ? flo[k] : k < kDrop ? cei[k] : flo[k];
 
-                    sumNorm += g*(norm - (flo[k] + u*0.5*(cei[k] - flo[k])));
+                    sumNorm += g*(norm - (flo[k] + u*0.5*dashBaseline*(cei[k] - flo[k])));
                 }
                 final double strength = sum/sumNorm;
                 if (strength != bestStrength) {
@@ -282,11 +288,11 @@ public final class IntegratingDecoder extends DecoderBase {
 
                     final double g = k < kRise ? -1.0 : k < kDrop ? peaking*1.0 : -1.0;
 
-                    sum += g*(sig[k] - (flo[k] + u*0.5*(cei[k] - flo[k])));
+                    sum += g*(sig[k] - (flo[k] + u*0.5*dotBaseline*(cei[k] - flo[k])));
 
                     final double norm = k < kRise ? flo[k] : k < kDrop ? cei[k] : flo[k];
 
-                    sumNorm += g*(norm - (flo[k] + u*0.5*(cei[k] - flo[k])));
+                    sumNorm += g*(norm - (flo[k] + u*0.5*dotBaseline*(cei[k] - flo[k])));
                 }
                 final double strength = sum/sumNorm;
                 if (strength != bestStrength) {
