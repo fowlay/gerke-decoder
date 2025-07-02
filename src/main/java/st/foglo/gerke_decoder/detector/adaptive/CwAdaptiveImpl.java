@@ -75,6 +75,8 @@ public final class CwAdaptiveImpl extends DetectorBase {
             strengths.add(s.strength);
         }
 
+        // Would it be better to always create a dangling segment?
+        // Currently there are two workarounds for the no-dangling-segment case.
         if (w.nofFrames - base >= framesPerSlice*cohFactor) {
             // create one dangling segment
             final int nofChunk = (w.nofFrames - base)/(cohFactor*framesPerSlice);
@@ -144,7 +146,16 @@ public final class CwAdaptiveImpl extends DetectorBase {
             final int wavIndex = q*framesPerSlice;
             final double freq = getFreq(wavIndex);
             final int segIndex = wavIndex/(segFactor*cohFactor*framesPerSlice);
-            final Segment seg = segments.get(segIndex);
+            
+            // workaround for the no-dangling-segment case
+            final Segment seg;
+            if (segIndex >= segments.size()) {
+                seg = segments.get(segments.size() - 1);
+            }
+            else {
+                seg = segments.get(segIndex);
+            }
+            
             sig[q] = getStrength(q, freq, seg.clipLevel);
         }
 
@@ -158,7 +169,9 @@ public final class CwAdaptiveImpl extends DetectorBase {
      */
     private double getFreq(int wavIndex) {
 
-        int segIndex = wavIndex/(segFactor*cohFactor*framesPerSlice);
+        // workaround for the no-dangling-segment case
+        final int segIndex0 = wavIndex/(segFactor*cohFactor*framesPerSlice);
+        final int segIndex = segIndex0 >= segments.size() ? segIndex0 - 1 : segIndex0;
 
         Segment s = segments.get(segIndex);
 
