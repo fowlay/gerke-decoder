@@ -141,18 +141,24 @@ public final class IntegratingDecoder extends DecoderBase {
 
         final double u = level;
 
-        final double aMin = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MIN.ordinal()];
-        
-        final double aMax = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MAX.ordinal()];
-        
+        final double aMinDot = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.ALFA_MIN_DOT.ordinal()];
+
+        final double aMaxDot = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.ALFA_MAX_DOT.ordinal()];
+
+        final double aMinDash = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.ALFA_MIN_DASH.ordinal()];
+
+        final double aMaxDash = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
+                [HiddenOpts.ALFA_MAX_DASH.ordinal()];
+
         final double aDelta = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.ALFA_STEP.ordinal()];
 
         final double dotStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.DOT_LIMIT.ordinal()];
-        
+
         final double dashStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.DASH_LIMIT.ordinal()];
 
@@ -161,7 +167,7 @@ public final class IntegratingDecoder extends DecoderBase {
 
         final double peaking = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.PEAKING.ordinal()];
-        
+
         final double dotBaseline = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
                 [HiddenOpts.DOT_BASELINE.ordinal()];
 
@@ -176,13 +182,13 @@ public final class IntegratingDecoder extends DecoderBase {
         final double tsPerTu = 1.0/tsLength;
 
         // find dash candidates
-        
+
         // finding dashes and finding dots could be done in parallel,
         // but little time would be gained
 
         final Set<Candidate> cands = new HashSet<Candidate>();
-        final int k0Lowest = (int) Math.round(2.0*aMax*tsPerTu) + 1;
-        final int k0Highest = sigSize - (int) Math.round(2.0*aMax*tsPerTu) - 1;
+        final int k0Lowest = (int) Math.round(2.0*aMaxDash*tsPerTu) + 1;
+        final int k0Highest = sigSize - (int) Math.round(2.0*aMaxDash*tsPerTu) - 1;
 
         for (int k0 = k0Lowest; k0 < k0Highest; k0++) {
 
@@ -191,7 +197,7 @@ public final class IntegratingDecoder extends DecoderBase {
             int bestKRise = Integer.MIN_VALUE;
             int bestKDrop = Integer.MIN_VALUE;
 
-            for (double a = aMin; a <= aMax; a += aDelta) {
+            for (double a = aMinDash; a <= aMaxDash; a += aDelta) {
                 double sum = 0.0;
                 double sumNorm = 0.0;
                 final int kRise = k0 - (int) Math.round(1.5*a*tsPerTu);
@@ -268,8 +274,8 @@ public final class IntegratingDecoder extends DecoderBase {
 
         // now find the dots
 
-        final int k0LowestDots = (int) Math.round(1.0*aMax*tsPerTu) + 1;
-        final int k0HighestDots = sigSize - (int) Math.round(1.0*aMax*tsPerTu) - 1;
+        final int k0LowestDots = (int) Math.round(1.0*aMaxDot*tsPerTu) + 1;
+        final int k0HighestDots = sigSize - (int) Math.round(1.0*aMaxDot*tsPerTu) - 1;
         for (int k0 = k0LowestDots; k0 < k0HighestDots; k0++) {
 
             double bestStrength = Double.MIN_VALUE;
@@ -277,7 +283,7 @@ public final class IntegratingDecoder extends DecoderBase {
             int bestKRise = Integer.MIN_VALUE;
             int bestKDrop = Integer.MIN_VALUE;
 
-            for (double a = aMin; a <= aMax; a += aDelta) {
+            for (double a = aMinDot; a <= aMaxDot; a += aDelta) {
                 double sum = 0.0;
                 double sumNorm = 0.0;
                 final int kRise = k0 - (int) Math.round(0.5*a*tsPerTu);
@@ -368,9 +374,9 @@ public final class IntegratingDecoder extends DecoderBase {
                 }
             }
         }
-        
+
         // a dot may clash with two dashes at most; remove such dots
-        
+
         final List<Integer> dotsToRemove = new ArrayList<Integer>();
         for (Dot dot : dots.values()) {
             if (dot.clashers.size() > 1) {
@@ -387,7 +393,7 @@ public final class IntegratingDecoder extends DecoderBase {
                 }
             }
         }
-        
+
         for (Integer j : dotsToRemove) {
             notNull(dots.remove(j));
         }
@@ -473,21 +479,21 @@ public final class IntegratingDecoder extends DecoderBase {
         Integer prevKey = null;
         //final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
         //final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
-        
+
         final double wordSpIncr = 1.1;
-        
+
         final double[] charSpLim = new double[] {-1,
                 0.95*spExp*Math.sqrt(2*4)/tsLength,
                 0.98*spExp*Math.sqrt(3*5)/tsLength,
                 -1,
                 1.03*spExp*Math.sqrt(4*6)/tsLength};
-        
+
         final double[] wordSpLim = new double[] {-1,
                 wordSpIncr*spExp*Math.sqrt(4*8)/tsLength,
                 wordSpIncr*spExp*Math.sqrt(5*9)/tsLength,
                 -1,
                 wordSpIncr*spExp*Math.sqrt(6*10)/tsLength};
-        
+
         for (Integer key : tones.navigableKeySet()) {
 
             if (prevKey == null) {
@@ -507,7 +513,7 @@ public final class IntegratingDecoder extends DecoderBase {
                     histEntries.addEntry(0, toneDistSlices);
                 }
 
-                if (toneDistSlices > wordSpLim[prevTb.key * thisTb.key]) {
+                if (toneDistSlices > wordSpLim[prevTb.key*thisTb.key]) {
                     final int ts = GerkeLib.getFlag(GerkeDecoder.O_TSTAMPS)
                             ? offset + (int) Math.round(key*tsLength*tuMillis/1000)
                             : -1;
@@ -527,7 +533,7 @@ public final class IntegratingDecoder extends DecoderBase {
                     qCharBegin = toneBegin(key, tones);
                     lsqPlotHelper(tb);
 
-                } else if (toneDistSlices > charSpLim[prevTb.key * thisTb.key]) {
+                } else if (toneDistSlices > charSpLim[prevTb.key*thisTb.key]) {
                     formatter.add(false, p.text, -1);
                     wpm.chCus += p.nTus;
                     wpm.spCusC += 3;
@@ -637,7 +643,7 @@ public final class IntegratingDecoder extends DecoderBase {
         ToneBase tone = tones.get(key);
         return tone.dropN;
     }
-    
+
     private int toneCenter(Integer key, NavigableMap<Integer, ToneBase> tones) {
         ToneBase tone = tones.get(key);
         return tone.k;

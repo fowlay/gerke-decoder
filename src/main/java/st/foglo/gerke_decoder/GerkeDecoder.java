@@ -104,8 +104,10 @@ public final class GerkeDecoder {
         HALF_WIDTH,
         SPIKE_WIDTH_MAX,
         CRACK_WIDTH_MAX,
-        ALFA_MIN,
-        ALFA_MAX,
+        ALFA_MIN_DOT,
+        ALFA_MAX_DOT,
+        ALFA_MIN_DASH,
+        ALFA_MAX_DASH,
         ALFA_STEP,
         DOT_LIMIT,
         DASH_LIMIT,
@@ -322,8 +324,10 @@ public final class GerkeDecoder {
                         ",0.33"+                    // crack width max         .... maybe lower?
                         
                                                     // Options used by the integrating decoder
-                        ",0.88"+                    // alfaMin
-                        ",1.16"+                    // alfaMax
+                        ",0.88"+                    // alfaMinDot
+                        ",1.16"+                    // alfaMaxDot
+                        ",0.88"+                    // alfaMinDash
+                        ",1.16"+                    // alfaMaxDash
                         ",0.02"+                    // alfaStep
                         ",0.22"+                    // dotStrengthLimit
                         ",0.29"+                    // dashStrengthLimit
