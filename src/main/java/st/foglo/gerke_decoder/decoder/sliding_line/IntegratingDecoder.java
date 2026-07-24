@@ -63,7 +63,8 @@ public final class IntegratingDecoder extends DecoderBase {
         final int kDropN;
         final int k0;
 
-        Candidate(double strength, double alfa, int kRise, int kRiseN, int kDrop, int kDropN, int k0) {
+        Candidate(double strength, double alfa, int kRise, int kRiseN, int kDrop, int kDropN,
+                int k0) {
             this.strength = strength;
             this.alfa = alfa;
             this.kRise = kRise;
@@ -141,38 +142,38 @@ public final class IntegratingDecoder extends DecoderBase {
 
         final double u = level;
 
-        final double aMinDot = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MIN_DOT.ordinal()];
+        final double aMinDot = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MIN_DOT.ordinal()];
 
-        final double aMaxDot = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MAX_DOT.ordinal()];
+        final double aMaxDot = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MAX_DOT.ordinal()];
 
-        final double aMinDash = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MIN_DASH.ordinal()];
+        final double aMinDash = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MIN_DASH.ordinal()];
 
-        final double aMaxDash = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_MAX_DASH.ordinal()];
+        final double aMaxDash = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_MAX_DASH.ordinal()];
 
-        final double aDelta = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.ALFA_STEP.ordinal()];
+        final double aDelta =
+                GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.ALFA_STEP.ordinal()];
 
-        final double dotStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.DOT_LIMIT.ordinal()];
+        final double dotStrengthLimit =
+                GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DOT_LIMIT.ordinal()];
 
-        final double dashStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.DASH_LIMIT.ordinal()];
+        final double dashStrengthLimit =
+                GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DASH_LIMIT.ordinal()];
 
-        final double twoDotsStrengthLimit = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.TWO_DOTS_LIMIT.ordinal()];
+        final double twoDotsStrengthLimit = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.TWO_DOTS_LIMIT.ordinal()];
 
-        final double peaking = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.PEAKING.ordinal()];
+        final double peaking =
+                GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.PEAKING.ordinal()];
 
-        final double dotBaseline = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.DOT_BASELINE.ordinal()];
+        final double dotBaseline = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DOT_BASELINE.ordinal()];
 
-        final double dashBaseline = GerkeLib.getDoubleOptMulti(GerkeDecoder.O_HIDDEN)
-                [HiddenOpts.DASH_BASELINE.ordinal()];
+        final double dashBaseline = GerkeLib
+                .getDoubleOptMulti(GerkeDecoder.O_HIDDEN)[HiddenOpts.DASH_BASELINE.ordinal()];
 
         // -----------------------------------------------
 
@@ -207,9 +208,8 @@ public final class IntegratingDecoder extends DecoderBase {
                         k < k0 + (int) Math.round(1.85*a*tsPerTu);
                         k++) {
                     final double h = ((double) (k - k0))/(kDrop - k0);
-                    final double g = k < kRise ? -1.0 :
-                        k < kDrop ? peaking*(1.0 - 0.45*h*h*h*h) :
-                            -1.0;
+                    final double g =
+                            k < kRise ? -1.0 : k < kDrop ? peaking*(1.0 - 0.45*h*h*h*h) : -1.0;
                     sum += g*(sig[k] - (flo[k] + u*0.5*dashBaseline*(cei[k] - flo[k])));
 
                     final double norm = k < kRise ? flo[k] : k < kDrop ? cei[k] : flo[k];
@@ -249,7 +249,8 @@ public final class IntegratingDecoder extends DecoderBase {
                 numPrev = c.number;
             }
 
-            dashes.put(Integer.valueOf(c.k0), new Dash(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
+            dashes.put(Integer.valueOf(c.k0),
+                    new Dash(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
 
             // drop all candidates that would overlap
             // TODO, drop some more that would be very close to overlap
@@ -317,7 +318,7 @@ public final class IntegratingDecoder extends DecoderBase {
                         bestKRise,
                         k0 - q1/2,
                         bestKDrop,
-                        k0 + - q1/2 + q1,
+                        k0 - q1/2 + q1,
                         k0));
             }
 
@@ -327,7 +328,8 @@ public final class IntegratingDecoder extends DecoderBase {
 
             final Candidate c = getStrongest(cands);
 
-            dots.put(Integer.valueOf(c.k0), new Dot(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
+            dots.put(Integer.valueOf(c.k0),
+                    new Dot(c.k0, c.kRise, c.kRiseN, c.kDrop, c.kDropN, c.strength));
 
             final List<Candidate> toBeRemoved = new ArrayList<Candidate>();
 
@@ -477,8 +479,8 @@ public final class IntegratingDecoder extends DecoderBase {
         Node p = Node.tree;
         int qCharBegin = -999999;
         Integer prevKey = null;
-        //final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
-        //final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
+        // final double wordSpaceLimit = spExp*GerkeDecoder.WORD_SPACE_LIMIT[decoder]/tsLength;
+        // final double charSpaceLimit = spExp*GerkeDecoder.CHAR_SPACE_LIMIT[decoder]/tsLength;
 
         final double wordSpIncr = 1.1;
 
