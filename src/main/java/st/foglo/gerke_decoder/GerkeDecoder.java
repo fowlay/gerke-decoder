@@ -325,13 +325,13 @@ public final class GerkeDecoder {
                         
                                                     // Options used by the integrating decoder
                         ",0.88"+                    // alfaMinDot
-                        ",1.16"+                    // alfaMaxDot
+                        ",1.17"+                    // alfaMaxDot
                         ",0.88"+                    // alfaMinDash
                         ",1.16"+                    // alfaMaxDash
                         ",0.02"+                    // alfaStep
                         ",0.22"+                    // dotStrengthLimit
                         ",0.29"+                    // dashStrengthLimit
-                        ",1.12"+                    // twoDotsStrengthLimit
+                        ",1.14"+                    // twoDotsStrengthLimit
                         ",1.3"+                     // peaking
                         ",1.0"+                     // dotBaseline
                         ",1.0"                      // dashBaseline
