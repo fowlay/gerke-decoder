@@ -48,6 +48,7 @@ Copyright (C) 2020-2024 Rabbe Fogelholm
 <tr><td>3.2.8</td><td>Robustness fix for 'make test'</td></tr>
 <tr><td>3.2.9</td><td>More integrating decoder hidden parameters</td></tr>
 <tr><td>3.2.10</td><td>Fix for crash at certain wave file lengths</td></tr>
+<tr><td>3.2.11</td><td>Improve values for hidden parameters</td></tr>
 </table>
 
 ## Platforms
